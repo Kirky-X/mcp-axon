@@ -143,3 +143,24 @@ requirements.db
 config.yaml
 IFLOW.md
 uv.lock
+
+# Temporary scripts and cleanup files
+add_copyright_headers.py
+clean_duplicate_copyright.py
+update_remaining_copyright.py
+update_to_simple_copyright.py
+
+# Audit and analysis reports (optional, uncomment if you want to ignore them)
+# CODE_AUDIT_REPORT.md
+# CODE_FIX_SUMMARY.md
+# FILE_STRUCTURE_ANALYSIS.md
+# FINAL_AUDIT_REPORT.md
+# OPTIMIZATION_SUMMARY.md
+# TEST_COVERAGE_PLAN.md
+
+# Development documentation files
+docs/prd.md
+docs/task.md
+docs/test.md
+docs/tdd.md
+docs/uat.md

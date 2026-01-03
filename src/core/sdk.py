@@ -39,7 +39,7 @@ class RequirementSDK:
             # 初始化数据库
             from src.db.database import init_sync_db
 
-            init_sync_db(db_path, echo=False)
+            init_sync_db(self.db_path, echo=False)
         except Exception as e:
             logger.error(f"数据库初始化失败: {e}")
             raise RuntimeError(f"无法初始化数据库: {e}")
@@ -211,6 +211,30 @@ class RequirementSDK:
         """
         with get_session() as session:
             return self.requirement_manager.delete_requirement(session, requirement_id)
+
+    def list_requirements(
+        self,
+        project_id: str,
+        status: Optional[str] = None,
+        is_leaf: Optional[bool] = None,
+        parent_id: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """
+        列出项目的所有需求
+
+        Args:
+            project_id: 项目 ID
+            status: 按状态过滤（可选）
+            is_leaf: 是否只返回叶子节点（可选）
+            parent_id: 父需求 ID（可选）
+
+        Returns:
+            需求列表
+        """
+        with get_session() as session:
+            return self.requirement_manager.list_requirements(
+                session, project_id, status, is_leaf, parent_id
+            )
 
     def add_validation(
         self,

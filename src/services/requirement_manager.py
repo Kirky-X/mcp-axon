@@ -582,3 +582,69 @@ class RequirementManager:
             "updated": updated_requirements,
             "failed_details": failed_requirements,
         }
+
+    def list_requirements(
+        self,
+        session: Session,
+        project_id: str,
+        status: Optional[str] = None,
+        is_leaf: Optional[bool] = None,
+        parent_id: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """
+        列出项目的所有需求
+
+        Args:
+            session: 数据库会话
+            project_id: 项目 ID
+            status: 按状态过滤（可选）
+            is_leaf: 是否只返回叶子节点（可选）
+            parent_id: 父需求 ID（可选，只返回直接子需求）
+
+        Returns:
+            需求列表
+        """
+        # 验证项目存在
+        project = session.query(Project).filter_by(id=project_id).first()
+        if not project:
+            raise ValueError(f"项目不存在: {project_id}")
+
+        # 构建查询
+        query = session.query(Requirement).filter(Requirement.project_id == project_id)
+
+        # 应用过滤条件
+        if status:
+            query = query.filter(Requirement.status == status)
+
+        if is_leaf is not None:
+            if is_leaf:
+                query = query.filter(Requirement.status == RequirementStatus.LEAF.value)
+            else:
+                query = query.filter(Requirement.status != RequirementStatus.LEAF.value)
+
+        if parent_id:
+            query = query.filter(Requirement.parent_id == parent_id)
+
+        # 按创建时间排序
+        requirements = query.order_by(Requirement.created_at.asc()).all()
+
+        # 构建返回结果
+        requirement_list = [
+            {
+                "id": req.id,
+                "content": req.content,
+                "status": req.status,
+                "level": req.level,
+                "parent_id": req.parent_id,
+                "order_in_parent": req.order_in_parent,
+                "created_at": req.created_at.isoformat(),
+                "updated_at": req.updated_at.isoformat(),
+            }
+            for req in requirements
+        ]
+
+        return {
+            "project_id": project_id,
+            "total": len(requirement_list),
+            "requirements": requirement_list,
+        }

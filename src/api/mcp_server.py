@@ -513,6 +513,14 @@ async def execute_tool(name: str, arguments: dict) -> dict:
     elif name == "get_project":
         return get_sdk().get_project(project_id=arguments["project_id"])
 
+    elif name == "list_requirements":
+        return get_sdk().list_requirements(
+            project_id=arguments["project_id"],
+            status=arguments.get("status"),
+            is_leaf=arguments.get("is_leaf"),
+            parent_id=arguments.get("parent_id"),
+        )
+
     elif name == "add_requirement":
         return get_sdk().add_requirement(
             project_id=arguments["project_id"],

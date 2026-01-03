@@ -50,6 +50,20 @@ TOOL_DEFINITIONS = [
         },
     ),
     Tool(
+        name="list_requirements",
+        description="获取项目的所有需求节点 ID 列表。可选过滤条件：status（状态）、is_leaf（是否叶子节点）、parent_id（父需求 ID）。",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "project_id": {"type": "string", "description": "项目 ID（必填）"},
+                "status": {"type": "string", "description": "按状态过滤（可选）：DRAFT, DECOMPOSING, LEAF, VALIDATED, CHAINED, COMPLETED"},
+                "is_leaf": {"type": "boolean", "description": "是否只返回叶子节点（可选）"},
+                "parent_id": {"type": "string", "description": "父需求 ID（可选，只返回该需求的直接子需求）"},
+            },
+            "required": ["project_id"],
+        },
+    ),
+    Tool(
         name="add_requirement",
         description="添加需求节点。系统会自动评估需求复杂度，如果复杂度较高会建议分解。返回结果包含是否需要分解的提示。",
         inputSchema={

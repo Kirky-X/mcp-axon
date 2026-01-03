@@ -106,6 +106,40 @@ print(f"下一个需求: {next_req}")
 
 ---
 
+### MCP 客户端配置
+
+在 Claude Desktop 或其他 MCP 客户端中使用以下配置：
+
+```json
+{
+  "mcpServers": {
+    "mcp-axon": {
+      "command": "uv",
+      "args": [
+        "run",
+        "--isolated",
+        "--with",
+        ".",
+        "python",
+        "-m",
+        "src.api.mcp_server"
+      ],
+      "env": {
+        "DB_PATH": "requirements.db",
+        "LOG_LEVEL": "INFO"
+      }
+    }
+  }
+}
+```
+
+**说明**:
+- `--isolated`: 隔离模式，不使用项目的虚拟环境
+- `DB_PATH`: 数据库文件路径（可选，默认 `requirements.db`）
+- `LOG_LEVEL`: 日志级别（可选，默认 `INFO`）
+
+---
+
 ## 📚 文档
 
 | 文档 | 说明 |

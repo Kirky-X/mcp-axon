@@ -1,0 +1,57 @@
+# MCP-Axon 性能调优配置
+
+# 数据库配置
+database:
+  pool_size: 5              # 连接池大小
+  max_overflow: 10          # 最大溢出连接数
+  pool_timeout: 30          # 连接超时时间（秒）
+  pool_recycle: 3600        # 连接回收时间（秒）
+  echo: false               # 是否输出 SQL 日志
+
+# 缓存配置
+cache:
+  enabled: true             # 是否启用缓存
+  max_size: 1000            # 最大缓存条目数
+  ttl_seconds: 300          # 缓存过期时间（秒）
+
+# 限流配置
+rate_limiting:
+  enabled: true             # 是否启用限流
+  max_requests: 100         # 时间窗口内最大请求数
+  window_seconds: 60        # 时间窗口（秒）
+
+# 性能阈值
+performance_thresholds:
+  slow_operation: 1.0       # 慢操作阈值（秒）
+  slow_db_query: 0.5        # 慢查询阈值（秒）
+  slow_api_call: 0.5        # 慢 API 调用阈值（秒）
+
+# 图算法配置
+graph:
+  max_nodes: 10000          # 图最大节点数
+  max_edges: 50000          # 图最大边数
+
+# 链化配置
+chaining:
+  batch_size: 100           # 批处理大小
+  max_retries: 3            # 最大重试次数
+  retry_delay: 1            # 重试延迟（秒）
+
+# 日志配置
+logging:
+  level: INFO               # 日志级别
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+
+# 监控配置
+monitoring:
+  enabled: true             # 是否启用监控
+  export_interval: 60       # 指标导出间隔（秒）
+  prometheus_port: 9090     # Prometheus 端口
+
+# 安全配置
+security:
+  input_validation: true    # 是否启用输入验证
+  xss_protection: true      # 是否启用 XSS 防护
+  sql_injection_protection: true  # 是否启用 SQL 注入防护
+  max_content_length: 5000  # 最大内容长度
+  max_name_length: 200      # 最大名称长度

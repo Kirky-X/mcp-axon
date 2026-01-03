@@ -4,19 +4,18 @@
 
 """MCP-Axon 主入口"""
 
+import argparse
 import asyncio
 import logging
 import sys
-import argparse
 
 from src.api.mcp_server import main as server_main
-from src.db.database import init_sync_db, init_async_db, create_tables_async
 from src.core.sdk import RequirementSDK
+from src.db.database import create_tables_async, init_async_db, init_sync_db
 
 # 配置日志
 logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
 
@@ -68,7 +67,7 @@ def run_tests():
     logger.info("运行测试...")
     result = subprocess.run(
         ["pytest", "tests/", "-v", "--cov=src", "--cov-report=term-missing"],
-        cwd="/home/project/mcp-axon"
+        cwd="/home/project/mcp-axon",
     )
 
     sys.exit(result.returncode)
@@ -76,21 +75,13 @@ def run_tests():
 
 def main():
     """主函数"""
-    parser = argparse.ArgumentParser(
-        description="MCP-Axon - 需求链化管理系统"
-    )
+    parser = argparse.ArgumentParser(description="MCP-Axon - 需求链化管理系统")
 
     parser.add_argument(
-        "command",
-        choices=["init", "server", "test", "demo"],
-        help="命令"
+        "command", choices=["init", "server", "test", "demo"], help="命令"
     )
 
-    parser.add_argument(
-        "--db-path",
-        default="requirements.db",
-        help="数据库文件路径"
-    )
+    parser.add_argument("--db-path", default="requirements.db", help="数据库文件路径")
 
     args = parser.parse_args()
 
@@ -123,10 +114,7 @@ def run_demo(db_path: str):
 
     # 1. 创建项目
     print("\n=== 1. 创建项目 ===")
-    project = sdk.create_project(
-        name="演示项目",
-        description="这是一个演示项目"
-    )
+    project = sdk.create_project(name="演示项目", description="这是一个演示项目")
     print(f"项目创建成功: {project['project_id']}")
     print(f"项目名称: {project['name']}")
     print(f"下一步: {project['next_action']}")
@@ -134,8 +122,7 @@ def run_demo(db_path: str):
     # 2. 添加根需求
     print("\n=== 2. 添加根需求 ===")
     root_req = sdk.add_requirement(
-        project_id=project["project_id"],
-        content="实现用户管理系统"
+        project_id=project["project_id"], content="实现用户管理系统"
     )
     print(f"需求添加成功: {root_req['requirement_id']}")
     print(f"复杂度分数: {root_req['complexity_score']}")
@@ -147,14 +134,14 @@ def run_demo(db_path: str):
     child1 = sdk.add_requirement(
         project_id=project["project_id"],
         content="用户注册功能",
-        parent_id=root_req["requirement_id"]
+        parent_id=root_req["requirement_id"],
     )
     print(f"子需求1: {child1['requirement_id']}")
 
     child2 = sdk.add_requirement(
         project_id=project["project_id"],
         content="用户登录功能",
-        parent_id=root_req["requirement_id"]
+        parent_id=root_req["requirement_id"],
     )
     print(f"子需求2: {child2['requirement_id']}")
 
@@ -172,9 +159,9 @@ def run_demo(db_path: str):
             {
                 "name": "测试用户注册",
                 "steps": ["输入用户名", "输入密码", "点击注册"],
-                "expected_result": "注册成功"
+                "expected_result": "注册成功",
             }
-        ]
+        ],
     )
     print("子需求1验证添加成功")
 
@@ -184,9 +171,9 @@ def run_demo(db_path: str):
             {
                 "name": "测试用户登录",
                 "steps": ["输入用户名", "输入密码", "点击登录"],
-                "expected_result": "登录成功"
+                "expected_result": "登录成功",
             }
-        ]
+        ],
     )
     print("子需求2验证添加成功")
 

@@ -1,0 +1,69 @@
+# Prometheus 告警规则
+
+groups:
+  - name: mcp_axon_alerts
+    interval: 30s
+    rules:
+      # 慢操作告警
+      - alert: SlowOperationDetected
+        expr: mcp_axon_average_duration_seconds > 1.0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "检测到慢操作"
+          description: "平均操作时间超过 1 秒: {{ $value }} 秒"
+
+      # 高失败率告警
+      - alert: HighFailureRate
+        expr: |
+          (
+            rate(mcp_axon_failed_operations[5m]) /
+            rate(mcp_axon_total_operations[5m])
+          ) > 0.1
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "检测到高失败率"
+          description: "失败率超过 10%: {{ $value | humanizePercentage }}"
+
+      # 慢数据库查询告警
+      - alert: SlowDatabaseQuery
+        expr: mcp_axon_db_average_duration_seconds > 0.5
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "检测到慢数据库查询"
+          description: "平均数据库查询时间超过 0.5 秒: {{ $value }} 秒"
+
+      # 慢 API 响应告警
+      - alert: SlowAPIResponse
+        expr: mcp_axon_api_average_duration_seconds > 0.5
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "检测到慢 API 响应"
+          description: "平均 API 响应时间超过 0.5 秒: {{ $value }} 秒"
+
+      # 无操作告警
+      - alert: NoOperationsDetected
+        expr: rate(mcp_axon_total_operations[10m]) == 0
+        for: 10m
+        labels:
+          severity: info
+        annotations:
+          summary: "检测到无操作"
+          description: "过去 10 分钟内没有检测到任何操作"
+
+      # 数据库查询量告警
+      - alert: HighDatabaseQueryRate
+        expr: rate(mcp_axon_db_total_queries[1m]) > 100
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "检测到高数据库查询量"
+          description: "数据库查询速率超过 100 次/分钟: {{ $value }} 次/分钟"

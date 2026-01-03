@@ -33,9 +33,9 @@ if command -v uv &> /dev/null; then
     # 激活虚拟环境
     source .venv/bin/activate
 
-    # 安装依赖
+    # 安装依赖（使用 pyproject.toml）
     echo "安装依赖..."
-    uv pip install -r requirements.txt
+    uv pip install -e .[dev]
 
 else
     echo "未检测到 uv，使用 pip 进行安装..."
@@ -53,9 +53,9 @@ else
     echo "升级 pip..."
     pip install --upgrade pip
 
-    # 安装依赖
+    # 安装依赖（使用 pyproject.toml）
     echo "安装依赖..."
-    pip install -r requirements.txt
+    pip install -e .[dev]
 fi
 
 # 初始化数据库

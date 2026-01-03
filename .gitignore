@@ -1,3 +1,7 @@
+# =============================================================================
+# Python
+# =============================================================================
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
@@ -9,19 +13,8 @@ __pycache__/
 # Distribution / packaging
 .Python
 build/
-develop-eggs/
 dist/
-downloads/
 eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-pip-wheel-metadata/
-share/python-wheels/
 *.egg-info/
 .installed.cfg
 *.egg
@@ -31,35 +24,58 @@ MANIFEST
 *.manifest
 *.spec
 
-# Installer logs
+# pip
 pip-log.txt
 pip-delete-this-directory.txt
+pip-wheel-metadata/
 
-# Unit test / coverage reports
-htmlcov/
-.tox/
-.nox/
-.coverage
-.coverage.*
-.cache
-nosetests.xml
-coverage.xml
-*.cover
-*.py,cover
-.hypothesis/
-.pytest_cache/
-.benchmarks/
-
-# Virtual environments
+# venv / virtualenv
 .env
-.venv
-env/
+.venv/
 venv/
 ENV/
 env.bak/
 venv.bak/
 
-# IDEs
+# pytest
+.pytest_cache/
+.coverage
+.coverage.*
+*.cover
+htmlcov/
+.tox/
+.nox/
+.hypothesis/
+nosetests.xml
+coverage.xml
+.benchmarks/
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Ruff
+.ruff_cache/
+
+# uv
+uv.lock
+
+# ipython
+profile_default/
+ipython_config.py
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Celery
+celerybeat-schedule
+celerybeat.pid
+
+# =============================================================================
+# IDEs & Editors
+# =============================================================================
+
 .vscode/
 .idea/
 *.swp
@@ -71,27 +87,22 @@ venv.bak/
 *.sublime-project
 *.sublime-workspace
 
-# Database
+# =============================================================================
+# Databases & Logs
+# =============================================================================
+
 *.db
 *.sqlite
 *.sqlite3
-
-# Logs
 *.log
 logs/
 *.out
 *.err
 
-# Temporary files
-temp/
-tmp/
-*.tmp
-*.temp
-*.bak
-*.swp
-*.swo
+# =============================================================================
+# OS Generated
+# =============================================================================
 
-# OS generated files
 .DS_Store
 .DS_Store?
 ._*
@@ -100,65 +111,27 @@ tmp/
 ehthumbs.db
 Thumbs.db
 
-# Jupyter Notebook
-.ipynb_checkpoints
+# =============================================================================
+# Project Specific
+# =============================================================================
 
-# IPython
-profile_default/
-ipython_config.py
-
-# pyenv
-.python-version
-
-# pipenv
-Pipfile.lock
-
-# PEP 582
-__pypackages__/
-
-# Celery
-celerybeat-schedule
-celerybeat.pid
-
-# SageMath parsed files
-*.sage.py
-
-# Spyder project settings
-.spyderproject
-.spyproject
-
-# Rope project settings
-.ropeproject
-
-# mkdocs documentation
-/site
-
-# mypy
-.mypy_cache/
-.dmypy.json
-dmypy.json
-
-# Project specific
 requirements.db
 config.yaml
 IFLOW.md
-uv.lock
 
-# Temporary scripts and cleanup files
+# Development scripts (one-time use)
 add_copyright_headers.py
 clean_duplicate_copyright.py
 update_remaining_copyright.py
 update_to_simple_copyright.py
 
-# Audit and analysis reports (optional, uncomment if you want to ignore them)
+# Documentation (optional, uncomment if needed)
 # CODE_AUDIT_REPORT.md
 # CODE_FIX_SUMMARY.md
 # FILE_STRUCTURE_ANALYSIS.md
 # FINAL_AUDIT_REPORT.md
 # OPTIMIZATION_SUMMARY.md
 # TEST_COVERAGE_PLAN.md
-
-# Development documentation files
 docs/prd.md
 docs/task.md
 docs/test.md

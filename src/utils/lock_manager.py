@@ -7,9 +7,11 @@
 import logging
 from datetime import datetime, timedelta, timezone
 from typing import Optional
+
 from sqlalchemy.orm import Session
 
-from src.db.models import Project, Event
+from src.db.models import Project
+from src.utils.event_logger import log_event
 
 logger = logging.getLogger(__name__)
 
@@ -26,12 +28,7 @@ class ProjectLockManager:
         """
         self.timeout_minutes = timeout_minutes
 
-    def acquire_lock(
-        self,
-        session: Session,
-        project_id: str,
-        session_id: str
-    ) -> bool:
+    def acquire_lock(self, session: Session, project_id: str, session_id: str) -> bool:
         """
         获取项目锁
 
@@ -44,7 +41,10 @@ class ProjectLockManager:
             True: 锁获取成功
             False: 锁已被占用
         """
-        project = session.query(Project).filter_by(id=project_id).first()
+        # 使用 SELECT ... FOR UPDATE 来锁定行，防止竞态条件
+        project = (
+            session.query(Project).filter_by(id=project_id).with_for_update().first()
+        )
 
         if not project:
             raise ValueError(f"项目不存在: {project_id}")
@@ -62,6 +62,7 @@ class ProjectLockManager:
                     logger.warning(
                         f"项目锁已被占用: {project_id} by {project.locked_by}"
                     )
+                    session.rollback()
                     return False
 
         # 获取锁
@@ -69,15 +70,12 @@ class ProjectLockManager:
         project.locked_at = datetime.now(timezone.utc)
 
         # 记录事件
-        self._log_event(
+        log_event(
             session,
             project_id,
             "ProjectLockAcquired",
             project_id,
-            {
-                "session_id": session_id,
-                "timeout_minutes": self.timeout_minutes
-            }
+            {"session_id": session_id, "timeout_minutes": self.timeout_minutes},
         )
 
         session.commit()
@@ -86,12 +84,7 @@ class ProjectLockManager:
 
         return True
 
-    def release_lock(
-        self,
-        session: Session,
-        project_id: str,
-        session_id: str
-    ) -> bool:
+    def release_lock(self, session: Session, project_id: str, session_id: str) -> bool:
         """
         释放项目锁
 
@@ -120,14 +113,12 @@ class ProjectLockManager:
         project.locked_at = None
 
         # 记录事件
-        self._log_event(
+        log_event(
             session,
             project_id,
             "ProjectLockReleased",
             project_id,
-            {
-                "session_id": session_id
-            }
+            {"session_id": session_id},
         )
 
         session.commit()
@@ -136,11 +127,7 @@ class ProjectLockManager:
 
         return True
 
-    def is_locked(
-        self,
-        session: Session,
-        project_id: str
-    ) -> bool:
+    def is_locked(self, session: Session, project_id: str) -> bool:
         """
         检查项目是否被锁定
 
@@ -166,11 +153,7 @@ class ProjectLockManager:
 
         return True
 
-    def get_lock_info(
-        self,
-        session: Session,
-        project_id: str
-    ) -> Optional[dict]:
+    def get_lock_info(self, session: Session, project_id: str) -> Optional[dict]:
         """
         获取锁信息
 
@@ -190,7 +173,7 @@ class ProjectLockManager:
             return None
 
         # 检查锁是否已超时
-        if self._is_lock_expired(project.locked_at):
+        if project.locked_at is None or self._is_lock_expired(project.locked_at):
             return None
 
         # 确保 locked_at 是 timezone-aware datetime
@@ -208,7 +191,7 @@ class ProjectLockManager:
             "locked_at": locked_at.isoformat(),
             "elapsed_seconds": int(elapsed.total_seconds()),
             "remaining_seconds": max(0, int(remaining.total_seconds())),
-            "timeout_minutes": self.timeout_minutes
+            "timeout_minutes": self.timeout_minutes,
         }
 
     def cleanup_expired_locks(self, session: Session) -> int:
@@ -221,12 +204,15 @@ class ProjectLockManager:
         Returns:
             清理的锁数量
         """
-        expired_time = datetime.now(timezone.utc) - timedelta(minutes=self.timeout_minutes)
+        expired_time = datetime.now(timezone.utc) - timedelta(
+            minutes=self.timeout_minutes
+        )
 
-        expired_projects = session.query(Project).filter(
-            Project.locked_by.isnot(None),
-            Project.locked_at < expired_time
-        ).all()
+        expired_projects = (
+            session.query(Project)
+            .filter(Project.locked_by.isnot(None), Project.locked_at < expired_time)
+            .all()
+        )
 
         count = 0
         for project in expired_projects:
@@ -260,40 +246,3 @@ class ProjectLockManager:
 
         elapsed = datetime.now(timezone.utc) - locked_at
         return elapsed.total_seconds() > (self.timeout_minutes * 60)
-
-    def _log_event(
-        self,
-        session: Session,
-        project_id: str,
-        event_type: str,
-        aggregate_id: str,
-        payload: dict,
-        metadata: Optional[dict] = None
-    ):
-        """
-        记录事件
-
-        Args:
-            session: 数据库会话
-            project_id: 项目 ID
-            event_type: 事件类型
-            aggregate_id: 聚合根 ID
-            payload: 事件负载
-            metadata: 元数据
-        """
-        # 获取当前序列号
-        last_event = session.query(Event).filter_by(
-            project_id=project_id
-        ).order_by(Event.sequence.desc()).first()
-
-        sequence = (last_event.sequence + 1) if last_event else 1
-
-        event = Event(
-            project_id=project_id,
-            event_type=event_type,
-            aggregate_id=aggregate_id,
-            payload=payload,
-            event_metadata=metadata,
-            sequence=sequence
-        )
-        session.add(event)

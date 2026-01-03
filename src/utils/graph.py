@@ -4,25 +4,65 @@
 
 """图算法工具类"""
 
+import hashlib
 import logging
-from typing import Dict, List, Optional, Set
 from collections import deque
+from typing import Any, Dict, List, Optional, Set
 
 logger = logging.getLogger(__name__)
+
+# 图大小限制，防止 DoS 攻击
+MAX_GRAPH_NODES = 10000
+MAX_GRAPH_EDGES = 50000
+
+
+def _graph_key(graph: Dict[str, List[str]]) -> str:
+    """生成图的缓存键"""
+    # 将图转换为排序后的字符串表示
+    # 对节点和边进行排序以确保一致性
+    sorted_items = sorted(graph.items())
+    graph_str = str(sorted_items)
+    # 使用哈希作为键
+    return hashlib.md5(graph_str.encode()).hexdigest()
 
 
 class GraphAlgorithms:
     """图算法工具类"""
+
+    # 图大小限制（类常量）
+    MAX_NODES = MAX_GRAPH_NODES
+    MAX_EDGES = MAX_GRAPH_EDGES
 
     def __init__(self):
         """初始化图算法类，优先使用 NetworkX 版本（如果可用）"""
         # 检查 NetworkXGraphAlgorithms 是否可用（不是 None）
         self.use_networkx = NetworkXGraphAlgorithms is not None
 
+        # 缓存字典
+        self._topological_sort_cache: Dict[str, List[List[str]]] = {}
+        self._detect_cycle_cache: Dict[str, Optional[List[str]]] = {}
+
+    def _validate_graph_size(self, graph: Dict[str, List[str]]) -> None:
+        """
+        验证图大小是否在限制范围内
+
+        Args:
+            graph: 邻接表
+
+        Raises:
+            ValueError: 图过大
+        """
+        node_count = len(graph)
+        edge_count = sum(len(neighbors) for neighbors in graph.values())
+
+        if node_count > self.MAX_NODES:
+            raise ValueError(f"图节点数 ({node_count}) 超过限制 ({self.MAX_NODES})")
+
+        if edge_count > self.MAX_EDGES:
+            raise ValueError(f"图边数 ({edge_count}) 超过限制 ({self.MAX_EDGES})")
+
     def topological_sort(
-        self,
-        graph: Dict[str, List[str]],
-        in_degree: Optional[Dict[str, int]] = None
+        self, graph: Dict[str, List[str]], in_degree: Optional[Dict[str, int]] = None
     ) -> List[List[str]]:
         """
         Kahn 算法拓扑排序（分层）
@@ -38,26 +78,53 @@ class GraphAlgorithms:
             分层结果 [[layer0], [layer1], ...]，每层的节点可以并行执行
 
         Raises:
-            ValueError: 检测到循环依赖
+            ValueError: 检测到循环依赖或图过大
         """
+        # 验证图大小
+        self._validate_graph_size(graph)
+
+        # 检查缓存
+        cache_key = _graph_key(graph)
+        if cache_key in self._topological_sort_cache:
+            logger.debug(f"拓扑排序缓存命中: {cache_key}")
+            return self._topological_sort_cache[cache_key]
+
         if self.use_networkx:
             # 将图转换为 NetworkX 格式
             nodes_data = [{"id": node_id} for node_id in graph.keys()]
-            def get_id_func(node): return node["id"]
-            def get_deps_func(node): return graph[node["id"]]
-            
-            nx_graph = NetworkXGraphAlgorithms.build_networkx_graph(
-                nodes_data, get_id_func, get_deps_func
-            )
-            return NetworkXGraphAlgorithms.topological_sort_with_layers(nx_graph)
+
+            def get_id_func(node):
+                return node["id"]
+
+            def get_deps_func(node):
+                return graph[node["id"]]
+
+            if NetworkXGraphAlgorithms is None:
+                # 使用纯 Python 实现
+                result = self._topological_sort_fallback(graph, in_degree)
+            else:
+                nx_graph = NetworkXGraphAlgorithms.build_networkx_graph(
+                    nodes_data, get_id_func, get_deps_func
+                )
+                result = NetworkXGraphAlgorithms.topological_sort_with_layers(nx_graph)
         else:
             # 使用纯 Python 实现
-            return self._topological_sort_fallback(graph, in_degree)
+            result = self._topological_sort_fallback(graph, in_degree)
+
+        # 缓存结果
+        self._topological_sort_cache[cache_key] = result
+
+        # 限制缓存大小（最多缓存 100 个图）
+        if len(self._topological_sort_cache) > 100:
+            # 删除最旧的缓存
+            oldest_key = next(iter(self._topological_sort_cache))
+            del self._topological_sort_cache[oldest_key]
+
+        return result
 
     @staticmethod
     def _topological_sort_fallback(
-        graph: Dict[str, List[str]],
-        in_degree: Optional[Dict[str, int]] = None
+        graph: Dict[str, List[str]], in_degree: Optional[Dict[str, int]] = None
     ) -> List[List[str]]:
         """
         回退用的纯 Python 拓扑排序实现
@@ -115,20 +182,51 @@ class GraphAlgorithms:
 
         Returns:
             环路路径 [node1, node2, ..., node1] 或 None
+
+        Raises:
+            ValueError: 图过大
         """
+        # 验证图大小
+        self._validate_graph_size(graph)
+
+        # 检查缓存
+        cache_key = _graph_key(graph)
+        if cache_key in self._detect_cycle_cache:
+            logger.debug(f"环路检测缓存命中: {cache_key}")
+            return self._detect_cycle_cache[cache_key]
+
         if self.use_networkx:
             # 将图转换为 NetworkX 格式
             nodes_data = [{"id": node_id} for node_id in graph.keys()]
-            def get_id_func(node): return node["id"]
-            def get_deps_func(node): return graph[node["id"]]
-            
-            nx_graph = NetworkXGraphAlgorithms.build_networkx_graph(
-                nodes_data, get_id_func, get_deps_func
-            )
-            return NetworkXGraphAlgorithms.find_cycle(nx_graph)
+
+            def get_id_func(node):
+                return node["id"]
+
+            def get_deps_func(node):
+                return graph[node["id"]]
+
+            if NetworkXGraphAlgorithms is None:
+                # 使用纯 Python 实现
+                result = self._detect_cycle_dfs_fallback(graph)
+            else:
+                nx_graph = NetworkXGraphAlgorithms.build_networkx_graph(
+                    nodes_data, get_id_func, get_deps_func
+                )
+                result = NetworkXGraphAlgorithms.find_cycle(nx_graph)
         else:
             # 使用纯 Python 实现
-            return self._detect_cycle_dfs_fallback(graph)
+            result = self._detect_cycle_dfs_fallback(graph)
+
+        # 缓存结果
+        self._detect_cycle_cache[cache_key] = result
+
+        # 限制缓存大小（最多缓存 100 个图）
+        if len(self._detect_cycle_cache) > 100:
+            # 删除最旧的缓存
+            oldest_key = next(iter(self._detect_cycle_cache))
+            del self._detect_cycle_cache[oldest_key]
+
+        return result
 
     @staticmethod
     def _detect_cycle_dfs_fallback(graph: Dict[str, List[str]]) -> Optional[List[str]]:
@@ -174,9 +272,7 @@ class GraphAlgorithms:
 
     @staticmethod
     def build_dependency_graph(
-        nodes: List[any],
-        get_id_func,
-        get_deps_func
+        nodes: List[Any], get_id_func, get_deps_func
     ) -> Dict[str, List[str]]:
         """
         构建依赖图（邻接表）
@@ -267,8 +363,7 @@ class GraphAlgorithms:
 
     @staticmethod
     def validate_order_consistency(
-        parallel_nodes: List[str],
-        sorted_order: List[str]
+        parallel_nodes: List[str], sorted_order: List[str]
     ) -> bool:
         """
         验证排序一致性
@@ -285,17 +380,17 @@ class GraphAlgorithms:
 
 
 # 使用 NetworkX 优化的版本（可选）
+NetworkXGraphAlgorithms: type[Any] | None = None
+
 try:
     import networkx as nx
 
-    class NetworkXGraphAlgorithms:
+    class _NetworkXGraphAlgorithmsImpl:
         """使用 NetworkX 的图算法（性能更优）"""
 
         @staticmethod
         def build_networkx_graph(
-            nodes: List[any],
-            get_id_func,
-            get_deps_func
+            nodes: List[Any], get_id_func, get_deps_func
         ) -> nx.DiGraph:
             """
             构建 NetworkX 有向图
@@ -308,7 +403,7 @@ try:
             Returns:
                 NetworkX 有向图
             """
-            G = nx.DiGraph()
+            G: nx.DiGraph = nx.DiGraph()
 
             for node in nodes:
                 node_id = get_id_func(node)
@@ -337,7 +432,7 @@ try:
             try:
                 return list(nx.topological_sort(G))
             except nx.NetworkXUnfeasible as e:
-                cycle = NetworkXGraphAlgorithms.find_cycle(G)
+                cycle = _NetworkXGraphAlgorithmsImpl.find_cycle(G)
                 raise ValueError(f"检测到循环依赖: {cycle}") from e
 
         @staticmethod
@@ -352,9 +447,9 @@ try:
                 环路路径
             """
             try:
-                cycle = nx.find_cycle(G, orientation='original')
+                cycle = nx.find_cycle(G, orientation="original")
                 # 转换为节点列表，保持循环顺序
-                cycle_nodes = []
+                cycle_nodes: List[str] = []
                 visited_edges = set()
                 for edge in cycle:
                     edge_key = (edge[0], edge[1])
@@ -391,7 +486,7 @@ try:
             """
             if not G.nodes():
                 return []
-                
+
             # 使用改进的 Kahn 算法进行分层排序
             in_degree = {node: G.in_degree(node) for node in G.nodes()}
             queue = deque([node for node, degree in in_degree.items() if degree == 0])
@@ -419,6 +514,9 @@ try:
 
             return layers
 
+    # 赋值给全局变量
+    NetworkXGraphAlgorithms = _NetworkXGraphAlgorithmsImpl
+
 except ImportError:
     logger.warning("NetworkX 未安装，将使用纯 Python 实现")
-    NetworkXGraphAlgorithms = None
+    # NetworkXGraphAlgorithms 保持为 None

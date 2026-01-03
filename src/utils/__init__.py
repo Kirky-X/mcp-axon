@@ -4,16 +4,42 @@
 
 """工具类模块"""
 
-from .graph import GraphAlgorithms
-from .lock_manager import ProjectLockManager
-from .snapshot_manager import SnapshotManager
 from .cache import CacheManager, cache_manager
-from .metrics import MetricsCollector, metrics_collector, performance_monitor, monitored_function
 from .event_logger import log_event
+from .graph import GraphAlgorithms
+from .input_validator import InputValidator, SecurityChecker
+from .lock_manager import ProjectLockManager
+from .metrics import (
+    MetricsCollector,
+    metrics_collector,
+    monitored_function,
+    performance_monitor,
+)
+from .performance_config import (
+    PerformanceConfig,
+    get_config,
+    load_config,
+    performance_config,
+    save_config,
+)
+from .prometheus_exporter import (
+    PrometheusMetricsExporter,
+    export_metrics_to_prometheus,
+    prometheus_exporter,
+)
+from .rate_limiter import RateLimiter, get_rate_limiter
+from .security_auditor import (
+    SecurityAuditor,
+    SecurityReportGenerator,
+    perform_security_audit,
+    report_generator,
+    security_auditor,
+)
+from .snapshot_manager import SnapshotManager
 
 __all__ = [
     "GraphAlgorithms",
-    "ProjectLockManager", 
+    "ProjectLockManager",
     "SnapshotManager",
     "CacheManager",
     "cache_manager",
@@ -21,5 +47,22 @@ __all__ = [
     "metrics_collector",
     "performance_monitor",
     "monitored_function",
-    "log_event"
+    "log_event",
+    "InputValidator",
+    "SecurityChecker",
+    "RateLimiter",
+    "get_rate_limiter",
+    "PrometheusMetricsExporter",
+    "export_metrics_to_prometheus",
+    "prometheus_exporter",
+    "SecurityAuditor",
+    "SecurityReportGenerator",
+    "perform_security_audit",
+    "report_generator",
+    "security_auditor",
+    "PerformanceConfig",
+    "get_config",
+    "load_config",
+    "save_config",
+    "performance_config",
 ]

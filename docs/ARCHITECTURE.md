@@ -1,33 +1,28 @@
-<div align="center">
-
-# 🏗️ Architecture
+# 🏗️ 架构设计
 
 ### MCP-Axon 需求链化系统架构设计
 
-[🏠 Home](../README.md) • [📖 User Guide](USER_GUIDE.md) • [📘 API Reference](API_REFERENCE.md)
+---
+
+## 📋 目录
+
+- [概述](#概述)
+- [系统架构](#系统架构)
+- [组件设计](#组件设计)
+- [数据流](#数据流)
+- [技术栈](#技术栈)
+- [设计决策](#设计决策)
+- [性能考虑](#性能考虑)
+- [安全架构](#安全架构)
+- [扩展性](#扩展性)
 
 ---
 
-</div>
+## 概述
 
-## 📋 Table of Contents
+MCP-Axon 采用分层架构设计，基于 Model Context Protocol (MCP) 标准，提供智能需求链化管理功能。
 
-- [Overview](#overview)
-- [System Architecture](#system-architecture)
-- [Component Design](#component-design)
-- [Data Flow](#data-flow)
-- [Design Decisions](#design-decisions)
-- [Technology Stack](#technology-stack)
-- [Performance Considerations](#performance-considerations)
-- [Security Architecture](#security-architecture)
-- [Scalability](#scalability)
-- [Future Improvements](#future-improvements)
-
----
-
-MCP-Axon 采用分层架构设计，基于 Model Context Protocol (MCP) 标准，提供智能需求链化管理功能。本文档详细描述了系统的架构设计、核心组件、数据流和关键技术决策。
-
-## 🎯 设计目标
+### 设计目标
 
 - **模块化设计**: 清晰的职责分离，便于维护和扩展
 - **高性能**: 优化的数据结构和算法，支持大规模需求管理
@@ -37,932 +32,354 @@ MCP-Axon 采用分层架构设计，基于 Model Context Protocol (MCP) 标准�
 
 ---
 
-## 📋 系统概览
+## 系统架构
 
-MCP-Axon 是一个基于 Python 的需求链化管理系统，采用以下核心架构：
-
-```mermaid
-graph TB
-    subgraph "客户端层"
-        A[MCP 客户端]
-        B[AI 助手]
-        C[管理界面]
-    end
-    
-    subgraph "协议层"
-        D[MCP 协议]
-        E[JSON-RPC 2.0]
-    end
-    
-    subgraph "应用层"
-        F[MCP 服务器]
-        G[工具路由器]
-        H[输入验证器]
-    end
-    
-    subgraph "业务层"
-        I[RequirementSDK]
-        J[项目管理器]
-        K[需求管理器]
-        L[链化构建器]
-        M[链化编排器]
-    end
-    
-    subgraph "数据层"
-        N[SQLite 数据库]
-        O[缓存管理器]
-        P[快照管理器]
-    end
-    
-    A --> D
-    B --> D
-    C --> D
-    D --> F
-    E --> F
-    F --> G
-    G --> H
-    H --> I
-    I --> J
-    I --> K
-    I --> L
-    I --> M
-    J --> N
-    K --> N
-    L --> N
-    M --> N
-    I --> O
-    I --> P
+```
+┌─────────────────────────────────────────────────────────────┐
+│                      MCP 客户端                              │
+│                   (Claude AI, IDE)                          │
+└─────────────────────────────────────────────────────────────┘
+                            │
+                            ▼
+┌─────────────────────────────────────────────────────────────┐
+│                      MCP 协议层                              │
+│                   (mcp Python SDK)                          │
+└─────────────────────────────────────────────────────────────┘
+                            │
+                            ▼
+┌─────────────────────────────────────────────────────────────┐
+│                      API 层                                  │
+│                 (src/api/mcp_server.py)                     │
+│                 (src/api/tools.py)                          │
+└─────────────────────────────────────────────────────────────┘
+                            │
+                            ▼
+┌─────────────────────────────────────────────────────────────┐
+│                      SDK 层                                  │
+│              (src/core/sdk.py - RequirementSDK)             │
+└─────────────────────────────────────────────────────────────┘
+                            │
+            ┌───────────────┼───────────────┐
+            ▼               ▼               ▼
+    ┌─────────────┐ ┌─────────────┐ ┌─────────────┐
+    │  服务层      │ │  服务层      │ │  服务层      │
+    │ProjectManager│ │Requirement  │ │Dependency   │
+    │              │ │Manager      │ │Service      │
+    └─────────────┘ └─────────────┘ └─────────────┘
+            │               │               │
+            └───────────────┼───────────────┘
+                            ▼
+    ┌─────────────────────────────────────────────────────┐
+    │                    数据层                            │
+    │            (src/db/models.py - SQLAlchemy)          │
+    │            (SQLite 数据库)                           │
+    └─────────────────────────────────────────────────────┘
 ```
 
-### 🏗️ 分层架构
+### 分层架构
 
 | 层次 | 职责 | 组件 |
 |------|------|------|
-| **客户端层** | 用户交互 | MCP 客户端、AI 助手、管理界面 |
-| **协议层** | 通信协议 | MCP 协议、JSON-RPC 2.0 |
-| **应用层** | 请求处理 | MCP 服务器、工具路由、输入验证 |
-| **业务层** | 核心逻辑 | RequirementSDK、各种管理器 |
-| **数据层** | 数据存储 | SQLite、缓存、快照 |
-<table>
-<tr>
-<th>Layer</th>
-<th>Purpose</th>
-<th>Key Components</th>
-<th>Dependencies</th>
-</tr>
-<tr>
-<td><b>Application</b></td>
-<td>User-facing code</td>
-<td>Business logic, workflows</td>
-<td>API Layer</td>
-</tr>
-<tr>
-<td><b>API</b></td>
-<td>Public interface</td>
-<td>API handlers, validators</td>
-<td>Core Layer</td>
-</tr>
-<tr>
-<td><b>Core</b></td>
-<td>Business logic</td>
-<td>Engine, managers, policies</td>
-<td>Provider Layer</td>
-</tr>
-<tr>
-<td><b>Provider</b></td>
-<td>Implementation adapters</td>
-<td>Crypto, storage, audit</td>
-<td>Infrastructure</td>
-</tr>
-<tr>
-<td><b>Infrastructure</b></td>
-<td>Low-level resources</td>
-<td>DB, filesystem, logs</td>
-<td>None</td>
-</tr>
-</table>
+| **MCP 协议层** | 通信协议 | MCP Python SDK, JSON-RPC 2.0 |
+| **API 层** | 请求处理 | MCP 服务器、工具路由、输入验证 |
+| **SDK 层** | SDK 入口 | RequirementSDK, 服务协调 |
+| **服务层** | 核心业务 | 各业务服务管理器 |
+| **数据层** | 数据存储 | SQLAlchemy ORM, SQLite |
 
 ---
 
-## Component Design
+## 组件设计
 
-### 1️⃣ Core Engine
+### 1. RequirementSDK
 
-<details open>
-<summary><b>🔧 Component Overview</b></summary>
+系统的主入口类，负责协调各服务管理器。
 
-The Core Engine is the heart of the system, coordinating all operations.
+```python
+class RequirementSDK:
+    """需求链化 SDK - 主入口"""
+    
+    def __init__(self, db_path: str = "requirements.db"):
+        self.db_path = db_path
+        self.project_manager = ProjectManager()
+        self.requirement_manager = RequirementManager()
+        self.dependency_service = DependencyService()
+        self.validation_service = ValidationService()
+        self.chain_builder = ChainBuilder()
+        self.chain_orchestrator = ChainOrchestrator()
+        self.snapshot_manager = SnapshotManager()
+        self.lock_manager = ProjectLockManager()
+```
 
-```rust
-pub struct CoreEngine {
-    algorithm_manager: Arc<AlgorithmManager>,
-    key_manager: Arc<KeyManager>,
-    policy_engine: Arc<PolicyEngine>,
-    config: Config,
-}
+### 2. 项目管理器 (ProjectManager)
 
-impl CoreEngine {
-    pub fn new(config: Config) -> Result<Self> {
-        // Initialize managers
-        let algorithm_manager = Arc::new(AlgorithmManager::new()?);
-        let key_manager = Arc::new(KeyManager::new()?);
-        let policy_engine = Arc::new(PolicyEngine::new()?);
+负责项目的 CRUD 操作和状态管理。
+
+```python
+class ProjectManager:
+    """项目管理器"""
+    
+    def create_project(self, name: str, description: str) -> Dict[str, Any]:
+        """创建项目"""
         
-        Ok(Self {
-            algorithm_manager,
-            key_manager,
-            policy_engine,
-            config,
-        })
-    }
-    
-    pub fn process(&self, request: Request) -> Result<Response> {
-        // 1. Validate request
-        self.policy_engine.validate(&request)?;
+    def get_project(self, project_id: str) -> Optional[Project]:
+        """获取项目"""
         
-        // 2. Get algorithm
-        let algorithm = self.algorithm_manager.get(request.algorithm())?;
+    def update_project(self, project_id: str, **kwargs) -> Project:
+        """更新项目"""
+```
+
+### 3. 需求管理器 (RequirementManager)
+
+负责需求节点的增删改查和复杂度评估。
+
+```python
+class RequirementManager:
+    """需求管理器"""
+    
+    def add_requirement(self, project_id: str, content: str, 
+                       parent_id: Optional[str] = None) -> Dict[str, Any]:
+        """添加需求"""
         
-        // 3. Get key
-        let key = self.key_manager.get(request.key_id())?;
+    def mark_as_leaf(self, requirement_id: str) -> Requirement:
+        """标记为叶子节点"""
         
-        // 4. Execute operation
-        let result = algorithm.execute(&key, request.data())?;
+    def evaluate_complexity(self, content: str, level: int) -> float:
+        """评估需求复杂度"""
+```
+
+### 4. 依赖服务 (DependencyService)
+
+负责依赖关系的管理和循环检测。
+
+```python
+class DependencyService:
+    """依赖服务"""
+    
+    def add_dependency(self, requirement_id: str, dependency_id: str) -> None:
+        """添加依赖"""
         
-        Ok(Response::new(result))
-    }
-}
+    def detect_cycle(self, project_id: str) -> Optional[List[str]]:
+        """检测循环依赖"""
+        
+    def transfer_dependencies(self, parent_id: str, mapping: Dict[str, List[str]]):
+        """依赖传递"""
 ```
 
-</details>
+### 5. 链化构建器 (ChainBuilder)
 
-**Responsibilities:**
-- 📌 Request orchestration
-- 📌 Component coordination
-- 📌 Error handling
-- 📌 Resource management
+基于拓扑排序构建需求执行链。
 
-**Design Patterns:**
-- 🎨 **Facade Pattern**: Simplified interface to complex subsystems
-- 🎨 **Strategy Pattern**: Pluggable algorithms
-- 🎨 **Builder Pattern**: Flexible configuration
-
-### 2️⃣ Algorithm Manager
-
-```mermaid
-classDiagram
-    class AlgorithmManager {
-        -HashMap algorithms
-        +register(Algorithm)
-        +get(AlgorithmType) Algorithm
-        +list() Vec~AlgorithmType~
-    }
+```python
+class ChainBuilder:
+    """链化构建器"""
     
-    class Algorithm {
-        <<interface>>
-        +execute(key, data) Result
-        +verify() bool
-    }
-    
-    class AesGcm {
-        +execute(key, data) Result
-        +verify() bool
-    }
-    
-    class RsaOaep {
-        +execute(key, data) Result
-        +verify() bool
-    }
-    
-    AlgorithmManager --> Algorithm
-    Algorithm <|-- AesGcm
-    Algorithm <|-- RsaOaep
+    def build_chain(self, project_id: str) -> List[Dict[str, Any]]:
+        """构建执行链"""
+        
+    def topological_sort(self, project_id: str) -> List[str]:
+        """拓扑排序 (Kahn 算法)"""
+        
+    def identify_parallel_nodes(self, sorted_ids: List[str]) -> List[List[str]]:
+        """识别并行节点"""
 ```
 
-<details>
-<summary><b>🔍 Implementation Details</b></summary>
+### 6. 链化编排器 (ChainOrchestrator)
 
-```rust
-pub trait Algorithm: Send + Sync {
-    fn execute(&self, key: &Key, data: &[u8]) -> Result<Vec<u8>>;
-    fn verify(&self) -> bool;
-    fn metadata(&self) -> AlgorithmMetadata;
-}
+协调链化过程，处理并行节点和状态更新。
 
-pub struct AlgorithmManager {
-    algorithms: RwLock<HashMap<AlgorithmType, Box<dyn Algorithm>>>,
-}
-
-impl AlgorithmManager {
-    pub fn register<A: Algorithm + 'static>(&self, algo: A) -> Result<()> {
-        let metadata = algo.metadata();
-        let mut algorithms = self.algorithms.write().unwrap();
-        algorithms.insert(metadata.algorithm_type, Box::new(algo));
-        Ok(())
-    }
+```python
+class ChainOrchestrator:
+    """链化编排器"""
     
-    pub fn get(&self, algo_type: AlgorithmType) -> Result<&dyn Algorithm> {
-        self.algorithms
-            .read()
-            .unwrap()
-            .get(&algo_type)
-            .ok_or(Error::AlgorithmNotFound)
-    }
-}
-```
-
-</details>
-
-### 3️⃣ Key Manager
-
-<div align="center">
-
-#### 🔐 Key Lifecycle Management
-
-</div>
-
-```mermaid
-stateDiagram-v2
-    [*] --> PreActive: Generate
-    PreActive --> Active: Activate
-    Active --> Deactivated: Deactivate
-    Active --> Compromised: Compromise Detected
-    Deactivated --> Destroyed: Destroy
-    Compromised --> Destroyed: Destroy
-    Destroyed --> [*]
-    
-    Active --> Active: Use
-```
-
-<table>
-<tr>
-<th>State</th>
-<th>Operations Allowed</th>
-<th>Transitions</th>
-</tr>
-<tr>
-<td><b>PreActive</b></td>
-<td>None</td>
-<td>→ Active</td>
-</tr>
-<tr>
-<td><b>Active</b></td>
-<td>Encrypt, Decrypt, Sign, Verify</td>
-<td>→ Deactivated, → Compromised</td>
-</tr>
-<tr>
-<td><b>Deactivated</b></td>
-<td>Decrypt, Verify (read-only)</td>
-<td>→ Destroyed</td>
-</tr>
-<tr>
-<td><b>Compromised</b></td>
-<td>None</td>
-<td>→ Destroyed</td>
-</tr>
-<tr>
-<td><b>Destroyed</b></td>
-<td>None</td>
-<td>(Terminal state)</td>
-</tr>
-</table>
-
----
-
-## Data Flow
-
-<div align="center">
-
-### 🔄 Request Processing Flow
-
-</div>
-
-```mermaid
-sequenceDiagram
-    participant App as Application
-    participant API as API Layer
-    participant Core as Core Engine
-    participant Algo as Algorithm
-    participant Key as Key Manager
-    participant Audit as Audit Logger
-    
-    App->>API: Request (encrypt, data)
-    API->>API: Validate input
-    API->>Core: Process request
-    
-    Core->>Key: Get key
-    Key-->>Core: Key material
-    
-    Core->>Algo: Execute algorithm
-    Algo->>Algo: Encrypt data
-    Algo-->>Core: Ciphertext
-    
-    Core->>Audit: Log operation
-    Core-->>API: Response
-    API-->>App: Result
-```
-
-### Encryption Flow
-
-<table>
-<tr>
-<td width="50%">
-
-**Step-by-Step**
-
-1. 📥 **Input Validation**
-   - Check data format
-   - Validate algorithm type
-   - Verify key ID exists
-
-2. 🔐 **Key Retrieval**
-   - Load key from storage
-   - Verify key state (Active)
-   - Check permissions
-
-3. ⚙️ **Algorithm Execution**
-   - Initialize algorithm
-   - Generate nonce/IV
-   - Encrypt data
-
-4. 📤 **Output Construction**
-   - Package ciphertext
-   - Add metadata
-   - Return result
-
-5. 📝 **Audit Logging**
-   - Record operation
-   - Log timestamp
-   - Store metadata
-
-</td>
-<td width="50%">
-
-**Code Flow**
-
-```rust
-// 1. Validate
-request.validate()?;
-
-// 2. Get key
-let key = key_manager
-    .get(request.key_id)?;
-
-// 3. Execute
-let ciphertext = algorithm
-    .encrypt(&key, request.data)?;
-
-// 4. Package
-let response = Response {
-    data: ciphertext,
-    metadata: Metadata {
-        algorithm: algo_type,
-        key_id: key.id(),
-        timestamp: now(),
-    },
-};
-
-// 5. Audit
-audit_logger.log(&response)?;
-
-Ok(response)
-```
-
-</td>
-</tr>
-</table>
-
----
-
-## Design Decisions
-
-<div align="center">
-
-### 🤔 Why We Made These Choices
-
-</div>
-
-### Decision 1: Pure Rust Implementation
-
-<table>
-<tr>
-<td width="50%">
-
-**✅ Pros**
-- Memory safety guarantees
-- Zero-cost abstractions
-- Excellent performance
-- No C dependencies
-- Modern tooling
-
-</td>
-<td width="50%">
-
-**❌ Cons**
-- Steeper learning curve
-- Fewer libraries initially
-- Compilation time
-
-</td>
-</tr>
-</table>
-
-**Verdict:** ✅ **Chosen** - Safety and performance benefits outweigh cons
-
----
-
-### Decision 2: Pluggable Algorithm Architecture
-
-```rust
-// Before: Hardcoded algorithms
-match algo_type {
-    AlgorithmType::AES => aes_encrypt(data),
-    AlgorithmType::RSA => rsa_encrypt(data),
-    // Must modify code for new algorithms
-}
-
-// After: Plugin system
-let algorithm = algorithm_manager.get(algo_type)?;
-algorithm.execute(key, data)?;
-// New algorithms can be added without code changes
-```
-
-**Rationale:**
-- 🎯 Extensibility: Easy to add new algorithms
-- 🎯 Testability: Mock algorithms for testing
-- 🎯 Maintainability: Algorithms are independent
-
----
-
-### Decision 3: Arc + RwLock for Concurrency
-
-<table>
-<tr>
-<td width="33%" align="center">
-
-**Option 1: Mutex**
-```rust
-Arc<Mutex<Data>>
-```
-Simple but locks readers
-
-</td>
-<td width="33%" align="center">
-
-**Option 2: RwLock** ✅
-```rust
-Arc<RwLock<Data>>
-```
-Multiple readers, one writer
-
-</td>
-<td width="33%" align="center">
-
-**Option 3: Channels**
-```rust
-mpsc::channel()
-```
-Complex for simple cases
-
-</td>
-</tr>
-</table>
-
-**Chosen:** RwLock - Optimized for read-heavy workloads
-
----
-
-### Decision 4: Builder Pattern for Configuration
-
-<table>
-<tr>
-<td width="50%">
-
-**❌ Direct Construction**
-```rust
-let config = Config {
-    option_a: value_a,
-    option_b: value_b,
-    option_c: value_c,
-    // Many fields...
-};
-```
-
-</td>
-<td width="50%">
-
-**✅ Builder Pattern**
-```rust
-let config = Config::builder()
-    .option_a(value_a)
-    .option_b(value_b)
-    .build()?;
-```
-
-</td>
-</tr>
-</table>
-
-**Benefits:**
-- 📌 Fluent API
-- 📌 Optional parameters
-- 📌 Validation on build
-- 📌 Better error messages
-
----
-
-## Technology Stack
-
-<div align="center">
-
-### 🛠️ Core Technologies
-
-</div>
-
-<table>
-<tr>
-<th>Category</th>
-<th>Technology</th>
-<th>Version</th>
-<th>Purpose</th>
-</tr>
-<tr>
-<td rowspan="2"><b>Language</b></td>
-<td>Rust</td>
-<td>1.75+</td>
-<td>Primary language</td>
-</tr>
-<tr>
-<td>C (FFI)</td>
-<td>C11</td>
-<td>Foreign function interface</td>
-</tr>
-<tr>
-<td rowspan="3"><b>Cryptography</b></td>
-<td>ring</td>
-<td>0.17</td>
-<td>Modern crypto primitives</td>
-</tr>
-<tr>
-<td>libsm</td>
-<td>0.6</td>
-<td>Chinese national standards</td>
-</tr>
-<tr>
-<td>aes-gcm</td>
-<td>0.10</td>
-<td>AES-GCM implementation</td>
-</tr>
-<tr>
-<td rowspan="2"><b>Security</b></td>
-<td>zeroize</td>
-<td>1.7</td>
-<td>Secure memory cleanup</td>
-</tr>
-<tr>
-<td>argon2</td>
-<td>0.5</td>
-<td>Password hashing</td>
-</tr>
-<tr>
-<td><b>Serialization</b></td>
-<td>serde</td>
-<td>1.0</td>
-<td>Data serialization</td>
-</tr>
-<tr>
-<td><b>Error Handling</b></td>
-<td>thiserror</td>
-<td>1.0</td>
-<td>Error types</td>
-</tr>
-<tr>
-<td><b>Testing</b></td>
-<td>criterion</td>
-<td>0.5</td>
-<td>Benchmarking</td>
-</tr>
-</table>
-
-### Dependency Graph
-
-```mermaid
-graph LR
-    A[project-name] --> B[ring]
-    A --> C[libsm]
-    A --> D[aes-gcm]
-    A --> E[zeroize]
-    A --> F[serde]
-    
-    D --> G[aes]
-    D --> H[ghash]
-    
-    style A fill:#81d4fa
-    style B fill:#4fc3f7
-    style C fill:#4fc3f7
-    style D fill:#4fc3f7
-    style E fill:#4fc3f7
-    style F fill:#4fc3f7
+    def orchestrate(self, project_id: str) -> Dict[str, Any]:
+        """执行链化编排"""
+        
+    def resolve_parallel_order(self, project_id: str, sorted_order: List[str]):
+        """解决并行顺序"""
 ```
 
 ---
 
-## Performance Considerations
+## 数据流
 
-<div align="center">
+### 请求处理流程
 
-### ⚡ Performance Optimizations
-
-</div>
-
-### 1️⃣ Zero-Copy Design
-
-```rust
-// ❌ Copying data
-pub fn process(data: Vec<u8>) -> Vec<u8> {
-    let copied = data.clone();  // Unnecessary copy
-    transform(copied)
-}
-
-// ✅ Zero-copy with slices
-pub fn process(data: &[u8]) -> Vec<u8> {
-    transform(data)  // No copy needed
-}
+```
+1. MCP 客户端发送请求
+2. MCP 服务器接收并解析请求
+3. 工具路由器定位对应的处理函数
+4. SDK 协调相关服务处理请求
+5. 服务层执行业务逻辑
+6. 数据层持久化数据
+7. 返回结果给 MCP 客户端
 ```
 
-### 2️⃣ Memory Pooling
+### 链化流程
 
-<table>
-<tr>
-<td width="50%">
-
-**Without Pooling**
-```rust
-// Allocate for every operation
-let buffer = vec![0u8; size];
-process(&buffer);
-// Buffer dropped
 ```
-
-</td>
-<td width="50%">
-
-**With Pooling**
-```rust
-// Reuse buffers
-let buffer = pool.acquire();
-process(&buffer);
-pool.release(buffer);
-```
-
-</td>
-</tr>
-</table>
-
-### 3️⃣ Caching Strategy
-
-```mermaid
-graph LR
-    A[Request] --> B{Cache Hit?}
-    B -->|Yes| C[Return Cached]
-    B -->|No| D[Compute]
-    D --> E[Store in Cache]
-    E --> F[Return Result]
-    
-    style C fill:#4caf50
-    style D fill:#ff9800
-```
-
-### Performance Metrics
-
-<table>
-<tr>
-<th>Operation</th>
-<th>Throughput</th>
-<th>Latency (P50)</th>
-<th>Latency (P99)</th>
-</tr>
-<tr>
-<td>AES-256-GCM Encrypt</td>
-<td>500 MB/s</td>
-<td>0.5 ms</td>
-<td>2 ms</td>
-</tr>
-<tr>
-<td>ECDSA-P256 Sign</td>
-<td>10K ops/s</td>
-<td>0.1 ms</td>
-<td>0.5 ms</td>
-</tr>
-<tr>
-<td>SHA-256 Hash</td>
-<td>1 GB/s</td>
-<td>0.05 ms</td>
-<td>0.2 ms</td>
-</tr>
-</table>
-
----
-
-## Security Architecture
-
-<div align="center">
-
-### 🔒 Defense in Depth
-
-</div>
-
-```mermaid
-graph TB
-    A[Application Layer] --> B[Input Validation]
-    B --> C[Authentication]
-    C --> D[Authorization]
-    D --> E[Encryption]
-    E --> F[Audit Logging]
-    F --> G[Secure Storage]
-    
-    style A fill:#e1f5ff
-    style B fill:#b3e5fc
-    style C fill:#81d4fa
-    style D fill:#4fc3f7
-    style E fill:#29b6f6
-    style F fill:#0288d1
-    style G fill:#01579b
-```
-
-### Security Layers
-
-<table>
-<tr>
-<th>Layer</th>
-<th>Controls</th>
-<th>Purpose</th>
-</tr>
-<tr>
-<td><b>1. Input Validation</b></td>
-<td>Type checking, sanitization</td>
-<td>Prevent injection attacks</td>
-</tr>
-<tr>
-<td><b>2. Authentication</b></td>
-<td>Identity verification</td>
-<td>Verify user identity</td>
-</tr>
-<tr>
-<td><b>3. Authorization</b></td>
-<td>Permission checks</td>
-<td>Control access to resources</td>
-</tr>
-<tr>
-<td><b>4. Encryption</b></td>
-<td>Data encryption, TLS</td>
-<td>Protect data confidentiality</td>
-</tr>
-<tr>
-<td><b>5. Audit Logging</b></td>
-<td>Activity logging</td>
-<td>Detection and forensics</td>
-</tr>
-<tr>
-<td><b>6. Secure Storage</b></td>
-<td>Encryption at rest</td>
-<td>Protect stored data</td>
-</tr>
-</table>
-
-### Threat Model
-
-<details>
-<summary><b>🎯 Threats and Mitigations</b></summary>
-
-| Threat | Impact | Mitigation | Status |
-|--------|--------|------------|--------|
-| Memory disclosure | High | Zeroize on drop | ✅ |
-| Timing attacks | Medium | Constant-time ops | ✅ |
-| Key extraction | High | Memory locking | ✅ |
-| Algorithm substitution | Medium | Algorithm validation | ✅ |
-| Unauthorized access | High | RBAC + audit | ✅ |
-
-</details>
-
----
-
-## Scalability
-
-<div align="center">
-
-### 📈 Scaling Strategies
-
-</div>
-
-### Horizontal Scaling
-
-```mermaid
-graph TB
-    LB[Load Balancer]
-    LB --> A[Instance 1]
-    LB --> B[Instance 2]
-    LB --> C[Instance 3]
-    
-    A --> DB[(Shared Database)]
-    B --> DB
-    C --> DB
-    
-    style LB fill:#81d4fa
-    style A fill:#4fc3f7
-    style B fill:#4fc3f7
-    style C fill:#4fc3f7
-    style DB fill:#29b6f6
-```
-
-**Key Points:**
-- 🔹 Stateless design enables easy scaling
-- 🔹 Shared key storage for consistency
-- 🔹 No session affinity required
-
-### Vertical Scaling
-
-<table>
-<tr>
-<th>Resource</th>
-<th>Scaling Strategy</th>
-<th>Impact</th>
-</tr>
-<tr>
-<td>CPU</td>
-<td>Increase cores, use parallelism</td>
-<td>⬆️ Throughput</td>
-</tr>
-<tr>
-<td>Memory</td>
-<td>Increase RAM, larger caches</td>
-<td>⬆️ Performance</td>
-</tr>
-<tr>
-<td>Storage</td>
-<td>Use SSD, increase IOPS</td>
-<td>⬇️ Latency</td>
-</tr>
-</table>
-
-### Capacity Planning
-
-```rust
-// Calculate capacity requirements
-pub fn calculate_capacity(requirements: Requirements) -> Capacity {
-    let ops_per_second = requirements.expected_load;
-    let latency_budget = requirements.max_latency;
-    
-    let instances = (ops_per_second * latency_budget / 1000.0).ceil() as usize;
-    let memory_per_instance = requirements.cache_size + OVERHEAD;
-    
-    Capacity {
-        instances,
-        memory_per_instance,
-        total_memory: instances * memory_per_instance,
-    }
-}
+1. 触发链化 (trigger_chaining)
+2. 拓扑排序 (topological_sort)
+3. 识别并行节点 (identify_parallel_nodes)
+4. 构建链表 (build_chain)
+5. 更新需求状态
+6. 返回执行链
 ```
 
 ---
 
-## Future Improvements
+## 技术栈
 
-<div align="center">
+### 核心技术
 
-### 🚀 Planned Enhancements
+| 类别 | 技术 | 版本 | 用途 |
+|-----|------|------|------|
+| **语言** | Python | 3.12+ | 主要开发语言 |
+| **协议** | MCP | 1.25.0 | 模型上下文协议 |
+| **ORM** | SQLAlchemy | 2.0.23 | 数据库对象关系映射 |
+| **数据库** | SQLite | 3.35+ | 本地数据存储 |
+| **数据验证** | Pydantic | 2.5.0+ | 数据模型和验证 |
+| **图算法** | NetworkX | 3.2.1 | 拓扑排序、依赖分析 |
+| **测试** | pytest | 7.4.3 | 测试框架 |
+| **异步** | aiosqlite | 0.19.0 | 异步数据库访问 |
+| **重试** | tenacity | 8.2.3 | 失败重试机制 |
 
-</div>
+### 依赖关系
 
-### Short Term (3-6 months)
-
-- [ ] **SIMD Optimization** - Vectorized crypto operations
-- [ ] **Hardware Acceleration** - AES-NI, SHA extensions
-- [ ] **Async Runtime** - Tokio integration for async operations
-- [ ] **Metrics System** - Prometheus-compatible metrics
-
-### Medium Term (6-12 months)
-
-- [ ] **HSM Integration** - PKCS#11 support
-- [ ] **Key Rotation** - Automatic key lifecycle management
-- [ ] **Multi-region Support** - Geographic distribution
-- [ ] **Plugin Marketplace** - Third-party algorithm plugins
-
-### Long Term (12+ months)
-
-- [ ] **Post-Quantum Crypto** - PQC algorithm support
-- [ ] **TEE Support** - SGX/TrustZone integration
-- [ ] **Formal Verification** - Mathematical proof of security properties
-- [ ] **Cloud-Native Features** - Kubernetes operators, service mesh
+```
+RequirementSDK
+    ├── ProjectManager (数据库操作)
+    ├── RequirementManager (数据库操作)
+    ├── DependencyService (数据库操作 + NetworkX)
+    ├── ValidationService (数据库操作)
+    ├── ChainBuilder (NetworkX 拓扑排序)
+    ├── ChainOrchestrator (状态管理)
+    ├── SnapshotManager (快照管理)
+    └── ProjectLockManager (并发控制)
+            │
+            ▼
+    SQLAlchemy ORM
+            │
+            ▼
+    SQLite 数据库
+```
 
 ---
 
-<div align="center">
+## 设计决策
 
-**[📖 User Guide](USER_GUIDE.md)** • **[🔧 API Docs](https://docs.rs/project-name)** • **[🏠 Home](../README.md)**
+### 决策 1: 为什么选择 SQLite？
 
-Made with ❤️ by the Architecture Team
+| 优点 | 说明 |
+|-----|------|
+| 零配置 | 无需额外安装数据库服务 |
+| 单机部署 | 适合本地和单机场景 |
+| 简单可靠 | ACID 事务支持 |
+| 轻量级 | 资源占用少 |
 
-[⬆ Back to Top](#️-architecture-design)
+### 决策 2: 为什么使用 MCP 协议？
 
-</div>
+- 与 Claude AI 深度集成
+- 标准化的工具调用接口
+- 支持 AI 驱动的交互式体验
+
+### 决策 3: 为什么使用拓扑排序？
+
+- 自动处理复杂的依赖关系
+- 识别并行可执行的需求
+- 生成最优的执行顺序
+
+### 决策 4: 为什么使用 SQLAlchemy ORM？
+
+- 类型安全
+- 防止 SQL 注入
+- 数据库无关性（可扩展到 PostgreSQL）
+
+---
+
+## 性能考虑
+
+### 性能目标
+
+| 操作 | 目标 | 实测 |
+|-----|------|------|
+| create_project | < 10ms | ✅ 1.06ms |
+| add_requirement | < 30ms | ✅ 1.06ms |
+| get_next_requirement | < 50ms | ✅ 1.06ms |
+| 拓扑排序 (2000 节点) | < 500ms | ✅ 2.82ms |
+| 全量链化 (2000 节点) | < 2s | ✅ 92.58ms |
+
+### 性能优化策略
+
+1. **连接池管理**
+   - 禁用 SQLite 连接池（SQLite 不支持）
+   - 使用 `poolclass=None`
+
+2. **查询优化**
+   - 使用 SQLAlchemy 的懒加载
+   - 批量操作减少数据库访问
+
+3. **算法优化**
+   - Kahn 算法 O(V+E) 复杂度
+   - NetworkX 高效图操作
+
+4. **缓存策略**
+   - 查询结果缓存
+   - 依赖关系缓存
+
+---
+
+## 安全架构
+
+### 安全措施
+
+| 层级 | 措施 | 说明 |
+|-----|------|------|
+| **输入验证** | Pydantic 校验 | 严格的参数类型检查 |
+| **SQL 注入防护** | SQLAlchemy ORM | 参数化查询 |
+| **并发安全** | 锁机制 | 项目级锁定 |
+| **数据完整性** | 事务管理 | ACID 事务支持 |
+| **审计日志** | 事件记录 | 操作历史追踪 |
+
+### 并发控制
+
+```python
+# 获取锁
+sdk.acquire_lock(project_id, session_id="session_123")
+
+# 执行操作
+sdk.add_requirement(project_id, "新需求")
+
+# 释放锁
+sdk.release_lock(project_id, session_id="session_123")
+```
+
+---
+
+## 扩展性
+
+### 当前限制
+
+- 单机部署，无法水平扩展
+- SQLite 不支持真正的并发写入
+- 项目锁依赖超时机制
+
+### 未来改进方向
+
+| 方向 | 说明 |
+|-----|------|
+| PostgreSQL 支持 | 生产环境数据库 |
+| Redis 分布式锁 | 高并发场景 |
+| WebSocket 推送 | 实时链化进度 |
+| 需求版本历史 | 回溯和审计 |
+| 插件机制 | 扩展链化策略 |
+
+### 可扩展点
+
+- 自定义复杂度评估规则
+- 自定义验证节点类型
+- 自定义事件处理器
+- 自定义链化策略
+
+---
+
+**[用户指南](USER_GUIDE.md)** • **[API 参考](API_REFERENCE.md)** • **[FAQ](FAQ.md)**

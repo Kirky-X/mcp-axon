@@ -1,834 +1,433 @@
-<div align="center">
-
-# 🤝 Contributing
+# 🤝 贡献指南
 
 ### MCP-Axon 项目贡献指南
 
-[🏠 Home](../README.md) • [📖 User Guide](USER_GUIDE.md) • [📘 API Reference](API_REFERENCE.md)
+---
+
+## 欢迎贡献者！
+
+感谢您对 MCP-Axon 项目的关注！我们欢迎所有形式的贡献，包括代码、文档、测试、错误报告和功能建议。
+
+## 贡献方式
+
+| 方式 | 说明 |
+|-----|------|
+| 💻 代码贡献 | 修复 bug、添加新功能、性能优化、编写测试 |
+| 📝 文档改进 | 完善文档、改进指南、修正错误 |
+| 🧪 测试 | 编写测试、发现 bug |
+| 💬 社区支持 | 回答问题、帮助其他贡献者 |
 
 ---
 
-</div>
+## 📋 目录
 
-## 🎯 Welcome Contributors!
-
-感谢您对 MCP-Axon 项目的关注！我们欢迎所有形式的贡献，包括但不限于代码、文档、测试、错误报告和功能建议。本指南将帮助您了解如何为项目做出贡献。
-
-<div align="center">
-
-### 🌟 Ways to Contribute
-
-<table>
-<tr>
-<td width="25%" align="center">
-<img src="https://img.icons8.com/fluency/96/000000/code.png" width="64"><br>
-<b>💻 代码贡献</b><br>
-修复 bug、添加新功能、性能优化、编写测试、改进代码注释
-</td>
-<td width="25%" align="center">
-<img src="https://img.icons8.com/fluency/96/000000/documentation.png" width="64"><br>
-<b>Documentation</b><br>
-Improve docs & guides
-</td>
-<td width="25%" align="center">
-<img src="https://img.icons8.com/fluency/96/000000/test-tube.png" width="64"><br>
-<b>Testing</b><br>
-Write tests & find bugs
-</td>
-<td width="25%" align="center">
-<img src="https://img.icons8.com/fluency/96/000000/chat.png" width="64"><br>
-<b>Community</b><br>
-Help & support others
-</td>
-</tr>
-</table>
-
-</div>
+- [行为准则](#行为准则)
+- [开始贡献](#开始贡献)
+- [开发流程](#开发流程)
+- [代码规范](#代码规范)
+- [测试指南](#测试指南)
+- [提交更改](#提交更改)
+- [Pull Request](#pull-request)
 
 ---
 
-## 📋 Table of Contents
+## 行为准则
 
-- [Code of Conduct](#code-of-conduct)
-- [Getting Started](#getting-started)
-- [Development Workflow](#development-workflow)
-- [Coding Standards](#coding-standards)
-- [Testing Guidelines](#testing-guidelines)
-- [Documentation](#documentation)
-- [Submitting Changes](#submitting-changes)
-- [Review Process](#review-process)
-- [Community](#community)
+### ✅ 应该做的
 
----
+- 尊重和包容他人
+- 欢迎新贡献者
+- 接受建设性批评
+- 专注于社区利益
+- 对他人表示同理心
 
-## Code of Conduct
+### ❌ 不应该做的
 
-<div align="center">
-
-### 🤗 Be Kind and Respectful
-
-</div>
-
-We are committed to providing a welcoming and inclusive environment. By participating, you agree to:
-
-<table>
-<tr>
-<td width="50%">
-
-**✅ DO**
-- Be respectful and considerate
-- Welcome newcomers
-- Accept constructive criticism
-- Focus on what's best for the community
-- Show empathy towards others
-
-</td>
-<td width="50%">
-
-**❌ DON'T**
-- Use offensive language
-- Harass or insult others
-- Publish private information
-- Make personal attacks
-- Disrupt discussions
-
-</td>
-</tr>
-</table>
-
-> 📜 **Full Code of Conduct:** [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)
+- 使用冒犯性语言
+- 骚扰或侮辱他人
+- 发布私人信息
+- 进行人身攻击
+- 打断讨论
 
 ---
 
-## Getting Started
+## 开始贡献
 
-### Prerequisites
+### 前置条件
 
-Before you begin, ensure you have:
+在开始之前，请确保您已安装：
 
-- ✅ **Git** - Version control
-- ✅ **Rust 1.75+** - Programming language
-- ✅ **Cargo** - Rust package manager
-- ✅ **IDE** - VS Code, IntelliJ, or similar
+- **Git** - 版本控制
+- **Python** - 3.12+
+- **uv** - 包管理器
 
-<details>
-<summary><b>🔧 Setting Up Your Environment</b></summary>
-
-**1. Install Rust:**
-```bash
-curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
-```
-
-**2. Install additional tools:**
-```bash
-# Code formatter
-rustup component add rustfmt
-
-# Linter
-rustup component add clippy
-
-# Code coverage (optional)
-cargo install cargo-tarpaulin
-```
-
-**3. Verify installation:**
-```bash
-python --version
-pip --version
-```
-
-</details>
-
-### Fork and Clone
-
-<table>
-<tr>
-<td width="50%">
-
-**1. Fork the Repository**
-
-Click the "Fork" button on GitHub
-
-</td>
-<td width="50%">
-
-**2. Clone Your Fork**
+### 环境设置
 
 ```bash
+# 1. Fork 本仓库
+# 点击 GitHub 上的 Fork 按钮
+
+# 2. 克隆您的 fork
 git clone https://github.com/YOUR_USERNAME/mcp-axon.git
 cd mcp-axon
+
+# 3. 创建虚拟环境
+uv venv
+source .venv/bin/activate  # Linux/Mac
+# .venv\Scripts\activate  # Windows
+
+# 4. 安装依赖
+uv pip install -e ".[dev]"
+
+# 5. 验证安装
+uv run pytest tests/ -v --tb=short
 ```
 
-</td>
-</tr>
-<tr>
-<td width="50%">
-
-**3. Add Upstream Remote**
+### 添加上游仓库
 
 ```bash
-git remote add upstream \
-  https://github.com/ORIGINAL/mcp-axon.git
-```
+# 添加上游仓库
+git remote add upstream https://github.com/Kirky-X/mcp-axon.git
 
-</td>
-<td width="50%">
-
-**4. Verify Remotes**
-
-```bash
+# 验证远程仓库
 git remote -v
-# origin    your-fork
-# upstream  original-repo
+# origin    your-fork-URL
+# upstream  original-repo-URL
 ```
-
-</td>
-</tr>
-</table>
-
-### Build and Test
-
-```bash
-# Build the project
-python -m build
-
-# Run tests
-python -m pytest tests/
-
-# Run with examples
-python -m src.api.mcp_server --help
-```
-
-✅ **Success!** You're ready to contribute!
 
 ---
 
-## Development Workflow
+## 开发流程
 
-<div align="center">
+### 标准贡献流程
 
-### 🔄 Standard Contribution Flow
-
-</div>
-
-```mermaid
-graph LR
-    A[Fork Repo] --> B[Create Branch]
-    B --> C[Make Changes]
-    C --> D[Write Tests]
-    D --> E[Run Tests]
-    E --> F{Tests Pass?}
-    F -->|No| C
-    F -->|Yes| G[Commit]
-    G --> H[Push to Fork]
-    H --> I[Create PR]
-    I --> J[Code Review]
-    J --> K{Approved?}
-    K -->|Changes| C
-    K -->|Yes| L[Merge!]
-    
-    style A fill:#e1f5ff
-    style L fill:#4caf50
+```
+Fork 仓库 → 创建分支 → 编写代码 → 编写测试 → 运行测试 → 提交 → 推送 → 创建 PR
 ```
 
-### Step-by-Step Guide
-
-#### 1️⃣ Create a Branch
+### 创建分支
 
 ```bash
-# Update your fork
+# 更新主分支
 git fetch upstream
 git checkout main
 git merge upstream/main
 
-# Create feature branch
+# 创建功能分支
 git checkout -b feature/your-feature-name
 
-# Or for bug fixes
+# 或修复 bug
 git checkout -b fix/issue-123
 ```
 
-**Branch Naming:**
-- `feature/` - New features
-- `fix/` - Bug fixes
-- `docs/` - Documentation
-- `test/` - Test improvements
-- `refactor/` - Code refactoring
+**分支命名规范：**
+- `feature/` - 新功能
+- `fix/` - Bug 修复
+- `docs/` - 文档改进
+- `test/` - 测试改进
+- `refactor/` - 代码重构
 
-#### 2️⃣ Make Your Changes
+### 编写代码
 
-<table>
-<tr>
-<td width="50%">
-
-**Writing Code:**
-```rust
-// Add your implementation
-pub fn new_feature() -> Result<()> {
-    // Your code here
-    Ok(())
-}
+```python
+# 添加您的实现
+def new_feature() -> Dict[str, Any]:
+    """功能描述
+    
+    Args:
+        param_name: 参数描述
+    
+    Returns:
+        返回值描述
+    """
+    # 实现代码
+    return {"result": "value"}
 ```
 
-</td>
-<td width="50%">
+### 编写测试
 
-**Adding Tests:**
-```rust
-#[test]
-fn test_new_feature() {
-    let result = new_feature();
-    assert!(result.is_ok());
-}
+```python
+# tests/test_services/test_example.py
+import pytest
+from src.core.sdk import RequirementSDK
+
+class TestExample:
+    """测试类"""
+    
+    @pytest.fixture
+    def sdk(self):
+        """测试 fixture"""
+        return RequirementSDK()
+    
+    def test_new_feature(self, sdk):
+        """测试新功能"""
+        result = sdk.create_project(name="测试项目", description="测试")
+        assert result["success"] is True
+        assert "id" in result
 ```
 
-</td>
-</tr>
-</table>
-
-#### 3️⃣ Test Your Changes
+### 运行测试
 
 ```bash
-# Format code
-cargo fmt
+# 格式化代码
+uv run ruff format .
 
-# Run linter
-cargo clippy -- -D warnings
+# 检查代码
+uv run ruff check .
 
-# Run all tests
-cargo test --all-features
+# 类型检查
+uv run mypy src/
 
-# Run specific test
-cargo test test_new_feature
+# 运行所有测试
+uv run pytest tests/ -v --cov=src
 
-# Check coverage (optional)
-cargo tarpaulin --out Html
+# 运行特定测试
+uv run pytest tests/test_services/test_example.py -v
+
+# 运行性能测试
+uv run pytest tests/performance/ -v
 ```
 
-#### 4️⃣ Commit Your Changes
+---
 
-**Good Commit Messages:**
+## 代码规范
+
+### Python 风格指南
+
+遵循 PEP 8 和项目规范：
+
+| 规范 | 说明 |
+|-----|------|
+| **命名** | 使用描述性名称，如 `project_id` 而不是 `pid` |
+| **类型注解** | 所有函数必须添加类型注解 |
+| **文档字符串** | 公开函数必须有 docstring |
+| **行长度** | 最大 100 字符 |
+
+### 好的示例
+
+```python
+def create_project(name: str, description: str = "") -> Dict[str, Any]:
+    """创建新的需求链项目
+    
+    Args:
+        name: 项目名称
+        description: 项目描述（可选）
+    
+    Returns:
+        包含项目 ID 和创建信息的字典
+    """
+    # 实现
+    return {"id": "uuid", "name": name, "success": True}
+```
+
+### 避免的示例
+
+```python
+# ❌ 避免使用模糊名称
+def do_stuff(d):
+    pass
+
+# ❌ 避免缺少类型注解
+def process(data):
+    pass
+
+# ❌ 避免缺少文档
+def helper():
+    # 实现
+    pass
+```
+
+### 代码组织
+
+```
+src/
+├── __init__.py
+├── core/
+│   └── sdk.py          # SDK 主入口
+├── api/
+│   ├── mcp_server.py   # MCP 服务器
+│   └── tools.py        # 工具定义
+├── db/
+│   ├── database.py     # 数据库连接
+│   └── models.py       # 数据模型
+├── services/
+│   ├── project_manager.py
+│   ├── requirement_manager.py
+│   ├── dependency_service.py
+│   ├── validation_service.py
+│   ├── chain_builder.py
+│   └── chain_orchestrator.py
+└── utils/
+    ├── lock_manager.py
+    └── snapshot_manager.py
+```
+
+---
+
+## 测试指南
+
+### 测试类别
+
+| 类型 | 用途 | 位置 |
+|-----|------|------|
+| **单元测试** | 测试单个函数/类 | `tests/unit/` |
+| **集成测试** | 测试服务集成 | `tests/test_integration/` |
+| **端到端测试** | 测试完整流程 | `tests/test_e2e/` |
+| **性能测试** | 性能基准测试 | `tests/performance/` |
+
+### 测试覆盖率目标
+
+- **总体覆盖率**: ≥ 80%
+- **核心模块**: ≥ 90%
+
+### 运行测试
 
 ```bash
-# Format: <type>(<scope>): <description>
+# 运行所有测试
+uv run pytest tests/ -v --cov=src
 
-git commit -m "feat(encryption): add AES-256 support"
-git commit -m "fix(key-manager): resolve memory leak"
-git commit -m "docs(readme): update installation instructions"
-git commit -m "test(cipher): add edge case tests"
+# 生成覆盖率报告
+uv run pytest tests/ --cov=src --cov-report=html
+
+# 查看报告
+open htmlcov/index.html
 ```
 
-**Commit Types:**
-- `feat` - New feature
-- `fix` - Bug fix
-- `docs` - Documentation
-- `style` - Formatting
-- `refactor` - Code restructuring
-- `test` - Adding tests
-- `chore` - Maintenance
+---
 
-<details>
-<summary><b>📝 Commit Message Template</b></summary>
+## 提交更改
 
-```
-<type>(<scope>): <short summary>
+### 提交信息格式
 
-<detailed description>
+```bash
+# 格式: <类型>(<范围>): <描述>
 
-<footer>
+git commit -m "feat(requirement): 添加需求复杂度评估"
+git commit -m "fix(dependency): 修复循环依赖检测"
+git commit -m "docs(readme): 更新安装说明"
+git commit -m "test(service): 添加单元测试"
 ```
 
-**Example:**
+**提交类型：**
+- `feat` - 新功能
+- `fix` - Bug 修复
+- `docs` - 文档
+- `style` - 格式（不影响代码）
+- `refactor` - 重构
+- `test` - 测试
+- `chore` - 维护
+
+### 提交信息模板
+
 ```
-feat(api): add batch encryption support
+<类型>(<范围>): 简短描述
 
-Implement batch processing for multiple encryption operations.
-This improves performance by 40% for bulk operations.
+详细描述（可选）
 
-Closes #123
+关闭问题: Closes #123
 ```
 
-</details>
-
-#### 5️⃣ Push to Your Fork
+### 推送到分支
 
 ```bash
 git push origin feature/your-feature-name
 ```
 
-#### 6️⃣ Create Pull Request
-
-1. Go to your fork on GitHub
-2. Click "Compare & pull request"
-3. Fill in the PR template
-4. Link related issues
-5. Submit!
-
 ---
 
-## Coding Standards
+## Pull Request
 
-<div align="center">
+### 创建 PR
 
-### ✨ Write Clean, Maintainable Code
+1. 访问您的 fork仓库
+2. 点击 "Compare & pull request"
+3. 填写 PR 模板
+4. 关联相关 issues
+5. 提交！
 
-</div>
-
-### Rust Style Guide
-
-Follow the [Rust Style Guide](https://rust-lang.github.io/api-guidelines/):
-
-<table>
-<tr>
-<td width="50%">
-
-**✅ Good**
-
-```rust
-// Descriptive names
-pub fn encrypt_data(
-    plaintext: &[u8],
-    key: &Key,
-) -> Result<Vec<u8>> {
-    // Implementation
-}
-
-// Proper error handling
-match operation() {
-    Ok(result) => result,
-    Err(e) => return Err(e),
-}
-```
-
-</td>
-<td width="50%">
-
-**❌ Bad**
-
-```rust
-// Vague names
-pub fn enc(d: &[u8], k: &Key) 
-    -> Result<Vec<u8>> {
-    // Implementation
-}
-
-// Ignoring errors
-let result = operation().unwrap();
-```
-
-</td>
-</tr>
-</table>
-
-### Code Organization
-
-```
-src/
-├── lib.rs           # Public API
-├── core/            # Core functionality
-│   ├── mod.rs
-│   ├── engine.rs
-│   └── manager.rs
-├── algorithms/      # Algorithm implementations
-│   ├── mod.rs
-│   ├── aes.rs
-│   └── ecdsa.rs
-├── error.rs         # Error types
-└── utils/           # Utilities
-    ├── mod.rs
-    └── helpers.rs
-```
-
-### Documentation
-
-<details>
-<summary><b>📖 Documentation Standards</b></summary>
-
-**Every public item must have documentation:**
-
-```rust
-/// Encrypts data using the specified algorithm.
-///
-/// # Arguments
-///
-/// * `data` - The plaintext data to encrypt
-/// * `key` - The encryption key
-///
-/// # Returns
-///
-/// Returns the encrypted ciphertext on success.
-///
-/// # Errors
-///
-/// Returns `Error::EncryptionFailed` if encryption fails.
-///
-/// # Examples
-///
-/// ```
-/// use project_name::{encrypt, Key};
-///
-/// let key = Key::generate()?;
-/// let ciphertext = encrypt(b"secret", &key)?;
-/// ```
-pub fn encrypt(data: &[u8], key: &Key) -> Result<Vec<u8>> {
-    // Implementation
-}
-```
-
-</details>
-
-### Error Handling
-
-```rust
-// ✅ Use Result types
-pub fn fallible_operation() -> Result<Value, Error> {
-    // Implementation
-}
-
-// ✅ Provide context
-Err(Error::EncryptionFailed {
-    reason: "Invalid key size",
-    context: format!("Expected {}, got {}", expected, actual),
-})
-
-// ❌ Don't panic in library code
-// panic!("Something went wrong");  // Bad!
-```
-
----
-
-## Testing Guidelines
-
-<div align="center">
-
-### 🧪 Test Everything!
-
-</div>
-
-### Test Categories
-
-<table>
-<tr>
-<th>Type</th>
-<th>Purpose</th>
-<th>Location</th>
-</tr>
-<tr>
-<td><b>Unit Tests</b></td>
-<td>Test individual functions</td>
-<td><code>src/*.rs</code> (inline)</td>
-</tr>
-<tr>
-<td><b>Integration Tests</b></td>
-<td>Test public API</td>
-<td><code>tests/</code></td>
-</tr>
-<tr>
-<td><b>Doc Tests</b></td>
-<td>Test examples in docs</td>
-<td>Doc comments</td>
-</tr>
-<tr>
-<td><b>Benchmarks</b></td>
-<td>Performance tests</td>
-<td><code>benches/</code></td>
-</tr>
-</table>
-
-### Writing Tests
-
-**Unit Test Example:**
-
-```rust
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_encrypt_decrypt() {
-        let key = Key::generate().unwrap();
-        let plaintext = b"Hello, World!";
-        
-        let ciphertext = encrypt(plaintext, &key).unwrap();
-        let decrypted = decrypt(&ciphertext, &key).unwrap();
-        
-        assert_eq!(plaintext, &decrypted[..]);
-    }
-
-    #[test]
-    fn test_invalid_key() {
-        let result = encrypt(b"data", &InvalidKey);
-        assert!(result.is_err());
-    }
-}
-```
-
-**Integration Test Example:**
-
-```rust
-// tests/integration_test.rs
-use project_name::{init, Cipher, KeyManager, Algorithm};
-
-#[test]
-fn test_full_workflow() {
-    init().unwrap();
-    
-    let km = KeyManager::new().unwrap();
-    let key_id = km.generate_key(Algorithm::AES256GCM).unwrap();
-    let cipher = Cipher::new(Algorithm::AES256GCM).unwrap();
-    
-    let plaintext = b"Integration test";
-    let ciphertext = cipher.encrypt(&km, &key_id, plaintext).unwrap();
-    let decrypted = cipher.decrypt(&km, &key_id, &ciphertext).unwrap();
-    
-    assert_eq!(plaintext, &decrypted[..]);
-}
-```
-
-### Test Coverage
-
-**Aim for ≥90% coverage:**
-
-```bash
-# Generate coverage report
-cargo tarpaulin --out Html --output-dir coverage
-
-# View report
-open coverage/index.html
-```
-
----
-
-## Documentation
-
-<div align="center">
-
-### 📚 Documentation Matters!
-
-</div>
-
-### What to Document
-
-<table>
-<tr>
-<td width="50%">
-
-**Code Documentation:**
-- ✅ Public functions
-- ✅ Public types
-- ✅ Complex algorithms
-- ✅ Non-obvious behavior
-
-</td>
-<td width="50%">
-
-**User Documentation:**
-- ✅ README updates
-- ✅ User guide changes
-- ✅ API reference
-- ✅ Examples
-
-</td>
-</tr>
-</table>
-
-### Documentation Checklist
-
-- [ ] All public items have doc comments
-- [ ] Examples compile and run
-- [ ] README is updated (if needed)
-- [ ] CHANGELOG is updated
-- [ ] User guide reflects changes
-- [ ] Migration guide (for breaking changes)
-
----
-
-## Submitting Changes
-
-<div align="center">
-
-### 📤 Pull Request Process
-
-</div>
-
-### PR Template
-
-<details>
-<summary><b>📋 Pull Request Template</b></summary>
+### PR 模板
 
 ```markdown
-## Description
-Brief description of changes
+## 描述
+简要描述更改内容
 
-## Type of Change
-- [ ] Bug fix
-- [ ] New feature
-- [ ] Documentation update
-- [ ] Performance improvement
-- [ ] Code refactoring
+## 更改类型
+- [ ] Bug 修复
+- [ ] 新功能
+- [ ] 文档更新
+- [ ] 性能改进
+- [ ] 代码重构
 
-## Changes Made
-- Change 1
-- Change 2
-- Change 3
+## 更改内容
+- 更改 1
+- 更改 2
+- 更改 3
 
-## Testing
-- [ ] Unit tests pass
-- [ ] Integration tests pass
-- [ ] Manual testing completed
+## 测试
+- [ ] 单元测试通过
+- [ ] 集成测试通过
+- [ ] 手动测试完成
 
-## Checklist
-- [ ] Code follows style guidelines
-- [ ] Self-review completed
-- [ ] Comments added for complex code
-- [ ] Documentation updated
-- [ ] No new warnings
-- [ ] Tests added/updated
-
-## Related Issues
-Closes #123
+## 检查清单
+- [ ] 代码符合规范
+- [ ] 自检完成
+- [ ] 复杂代码已添加注释
+- [ ] 文档已更新
+- [ ] 没有新警告
+- [ ] 测试已添加/更新
 ```
 
-</details>
+### PR 最佳实践
 
-### PR Best Practices
+| ✅ 推荐 | ❌ 避免 |
+|---------|---------|
+| 专注于单个问题 | 多个不相关的更改 |
+| 小而可 review | 大型 diff（>500 行）|
+| 清晰的描述 | 缺少上下文 |
+| 包含测试 | 没有测试 |
+| 文档已更新 | 未经文档化的更改 |
 
-<table>
-<tr>
-<td width="50%">
+### 审核流程
 
-**✅ Good PRs:**
-- Focused on single issue
-- Small, reviewable size
-- Clear description
-- Tests included
-- Documentation updated
+**时间线：**
+- 初始审核: 1-3 天
+- 反馈轮次: 2-5 天
+- 批准合并: 1-2 天
 
-</td>
-<td width="50%">
-
-**❌ Avoid:**
-- Multiple unrelated changes
-- Huge diffs (>500 lines)
-- Missing context
-- No tests
-- Undocumented changes
-
-</td>
-</tr>
-</table>
+**审核标准：**
+- ✅ 功能是否符合预期？
+- ✅ 代码质量是否良好？
+- ✅ 测试是否充分？
+- ✅ 文档是否完善？
+- ✅ 是否有性能影响？
+- ✅ 是否有安全问题？
 
 ---
 
-## Review Process
+## 社区
 
-<div align="center">
+### 联系方式
 
-### 👀 What to Expect
+| 渠道 | 说明 |
+|-----|------|
+| [GitHub Issues](https://github.com/Kirky-X/mcp-axon/issues) | Bug 报告和功能请求 |
+| [GitHub Discussions](https://github.com/Kirky-X/mcp-axon/discussions) | 问答和讨论 |
 
-</div>
+### 致谢
 
-### Timeline
-
-```mermaid
-gantt
-    title PR Review Timeline
-    dateFormat  YYYY-MM-DD
-    section Review
-    Initial Review       :a1, 2024-01-01, 2d
-    Feedback Round 1     :a2, after a1, 3d
-    Feedback Round 2     :a3, after a2, 2d
-    Final Approval       :a4, after a3, 1d
-    Merge                :milestone, after a4, 0d
-```
-
-**Typical Timeline:**
-- 📧 Initial review: 1-3 days
-- 💬 Feedback rounds: 2-5 days each
-- ✅ Approval & merge: 1-2 days
-
-### Review Criteria
-
-Reviewers will check:
-
-- ✅ **Functionality**: Does it work as intended?
-- ✅ **Code Quality**: Is it clean and maintainable?
-- ✅ **Tests**: Are there adequate tests?
-- ✅ **Documentation**: Is it well documented?
-- ✅ **Performance**: Any performance impact?
-- ✅ **Security**: Any security concerns?
-
-### Responding to Feedback
-
-```bash
-# Address feedback
-git add .
-git commit -m "Address review comments"
-git push origin feature/your-feature
-
-# PR automatically updates!
-```
+感谢所有贡献者！贡献者将：
+- 列在 CONTRIBUTORS.md 中
+- 显示在 README 贡献者部分
+- 在发布说明中提及
 
 ---
 
-## Community
+## 🎉 感谢您！
 
-<div align="center">
+您的贡献使这个项目变得更好。
 
-### 💬 Connect With Us
-
-</div>
-
-<table>
-<tr>
-<td width="33%" align="center">
-<a href="../../discussions">
-<img src="https://img.icons8.com/fluency/96/000000/chat.png" width="64"><br>
-<b>Discussions</b>
-</a><br>
-Q&A and ideas
-</td>
-<td width="33%" align="center">
-<a href="https://discord.gg/project">
-<img src="https://img.icons8.com/fluency/96/000000/discord-logo.png" width="64"><br>
-<b>Discord</b>
-</a><br>
-Live chat
-</td>
-<td width="33%" align="center">
-<a href="https://twitter.com/project">
-<img src="https://img.icons8.com/fluency/96/000000/twitter.png" width="64"><br>
-<b>Twitter</b>
-</a><br>
-Updates & news
-</td>
-</tr>
-</table>
-
-### Recognition
-
-We value all contributions! Contributors will be:
-
-- 🎖️ Listed in [CONTRIBUTORS.md](CONTRIBUTORS.md)
-- 🌟 Shown in README contributors section
-- 💝 Mentioned in release notes
+**准备好贡献了吗？** [创建第一个 issue](https://github.com/Kirky-X/mcp-axon/issues/new) 或 [开始讨论](https://github.com/Kirky-X/mcp-axon/discussions/new)！
 
 ---
 
-<div align="center">
-
-## 🎉 Thank You!
-
-Your contributions make this project better for everyone.
-
-**Ready to contribute?** [Open your first issue](../../issues/new) or [start a discussion](../../discussions/new)!
-
----
-
-**[🏠 Home](README.md)** • **[📖 Docs](docs/USER_GUIDE.md)** • **[💬 Chat](https://discord.gg/project)**
-
-Made with ❤️ by our amazing community
-
-[⬆ Back to Top](#-contributing-guide)
-
-</div>
+**[用户指南](USER_GUIDE.md)** • **[API 参考](API_REFERENCE.md)** • **[FAQ](FAQ.md)**

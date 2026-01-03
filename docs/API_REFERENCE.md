@@ -1,18 +1,12 @@
-<div align="center">
-
-# 📘 API Reference
+# 📘 API 参考
 
 ### MCP-Axon 需求链化系统完整 API 文档
 
-[🏠 Home](../README.md) • [📖 User Guide](USER_GUIDE.md) • [🏗️ Architecture](ARCHITECTURE.md)
-
 ---
-
-</div>
 
 ## 📋 MCP 工具列表
 
-MCP-Axon 提供了 22 个工具来管理需求链化系统的各个方面：
+MCP-Axon 提供了 22 个 MCP 工具来管理需求链化系统。
 
 ### 🏗️ 项目管理工具
 
@@ -21,7 +15,6 @@ MCP-Axon 提供了 22 个工具来管理需求链化系统的各个方面：
 | `create_project` | 创建新的需求链项目 | 初始化项目 |
 | `update_project` | 更新项目信息 | 修改项目名称或描述 |
 | `get_project` | 获取项目详细信息 | 查询项目状态 |
-| `get_project_state` | 查询项目当前状态 | 获取进度和统计信息 |
 
 ### 📝 需求管理工具
 
@@ -47,12 +40,13 @@ MCP-Axon 提供了 22 个工具来管理需求链化系统的各个方面：
 |----------|------|------|
 | `add_validation` | 为叶子节点添加验证 | 设置测试用例和验收标准 |
 
-### ⛓ 链化工具
+### ⛓️ 链化工具
 
 | 工具名称 | 描述 | 用途 |
 |----------|------|------|
 | `trigger_chaining` | 手动触发链化 | 启动需求链化过程 |
 | `resolve_parallel_order` | 指定并行节点执行顺序 | 处理并行需求执行 |
+| `get_project_state` | 查询项目当前状态 | 获取进度和统计信息 |
 
 ### 💾 状态管理工具
 
@@ -73,80 +67,18 @@ MCP-Axon 提供了 22 个工具来管理需求链化系统的各个方面：
 
 ---
 
-## Overview
-
-<div align="center">
-
-### 🎯 API 设计原则
-
-</div>
-
-<table>
-<tr>
-<td width="25%" align="center">
-<img src="https://img.icons8.com/fluency/96/000000/easy.png" width="64"><br>
-<b>简单易用</b><br>直观的 MCP 工具接口
-</td>
-<td width="25%" align="center">
-<img src="https://img.icons8.com/fluency/96/000000/security-checked.png" width="64"><br>
-<b>安全可靠</b><br>类型安全和默认安全
-</td>
-<td width="25%" align="center">
-<img src="https://img.icons8.com/fluency/96/000000/module.png" width="64"><br>
-<b>可组合</b><br>灵活构建复杂工作流
-</td>
-<td width="25%" align="center">
-<img src="https://img.icons8.com/fluency/96/000000/documentation.png" width="64"><br>
-<b>文档完善</b><br>全面的 API 文档
-</td>
-</tr>
-</table>
-
----
-
 ## 🏗️ 项目管理 API
 
-### 创建项目
-
-<div align="center">
-
-#### 🚀 create_project
-
-</div>
+### create_project
 
 创建一个新的需求链项目。
 
-<table>
-<tr>
-<td width="30%"><b>工具名称</b></td>
-<td width="70%">
+| 参数 | 类型 | 必填 | 描述 |
+|-----|------|-----|------|
+| `name` | string | 是 | 项目名称 |
+| `description` | string | 否 | 项目描述 |
 
-```
-create_project
-```
-
-</td>
-</tr>
-<tr>
-<td><b>描述</b></td>
-<td>创建新的需求链项目。创建后可以开始添加需求节点。</td>
-</tr>
-<tr>
-<td><b>参数</b></td>
-<td>
-
-- `name` (string, 必填): 项目名称
-- `description` (string, 可选): 项目描述
-
-</td>
-</tr>
-<tr>
-<td><b>返回值</b></td>
-<td><code>Dict[str, Any]</code> - 包含项目 ID 和创建信息的字典</td>
-</tr>
-<tr>
-<td><b>示例</b></td>
-<td>
+**返回值示例:**
 
 ```json
 {
@@ -163,125 +95,40 @@ create_project
 }
 ```
 
-</td>
-</tr>
-</table>
-
-### 更新项目
-
-<div align="center">
-
-#### 📝 update_project
-
-</div>
+### update_project
 
 更新项目的基本信息。
 
-<table>
-<tr>
-<td width="30%"><b>工具名称</b></td>
-<td width="70%">
+| 参数 | 类型 | 必填 | 描述 |
+|-----|------|-----|------|
+| `project_id` | string | 是 | 项目 ID |
+| `name` | string | 否 | 新项目名称 |
+| `description` | string | 否 | 新项目描述 |
 
-```
-update_project
-```
-
-</td>
-</tr>
-<tr>
-<td><b>参数</b></td>
-<td>
-
-- `project_id` (string, 必填): 项目 ID
-- `name` (string, 可选): 新项目名称
-- `description` (string, 可选): 新项目描述
-
-</td>
-</tr>
-<tr>
-<td><b>返回值</b></td>
-<td><code>Dict[str, Any]</code> - 更新后的项目信息</td>
-</tr>
-</table>
-
-### 获取项目
-
-<div align="center">
-
-#### 🔍 get_project
-
-</div>
+### get_project
 
 获取项目的详细信息。
 
-<table>
-<tr>
-<td width="30%"><b>工具名称</b></td>
-<td width="70%">
-
-```
-get_project
-```
-
-</td>
-</tr>
-<tr>
-<td><b>参数</b></td>
-<td>
-
-- `project_id` (string, 必填): 项目 ID
-
-</td>
-</tr>
-<tr>
-<td><b>返回值</b></td>
-<td><code>Dict[str, Any]</code> - 项目详细信息</td>
-</tr>
-</table>
+| 参数 | 类型 | 必填 | 描述 |
+|-----|------|-----|------|
+| `project_id` | string | 是 | 项目 ID |
 
 ---
 
 ## 📝 需求管理 API
 
-### 添加需求
-
-<div align="center">
-
-#### ➕ add_requirement
-
-</div>
+### add_requirement
 
 添加需求节点到项目中。
 
-<table>
-<tr>
-<td width="30%"><b>工具名称</b></td>
-<td width="70%">
+| 参数 | 类型 | 必填 | 描述 |
+|-----|------|-----|------|
+| `project_id` | string | 是 | 项目 ID |
+| `content` | string | 是 | 需求内容 |
+| `parent_id` | string | 否 | 父需求 ID |
+| `order_in_parent` | integer | 否 | 在父需求中的顺序 |
 
-```
-add_requirement
-```
-
-</td>
-</tr>
-<tr>
-<td><b>参数</b></td>
-<td>
-
-- `project_id` (string, 必填): 项目 ID
-- `content` (string, 必填): 需求内容
-- `parent_id` (string, 可选): 父需求 ID
-- `order_in_parent` (integer, 可选): 在父需求中的顺序
-
-</td>
-</tr>
-<tr>
-<td><b>返回值</b></td>
-<td><code>Dict[str, Any]</code> - 需求信息</td>
-</tr>
-<tr>
-<td><b>示例</b></td>
-<td>
+**返回值示例:**
 
 ```json
 {
@@ -297,471 +144,183 @@ add_requirement
 }
 ```
 
-</td>
-</tr>
-</table>
-
-### 标记为叶子节点
-
-<div align="center">
-
-#### 🍃 mark_as_leaf
-
-</div>
+### mark_as_leaf
 
 标记需求为叶子节点，表示该需求不需要进一步分解。
 
-<table>
-<tr>
-<td width="30%"><b>工具名称</b></td>
-<td width="70%">
+| 参数 | 类型 | 必填 | 描述 |
+|-----|------|-----|------|
+| `requirement_id` | string | 是 | 需求 ID |
 
-```
-mark_as_leaf
-```
-
-</td>
-</tr>
-<tr>
-<td><b>参数</b></td>
-<td>
-
-- `requirement_id` (string, 必填): 需求 ID
-
-</td>
-</tr>
-<tr>
-<td><b>返回值</b></td>
-<td><code>Dict[str, Any]</code> - 更新后的需求信息</td>
-</tr>
-</table>
-
-### 添加验证
-
-<div align="center">
-
-#### ✅ add_validation
-
-</div>
+### add_validation
 
 为叶子节点添加测试用例和验收标准。
 
-<table>
-<tr>
-<td width="30%"><b>工具名称</b></td>
-<td width="70%">
+| 参数 | 类型 | 必填 | 描述 |
+|-----|------|-----|------|
+| `requirement_id` | string | 是 | 需求 ID（必须是叶子节点） |
+| `test_cases` | array | 否 | 测试用例列表 |
+| `acceptance_criteria` | string | 否 | 验收标准 |
 
+**test_cases 格式:**
+
+```json
+[
+  {
+    "name": "登录测试",
+    "steps": ["输入用户名密码", "点击登录"],
+    "expected_result": "登录成功"
+  }
+]
 ```
-add_validation
-```
 
-</td>
-</tr>
-<tr>
-<td><b>参数</b></td>
-<td>
+---
 
-- `requirement_id` (string, 必填): 需求 ID（必须是叶子节点）
-- `test_cases` (array, 可选): 测试用例列表
-- `acceptance_criteria` (string, 可选): 验收标准
+## 🔗 依赖管理 API
 
-</td>
-</tr>
-<tr>
-<td><b>返回值</b></td>
-<td><code>Dict[str, Any]</code> - 验证节点信息</td>
-</tr>
-<tr>
-<td><b>示例</b></td>
-<td>
+### add_dependency
+
+为需求添加依赖关系。系统会自动检测循环依赖。
+
+| 参数 | 类型 | 必填 | 描述 |
+|-----|------|-----|------|
+| `requirement_id` | string | 是 | 需求 ID |
+| `dependency_id` | string | 是 | 依赖的需求 ID |
+
+### transfer_dependencies
+
+应用依赖传递映射。当父需求分解为多个子需求时，使用此工具指定每个子需求的依赖关系。
+
+| 参数 | 类型 | 必填 | 描述 |
+|-----|------|-----|------|
+| `parent_id` | string | 是 | 父需求 ID |
+| `dependency_mapping` | object | 是 | 依赖映射，格式：`{子需求ID: [依赖ID列表]}` |
+
+---
+
+## ⛓️ 链化 API
+
+### trigger_chaining
+
+手动触发链化过程。
+
+| 参数 | 类型 | 必填 | 描述 |
+|-----|------|-----|------|
+| `project_id` | string | 是 | 项目 ID |
+
+### get_next_requirement
+
+获取下一个需要执行的需求。
+
+| 参数 | 类型 | 必填 | 描述 |
+|-----|------|-----|------|
+| `project_id` | string | 是 | 项目 ID |
+
+### resolve_parallel_order
+
+指定并行节点的执行顺序。
+
+| 参数 | 类型 | 必填 | 描述 |
+|-----|------|-----|------|
+| `project_id` | string | 是 | 项目 ID |
+| `parallel_nodes` | array | 是 | 并行节点 ID 列表 |
+| `sorted_order` | array | 是 | 排序后的节点 ID 列表 |
+
+---
+
+## 💾 状态管理 API
+
+### create_snapshot
+
+创建项目状态快照。
+
+| 参数 | 类型 | 必填 | 描述 |
+|-----|------|-----|------|
+| `project_id` | string | 是 | 项目 ID |
+
+### restore_snapshot
+
+从快照恢复项目状态。
+
+| 参数 | 类型 | 必填 | 描述 |
+|-----|------|-----|------|
+| `snapshot_id` | string | 是 | 快照 ID |
+
+### list_snapshots
+
+列出项目的所有快照。
+
+| 参数 | 类型 | 必填 | 描述 |
+|-----|------|-----|------|
+| `project_id` | string | 是 | 项目 ID |
+| `limit` | integer | 否 | 返回数量限制（默认 10） |
+
+---
+
+## 🔒 并发控制 API
+
+### acquire_lock
+
+获取项目锁，防止并发修改冲突。
+
+| 参数 | 类型 | 必填 | 描述 |
+|-----|------|-----|------|
+| `project_id` | string | 是 | 项目 ID |
+| `session_id` | string | 是 | 会话 ID |
+
+### release_lock
+
+释放项目锁。
+
+| 参数 | 类型 | 必填 | 描述 |
+|-----|------|-----|------|
+| `project_id` | string | 是 | 项目 ID |
+| `session_id` | string | 是 | 会话 ID |
+
+### is_locked
+
+检查项目是否被锁定。
+
+| 参数 | 类型 | 必填 | 描述 |
+|-----|------|-----|------|
+| `project_id` | string | 是 | 项目 ID |
+
+### get_lock_info
+
+获取项目锁的详细信息。
+
+| 参数 | 类型 | 必填 | 描述 |
+|-----|------|-----|------|
+| `project_id` | string | 是 | 项目 ID |
+
+---
+
+## 错误处理
+
+### 通用错误响应
 
 ```json
 {
-  "success": true,
-  "data": {
-    "validation_id": "98765432-1234-1234-1234-123456789012",
-    "test_cases": [
-      {
-        "name": "登录测试",
-        "steps": ["输入用户名密码", "点击登录"],
-        "expected_result": "登录成功"
-      }
-    ],
-    "acceptance_criteria": "用户能够成功登录系统",
-    "status": "pending"
+  "success": false,
+  "error": {
+    "code": "ERROR_CODE",
+    "message": "错误描述"
   },
-  "next_action": "trigger_chaining"
+  "timestamp": "2026-01-01T12:00:00Z"
 }
 ```
 
-</td>
-</tr>
-</table>
+### 常见错误码
+
+| 错误码 | 描述 |
+|-------|------|
+| `PROJECT_NOT_FOUND` | 项目不存在 |
+| `REQUIREMENT_NOT_FOUND` | 需求不存在 |
+| `CYCLE_DETECTED` | 检测到循环依赖 |
+| `LOCK_CONFLICT` | 锁获取冲突 |
+| `INVALID_STATE` | 无效状态 |
+| `VALIDATION_ERROR` | 参数验证失败 |
 
 ---
 
-## Algorithms
-
-<div align="center">
-
-#### 🔐 Supported Cryptographic Algorithms
-
-</div>
-
-### `Algorithm` Enum
-
-<table>
-<tr>
-<td width="30%"><b>Definition</b></td>
-<td width="70%">
-
-```rust
-pub enum Algorithm {
-    // Symmetric Encryption
-    AES128GCM,
-    AES192GCM,
-    AES256GCM,
-    SM4GCM,
-    
-    // Asymmetric Signatures
-    ECDSAP256,
-    ECDSAP384,
-    ECDSAP521,
-    RSA2048,
-    RSA3072,
-    RSA4096,
-    Ed25519,
-    SM2,
-}
-```
-
-</td>
-</tr>
-</table>
-
-### Algorithm Details
-
-<details open>
-<summary><b>🔐 Symmetric Encryption</b></summary>
-
-<table>
-<tr>
-<th>Algorithm</th>
-<th>Key Size</th>
-<th>Security Level</th>
-<th>Performance</th>
-<th>Use Case</th>
-</tr>
-<tr>
-<td><b>AES-128-GCM</b></td>
-<td>128-bit</td>
-<td>🟢 High</td>
-<td>⚡⚡⚡ Very Fast</td>
-<td>General purpose</td>
-</tr>
-<tr>
-<td><b>AES-192-GCM</b></td>
-<td>192-bit</td>
-<td>🟢 High</td>
-<td>⚡⚡ Fast</td>
-<td>Extra security</td>
-</tr>
-<tr>
-<td><b>AES-256-GCM</b></td>
-<td>256-bit</td>
-<td>🟢 Very High</td>
-<td>⚡⚡ Fast</td>
-<td>Maximum security</td>
-</tr>
-<tr>
-<td><b>SM4-GCM</b></td>
-<td>128-bit</td>
-<td>🟢 High</td>
-<td>⚡ Moderate</td>
-<td>Chinese standards</td>
-</tr>
-</table>
-
-</details>
-
-<details>
-<summary><b>✍️ Digital Signatures</b></summary>
-
-<table>
-<tr>
-<th>Algorithm</th>
-<th>Key Size</th>
-<th>Security Level</th>
-<th>Signature Size</th>
-<th>Use Case</th>
-</tr>
-<tr>
-<td><b>ECDSA-P256</b></td>
-<td>256-bit</td>
-<td>🟢 High</td>
-<td>~64 bytes</td>
-<td>Modern standard</td>
-</tr>
-<tr>
-<td><b>ECDSA-P384</b></td>
-<td>384-bit</td>
-<td>🟢 Very High</td>
-<td>~96 bytes</td>
-<td>High security</td>
-</tr>
-<tr>
-<td><b>RSA-2048</b></td>
-<td>2048-bit</td>
-<td>🟢 High</td>
-<td>256 bytes</td>
-<td>Legacy support</td>
-</tr>
-<tr>
-<td><b>Ed25519</b></td>
-<td>256-bit</td>
-<td>🟢 High</td>
-<td>64 bytes</td>
-<td>Fast verification</td>
-</tr>
-<tr>
-<td><b>SM2</b></td>
-<td>256-bit</td>
-<td>🟢 High</td>
-<td>~64 bytes</td>
-<td>Chinese standards</td>
-</tr>
-</table>
-
-</details>
-
----
-
-## Error Handling
-
-<div align="center">
-
-#### 🚨 Error Types and Handling
-
-</div>
-
-### `Error` Enum
-
-```rust
-pub enum Error {
-    // Initialization Errors
-    AlreadyInitialized,
-    NotInitialized,
-    InitializationFailed,
-    
-    // Key Errors
-    KeyNotFound,
-    KeyGenerationFailed,
-    InvalidKeyState,
-    
-    // Cryptographic Errors
-    EncryptionFailed,
-    DecryptionFailed,
-    SignatureFailed,
-    VerificationFailed,
-    
-    // Algorithm Errors
-    AlgorithmNotSupported,
-    AlgorithmNotFound,
-    
-    // I/O Errors
-    IoError(std::io::Error),
-    
-    // Custom errors
-    Custom(String),
-}
-```
-
-### Error Handling Pattern
-
-<table>
-<tr>
-<td width="50%">
-
-**Pattern Matching**
-```rust
-match operation() {
-    Ok(result) => {
-        println!("Success: {:?}", result);
-    }
-    Err(Error::KeyNotFound) => {
-        eprintln!("Key not found");
-    }
-    Err(Error::EncryptionFailed) => {
-        eprintln!("Encryption failed");
-    }
-    Err(e) => {
-        eprintln!("Error: {:?}", e);
-    }
-}
-```
-
-</td>
-<td width="50%">
-
-**? Operator**
-```rust
-fn process_data() -> Result<(), Error> {
-    init()?;
-    
-    let km = KeyManager::new()?;
-    let key = km.generate_key(
-        Algorithm::AES256GCM
-    )?;
-    
-    let cipher = Cipher::new(
-        Algorithm::AES256GCM
-    )?;
-    
-    Ok(())
-}
-```
-
-</td>
-</tr>
-</table>
-
----
-
-## Type Definitions
-
-### Common Types
-
-<table>
-<tr>
-<td width="50%">
-
-**Key ID**
-```rust
-pub type KeyId = String;
-```
-
-**Algorithm Type**
-```rust
-pub enum Algorithm { /* ... */ }
-```
-
-</td>
-<td width="50%">
-
-**Result Type**
-```rust
-pub type Result<T> = 
-    std::result::Result<T, Error>;
-```
-
-**Log Level**
-```rust
-pub enum LogLevel {
-    Debug,
-    Info,
-    Warn,
-    Error,
-}
-```
-
-</td>
-</tr>
-</table>
-
----
-
-## Examples
-
-<div align="center">
-
-### 💡 Common Usage Patterns
-
-</div>
-
-### Example 1: Basic Encryption
-
-```rust
-use project_name::{init, Cipher, KeyManager, Algorithm};
-
-fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // Initialize
-    init()?;
-    
-    // Setup
-    let km = KeyManager::new()?;
-    let key_id = km.generate_key(Algorithm::AES256GCM)?;
-    let cipher = Cipher::new(Algorithm::AES256GCM)?;
-    
-    // Encrypt
-    let plaintext = b"Hello, World!";
-    let ciphertext = cipher.encrypt(&km, &key_id, plaintext)?;
-    
-    // Decrypt
-    let decrypted = cipher.decrypt(&km, &key_id, &ciphertext)?;
-    
-    assert_eq!(plaintext, &decrypted[..]);
-    println!("✅ Success!");
-    
-    Ok(())
-}
-```
-
-### Example 2: Digital Signatures
-
-```rust
-use project_name::{init, Cipher, KeyManager, Algorithm};
-
-fn main() -> Result<(), Box<dyn std::error::Error>> {
-    init()?;
-    
-    let km = KeyManager::new()?;
-    let key_id = km.generate_key(Algorithm::ECDSAP256)?;
-    let signer = Cipher::new(Algorithm::ECDSAP256)?;
-    
-    // Sign
-    let message = b"Important document";
-    let signature = signer.sign(&km, &key_id, message)?;
-    
-    // Verify
-    let is_valid = signer.verify(&km, &key_id, message, &signature)?;
-    assert!(is_valid);
-    
-    println!("✅ Signature verified!");
-    
-    Ok(())
-}
-```
-
-### Example 3: Advanced Configuration
-
-```rust
-use project_name::{init_with_config, Config, LogLevel};
-
-fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let config = Config::builder()
-        .thread_pool_size(8)
-        .cache_size(2048)
-        .log_level(LogLevel::Debug)
-        .enable_metrics(true)
-        .enable_audit(true)
-        .build()?;
-    
-    init_with_config(config)?;
-    
-    // Use the library...
-    
-    Ok(())
-}
-```
-
----
-
-<div align="center">
-
-**[📖 User Guide](USER_GUIDE.md)** • **[🏗️ Architecture](ARCHITECTURE.md)** • **[🏠 Home](../README.md)**
-
-Made with ❤️ by the Documentation Team
-
-[⬆ Back to Top](#-api-reference)
-
-</div>
+**[用户指南](USER_GUIDE.md)** • **[架构设计](ARCHITECTURE.md)** • **[FAQ](FAQ.md)**

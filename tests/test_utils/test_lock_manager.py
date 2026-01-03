@@ -4,12 +4,12 @@
 
 """项目锁管理器测试"""
 
-import pytest
 import time
-from datetime import datetime
+
+import pytest
+
 from src.db.models import Project
 from src.utils.lock_manager import ProjectLockManager
-
 
 
 def test_tc016_acquire_project_lock(sync_session):
@@ -23,9 +23,7 @@ def test_tc016_acquire_project_lock(sync_session):
 
     # Act
     result = lock_manager.acquire_lock(
-        sync_session,
-        project_id=project.id,
-        session_id="session1"
+        sync_session, project_id=project.id, session_id="session1"
     )
 
     # Assert
@@ -33,7 +31,6 @@ def test_tc016_acquire_project_lock(sync_session):
     sync_session.refresh(project)
     assert project.locked_by == "session1"
     assert project.locked_at is not None
-
 
 
 def test_tc017_lock_conflict(sync_session):
@@ -50,7 +47,6 @@ def test_tc017_lock_conflict(sync_session):
 
     # Assert
     assert result is False
-
 
 
 def test_tc018_lock_timeout(sync_session):
@@ -73,7 +69,6 @@ def test_tc018_lock_timeout(sync_session):
     assert project.locked_by == "session2"
 
 
-
 def test_release_lock(sync_session):
     """测试释放锁"""
     # Arrange
@@ -93,7 +88,6 @@ def test_release_lock(sync_session):
     assert project.locked_by is None
 
 
-
 def test_release_lock_wrong_session(sync_session):
     """测试非锁定会话释放锁（应失败）"""
     # Arrange
@@ -109,7 +103,6 @@ def test_release_lock_wrong_session(sync_session):
 
     # Assert
     assert result is False
-
 
 
 def test_is_locked(sync_session):
@@ -130,7 +123,6 @@ def test_is_locked(sync_session):
     assert lock_manager.is_locked(sync_session, project.id) is True
 
 
-
 def test_is_locked_expired(sync_session):
     """测试检查过期锁"""
     # Arrange
@@ -147,7 +139,6 @@ def test_is_locked_expired(sync_session):
 
     # Assert
     assert result is False
-
 
 
 def test_get_lock_info(sync_session):
@@ -172,7 +163,6 @@ def test_get_lock_info(sync_session):
     assert "remaining_seconds" in lock_info
 
 
-
 def test_get_lock_info_not_locked(sync_session):
     """测试获取未锁定项目的锁信息"""
     # Arrange
@@ -186,7 +176,6 @@ def test_get_lock_info_not_locked(sync_session):
 
     # Assert
     assert lock_info is None
-
 
 
 def test_cleanup_expired_locks(sync_session):
@@ -219,7 +208,6 @@ def test_cleanup_expired_locks(sync_session):
     assert project2.locked_by is None
 
 
-
 def test_acquire_lock_nonexistent_project(sync_session):
     """测试获取不存在项目的锁"""
     # Arrange
@@ -228,11 +216,8 @@ def test_acquire_lock_nonexistent_project(sync_session):
     # Act & Assert
     with pytest.raises(ValueError, match="项目不存在"):
         lock_manager.acquire_lock(
-            sync_session,
-            project_id="nonexistent-id",
-            session_id="session1"
+            sync_session, project_id="nonexistent-id", session_id="session1"
         )
-
 
 
 def test_reacquire_lock_same_session(sync_session):

@@ -4,7 +4,6 @@
 
 """事件日志工具测试"""
 
-import pytest
 from src.db.models import Event
 from src.utils.event_logger import log_event
 
@@ -19,17 +18,11 @@ def test_log_event_basic(sync_session):
 
     # Act
     log_event(
-        sync_session,
-        project_id,
-        event_type,
-        aggregate_id,
-        {"content": "测试需求"}
+        sync_session, project_id, event_type, aggregate_id, {"content": "测试需求"}
     )
 
     # Assert
-    events = sync_session.query(Event).filter_by(
-        project_id=project_id
-    ).all()
+    events = sync_session.query(Event).filter_by(project_id=project_id).all()
     assert len(events) == 1
     assert events[0].event_type == event_type
     assert events[0].aggregate_id == aggregate_id
@@ -45,18 +38,10 @@ def test_log_event_with_project_id(sync_session):
     aggregate_id = project_id
 
     # Act
-    log_event(
-        sync_session,
-        project_id,
-        event_type,
-        aggregate_id,
-        {"name": "测试项目"}
-    )
+    log_event(sync_session, project_id, event_type, aggregate_id, {"name": "测试项目"})
 
     # Assert
-    events = sync_session.query(Event).filter_by(
-        project_id=project_id
-    ).all()
+    events = sync_session.query(Event).filter_by(project_id=project_id).all()
     assert len(events) == 1
     assert events[0].event_type == event_type
     assert events[0].aggregate_id == aggregate_id
@@ -74,9 +59,7 @@ def test_log_event_multiple_events(sync_session):
     log_event(sync_session, project_id, "Event3", "entity3", {"data": 3})
 
     # Assert
-    events = sync_session.query(Event).filter_by(
-        project_id=project_id
-    ).all()
+    events = sync_session.query(Event).filter_by(project_id=project_id).all()
     assert len(events) == 3
 
 
@@ -86,28 +69,16 @@ def test_log_event_with_complex_data(sync_session):
     # Arrange
     project_id = "test_project_complex"
     complex_data = {
-        "nested": {
-            "level1": {
-                "level2": "value"
-            }
-        },
+        "nested": {"level1": {"level2": "value"}},
         "list": [1, 2, 3],
-        "string": "test"
+        "string": "test",
     }
 
     # Act
-    log_event(
-        sync_session,
-        project_id,
-        "ComplexEvent",
-        "entity_id",
-        complex_data
-    )
+    log_event(sync_session, project_id, "ComplexEvent", "entity_id", complex_data)
 
     # Assert
-    events = sync_session.query(Event).filter_by(
-        project_id=project_id
-    ).all()
+    events = sync_session.query(Event).filter_by(project_id=project_id).all()
     assert len(events) == 1
     assert events[0].payload == complex_data
 
@@ -119,18 +90,10 @@ def test_log_event_empty_data(sync_session):
     project_id = "test_project_empty"
 
     # Act
-    log_event(
-        sync_session,
-        project_id,
-        "EmptyEvent",
-        "entity_id",
-        {}
-    )
+    log_event(sync_session, project_id, "EmptyEvent", "entity_id", {})
 
     # Assert
-    events = sync_session.query(Event).filter_by(
-        project_id=project_id
-    ).all()
+    events = sync_session.query(Event).filter_by(project_id=project_id).all()
     assert len(events) == 1
     assert events[0].payload == {}
 
@@ -147,9 +110,12 @@ def test_log_event_sequence_order(sync_session):
     log_event(sync_session, project_id, "Event3", "entity3", {"order": 3})
 
     # Assert
-    events = sync_session.query(Event).filter_by(
-        project_id=project_id
-    ).order_by(Event.sequence).all()
+    events = (
+        sync_session.query(Event)
+        .filter_by(project_id=project_id)
+        .order_by(Event.sequence)
+        .all()
+    )
     assert len(events) == 3
     assert events[0].sequence == 1
     assert events[1].sequence == 2
@@ -169,12 +135,8 @@ def test_log_event_different_projects(sync_session):
     log_event(sync_session, project1_id, "Event3", "entity3", {})
 
     # Assert
-    events1 = sync_session.query(Event).filter_by(
-        project_id=project1_id
-    ).all()
-    events2 = sync_session.query(Event).filter_by(
-        project_id=project2_id
-    ).all()
+    events1 = sync_session.query(Event).filter_by(project_id=project1_id).all()
+    events2 = sync_session.query(Event).filter_by(project_id=project2_id).all()
     assert len(events1) == 2
     assert len(events2) == 1
 
@@ -193,13 +155,11 @@ def test_log_event_with_metadata(sync_session):
         "MetadataEvent",
         "entity_id",
         {"message": "Test"},
-        metadata=metadata
+        metadata=metadata,
     )
 
     # Assert
-    events = sync_session.query(Event).filter_by(
-        project_id=project_id
-    ).all()
+    events = sync_session.query(Event).filter_by(project_id=project_id).all()
     assert len(events) == 1
     assert events[0].event_metadata == metadata
 
@@ -212,22 +172,14 @@ def test_log_event_with_unicode(sync_session):
     unicode_data = {
         "chinese": "中文测试",
         "emoji": "🎉🚀",
-        "special": "特殊字符: @#$%^&*()"
+        "special": "特殊字符: @#$%^&*()",
     }
 
     # Act
-    log_event(
-        sync_session,
-        project_id,
-        "UnicodeEvent",
-        "entity_id",
-        unicode_data
-    )
+    log_event(sync_session, project_id, "UnicodeEvent", "entity_id", unicode_data)
 
     # Assert
-    events = sync_session.query(Event).filter_by(
-        project_id=project_id
-    ).all()
+    events = sync_session.query(Event).filter_by(project_id=project_id).all()
     assert len(events) == 1
     assert events[0].payload == unicode_data
 
@@ -240,18 +192,10 @@ def test_log_event_large_data(sync_session):
     large_data = {"item_" + str(i): i for i in range(100)}
 
     # Act
-    log_event(
-        sync_session,
-        project_id,
-        "LargeEvent",
-        "entity_id",
-        large_data
-    )
+    log_event(sync_session, project_id, "LargeEvent", "entity_id", large_data)
 
     # Assert
-    events = sync_session.query(Event).filter_by(
-        project_id=project_id
-    ).all()
+    events = sync_session.query(Event).filter_by(project_id=project_id).all()
     assert len(events) == 1
     assert events[0].payload == large_data
 
@@ -266,14 +210,16 @@ def test_log_event_query_by_event_type(sync_session):
     log_event(sync_session, project_id, "TypeA", "entity3", {})
 
     # Act
-    events_a = sync_session.query(Event).filter_by(
-        project_id=project_id,
-        event_type="TypeA"
-    ).all()
-    events_b = sync_session.query(Event).filter_by(
-        project_id=project_id,
-        event_type="TypeB"
-    ).all()
+    events_a = (
+        sync_session.query(Event)
+        .filter_by(project_id=project_id, event_type="TypeA")
+        .all()
+    )
+    events_b = (
+        sync_session.query(Event)
+        .filter_by(project_id=project_id, event_type="TypeB")
+        .all()
+    )
 
     # Assert
     assert len(events_a) == 2
@@ -292,9 +238,12 @@ def test_log_event_order_by_created_at(sync_session):
     log_event(sync_session, project_id, "Event3", "entity3", {"order": 3})
 
     # Assert
-    events = sync_session.query(Event).filter_by(
-        project_id=project_id
-    ).order_by(Event.created_at).all()
+    events = (
+        sync_session.query(Event)
+        .filter_by(project_id=project_id)
+        .order_by(Event.created_at)
+        .all()
+    )
     assert len(events) == 3
     assert events[0].payload["order"] == 1
     assert events[1].payload["order"] == 2

@@ -5,7 +5,8 @@
 """项目管理服务测试"""
 
 import pytest
-from src.db.models import Project, ChainState, ProjectStatus
+
+from src.db.models import ChainState, Project, ProjectStatus
 from src.services.project_manager import ProjectManager
 
 
@@ -17,9 +18,7 @@ def test_tc006_project_manager_create(sync_session):
 
     # Act
     result = manager.create_project(
-        sync_session,
-        name="测试项目",
-        description="这是一个测试项目"
+        sync_session, name="测试项目", description="这是一个测试项目"
     )
 
     # Assert
@@ -36,9 +35,11 @@ def test_tc006_project_manager_create(sync_session):
     assert project.status == ProjectStatus.CREATED.value
 
     # 验证链化状态已创建
-    chain_state = sync_session.query(ChainState).filter_by(
-        project_id=result["project_id"]
-    ).first()
+    chain_state = (
+        sync_session.query(ChainState)
+        .filter_by(project_id=result["project_id"])
+        .first()
+    )
     assert chain_state is not None
 
 
@@ -70,7 +71,7 @@ def test_project_manager_update_project(sync_session):
     result = manager.update_project(
         sync_session,
         project["project_id"],
-        ProjectUpdate(name="新名称", description="新描述")
+        ProjectUpdate(name="新名称", description="新描述"),
     )
 
     # Assert
@@ -104,9 +105,7 @@ def test_project_manager_update_status(sync_session):
 
     # Act
     manager.update_project_status(
-        sync_session,
-        project["project_id"],
-        ProjectStatus.DECOMPOSING
+        sync_session, project["project_id"], ProjectStatus.DECOMPOSING
     )
 
     # Assert

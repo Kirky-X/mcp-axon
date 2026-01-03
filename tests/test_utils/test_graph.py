@@ -5,6 +5,7 @@
 """图算法工具类测试"""
 
 import pytest
+
 from src.utils.graph import GraphAlgorithms
 
 
@@ -15,9 +16,9 @@ def test_tc011_topological_sort_basic():
     # 表示：A 依赖于 B 和 C，B 依赖于 D，C 依赖于 D
     graph = {
         "D": ["B", "C"],  # D 是 B 和 C 的依赖
-        "B": ["A"],      # B 是 A 的依赖
-        "C": ["A"],      # C 是 A 的依赖
-        "A": []          # A 没有依赖其他节点
+        "B": ["A"],  # B 是 A 的依赖
+        "C": ["A"],  # C 是 A 的依赖
+        "A": [],  # A 没有依赖其他节点
     }
 
     # Act
@@ -35,18 +36,18 @@ def test_tc012_topological_sort_complex():
     """TC-012: 测试复杂拓扑排序"""
     # Arrange - 构建正确的依赖图
     # req1 依赖于 req2 和 req3
-    # req2 依赖于 req4  
+    # req2 依赖于 req4
     # req3 依赖于 req4 和 req5
     # req4 依赖于 req6
     # req5 依赖于 req6
     # req6 没有依赖
     graph = {
         "req6": ["req4", "req5"],  # req6 是 req4 和 req5 的依赖
-        "req4": ["req2"],         # req4 是 req2 的依赖
-        "req5": ["req3"],         # req5 是 req3 的依赖
-        "req2": ["req1"],         # req2 是 req1 的依赖
-        "req3": ["req1"],         # req3 是 req1 的依赖
-        "req1": []                # req1 没有依赖其他节点
+        "req4": ["req2"],  # req4 是 req2 的依赖
+        "req5": ["req3"],  # req5 是 req3 的依赖
+        "req2": ["req1"],  # req2 是 req1 的依赖
+        "req3": ["req1"],  # req3 是 req1 的依赖
+        "req1": [],  # req1 没有依赖其他节点
     }
 
     # Act
@@ -65,7 +66,7 @@ def test_tc013_cycle_detection():
     graph = {
         "A": ["B"],
         "B": ["C"],
-        "C": ["A"]  # 环路
+        "C": ["A"],  # 环路
     }
 
     # Act & Assert
@@ -81,7 +82,7 @@ def test_tc014_dfs_cycle_detection():
         "A": ["B"],
         "B": ["C"],
         "C": ["D"],
-        "D": ["B"]  # B -> C -> D -> B
+        "D": ["B"],  # B -> C -> D -> B
     }
 
     # Act
@@ -115,7 +116,7 @@ def test_topological_sort_linear_chain():
         "D": ["C"],  # D 是 C 的依赖
         "C": ["B"],  # C 是 B 的依赖
         "B": ["A"],  # B 是 A 的依赖
-        "A": []      # A 没有依赖其他节点
+        "A": [],  # A 没有依赖其他节点
     }
 
     # Act
@@ -133,12 +134,7 @@ def test_topological_sort_linear_chain():
 def test_dfs_cycle_detection_no_cycle():
     """测试 DFS 循环检测（无循环）"""
     # Arrange
-    graph = {
-        "A": ["B", "C"],
-        "B": ["D"],
-        "C": ["D"],
-        "D": []
-    }
+    graph = {"A": ["B", "C"], "B": ["D"], "C": ["D"], "D": []}
 
     # Act
     graph_algo = GraphAlgorithms()
@@ -154,14 +150,12 @@ def test_build_dependency_graph():
     nodes = [
         {"id": "A", "deps": ["B"]},
         {"id": "B", "deps": ["C"]},
-        {"id": "C", "deps": []}
+        {"id": "C", "deps": []},
     ]
 
     # Act
     graph = GraphAlgorithms.build_dependency_graph(
-        nodes,
-        lambda n: n["id"],
-        lambda n: n["deps"]
+        nodes, lambda n: n["id"], lambda n: n["deps"]
     )
 
     # Assert
@@ -169,11 +163,7 @@ def test_build_dependency_graph():
     # A 依赖 B，所以 B -> A
     # B 依赖 C，所以 C -> B
     # C 没有依赖，所以 C -> []
-    assert graph == {
-        "A": [],
-        "B": ["A"],
-        "C": ["B"]
-    }
+    assert graph == {"A": [], "B": ["A"], "C": ["B"]}
 
 
 def test_flatten_layers():
@@ -233,9 +223,9 @@ def test_topological_sort_with_custom_in_degree():
     # Arrange - D -> B, D -> C, B -> A, C -> A
     graph = {
         "D": ["B", "C"],  # D 是 B 和 C 的依赖
-        "B": ["A"],      # B 是 A 的依赖
-        "C": ["A"],      # C 是 A 的依赖
-        "A": []          # A 没有依赖其他节点
+        "B": ["A"],  # B 是 A 的依赖
+        "C": ["A"],  # C 是 A 的依赖
+        "A": [],  # A 没有依赖其他节点
     }
     in_degree = {"D": 0, "B": 1, "C": 1, "A": 2}
 

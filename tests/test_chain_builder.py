@@ -5,7 +5,14 @@
 """链化构建器测试"""
 
 import pytest
-from src.db.models import Project, Requirement, RequirementStatus, ChainState, ChainStatus
+
+from src.db.models import (
+    ChainState,
+    ChainStatus,
+    Project,
+    Requirement,
+    RequirementStatus,
+)
 from src.services.chain_builder import ChainBuilder
 
 
@@ -20,19 +27,13 @@ def test_tc015_build_linked_list(sync_session):
 
     # 创建需求
     req1 = Requirement(
-        project_id=project.id,
-        content="需求1",
-        status=RequirementStatus.VALIDATED.value
+        project_id=project.id, content="需求1", status=RequirementStatus.VALIDATED.value
     )
     req2 = Requirement(
-        project_id=project.id,
-        content="需求2",
-        status=RequirementStatus.VALIDATED.value
+        project_id=project.id, content="需求2", status=RequirementStatus.VALIDATED.value
     )
     req3 = Requirement(
-        project_id=project.id,
-        content="需求3",
-        status=RequirementStatus.VALIDATED.value
+        project_id=project.id, content="需求3", status=RequirementStatus.VALIDATED.value
     )
     sync_session.add_all([req1, req2, req3])
     sync_session.commit()
@@ -40,11 +41,7 @@ def test_tc015_build_linked_list(sync_session):
     ordered_ids = [req1.id, req2.id, req3.id]
 
     # Act
-    result = builder.build_chain_with_order(
-        sync_session,
-        project.id,
-        ordered_ids
-    )
+    result = builder.build_chain_with_order(sync_session, project.id, ordered_ids)
 
     # Assert
     assert result["status"] == "completed"
@@ -98,19 +95,19 @@ def test_build_chain_with_dependencies(sync_session):
         project_id=project.id,
         content="需求1",
         status=RequirementStatus.VALIDATED.value,
-        dependencies=[]
+        dependencies=[],
     )
     req2 = Requirement(
         project_id=project.id,
         content="需求2",
         status=RequirementStatus.VALIDATED.value,
-        dependencies=[]
+        dependencies=[],
     )
     req3 = Requirement(
         project_id=project.id,
         content="需求3",
         status=RequirementStatus.VALIDATED.value,
-        dependencies=[]
+        dependencies=[],
     )
     sync_session.add_all([req1, req2, req3])
     sync_session.flush()  # Flush to get IDs
@@ -154,19 +151,19 @@ def test_build_chain_with_parallel_nodes(sync_session):
         project_id=project.id,
         content="需求1",
         status=RequirementStatus.VALIDATED.value,
-        dependencies=[]
+        dependencies=[],
     )
     req2 = Requirement(
         project_id=project.id,
         content="需求2",
         status=RequirementStatus.VALIDATED.value,
-        dependencies=[]
+        dependencies=[],
     )
     req3 = Requirement(
         project_id=project.id,
         content="需求3",
         status=RequirementStatus.VALIDATED.value,
-        dependencies=[]
+        dependencies=[],
     )
     sync_session.add_all([req1, req2, req3])
     sync_session.flush()  # Flush to get IDs
@@ -201,19 +198,19 @@ def test_build_chain_cycle_detection(sync_session):
         project_id=project.id,
         content="需求1",
         status=RequirementStatus.VALIDATED.value,
-        dependencies=[]
+        dependencies=[],
     )
     req2 = Requirement(
         project_id=project.id,
         content="需求2",
         status=RequirementStatus.VALIDATED.value,
-        dependencies=[]
+        dependencies=[],
     )
     req3 = Requirement(
         project_id=project.id,
         content="需求3",
         status=RequirementStatus.VALIDATED.value,
-        dependencies=[]
+        dependencies=[],
     )
     sync_session.add_all([req1, req2, req3])
     sync_session.flush()  # Flush to get IDs
@@ -238,14 +235,10 @@ def test_build_chain_with_invalid_order(sync_session):
     sync_session.commit()
 
     req1 = Requirement(
-        project_id=project.id,
-        content="需求1",
-        status=RequirementStatus.VALIDATED.value
+        project_id=project.id, content="需求1", status=RequirementStatus.VALIDATED.value
     )
     req2 = Requirement(
-        project_id=project.id,
-        content="需求2",
-        status=RequirementStatus.VALIDATED.value
+        project_id=project.id, content="需求2", status=RequirementStatus.VALIDATED.value
     )
     sync_session.add_all([req1, req2])
     sync_session.commit()
@@ -255,7 +248,7 @@ def test_build_chain_with_invalid_order(sync_session):
         builder.build_chain_with_order(
             sync_session,
             project.id,
-            [req1.id]  # 缺少 req2
+            [req1.id],  # 缺少 req2
         )
 
 
@@ -269,14 +262,10 @@ def test_reset_chain(sync_session):
 
     # 构建链
     req1 = Requirement(
-        project_id=project.id,
-        content="需求1",
-        status=RequirementStatus.VALIDATED.value
+        project_id=project.id, content="需求1", status=RequirementStatus.VALIDATED.value
     )
     req2 = Requirement(
-        project_id=project.id,
-        content="需求2",
-        status=RequirementStatus.VALIDATED.value
+        project_id=project.id, content="需求2", status=RequirementStatus.VALIDATED.value
     )
     sync_session.add_all([req1, req2])
     sync_session.commit()
@@ -303,9 +292,9 @@ def test_reset_chain(sync_session):
     assert req2.next_requirement_id is None
 
     # 验证链化状态已重置
-    chain_state = sync_session.query(ChainState).filter_by(
-        project_id=project.id
-    ).first()
+    chain_state = (
+        sync_session.query(ChainState).filter_by(project_id=project.id).first()
+    )
     assert chain_state.status == ChainStatus.IDLE.value
     assert chain_state.chain_head_id is None
 
@@ -319,9 +308,7 @@ def test_build_chain_updates_chain_state(sync_session):
     sync_session.commit()
 
     req1 = Requirement(
-        project_id=project.id,
-        content="需求1",
-        status=RequirementStatus.VALIDATED.value
+        project_id=project.id, content="需求1", status=RequirementStatus.VALIDATED.value
     )
     sync_session.add(req1)
     sync_session.commit()
@@ -330,9 +317,9 @@ def test_build_chain_updates_chain_state(sync_session):
     builder.build_chain(sync_session, project.id)
 
     # Assert
-    chain_state = sync_session.query(ChainState).filter_by(
-        project_id=project.id
-    ).first()
+    chain_state = (
+        sync_session.query(ChainState).filter_by(project_id=project.id).first()
+    )
 
     assert chain_state is not None
     assert chain_state.status == ChainStatus.COMPLETED.value

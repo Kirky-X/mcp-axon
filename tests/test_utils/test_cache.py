@@ -4,9 +4,7 @@
 
 """缓存管理工具测试"""
 
-import pytest
-import time
-from src.utils.cache import LRUCache, CacheManager
+from src.utils.cache import CacheManager, LRUCache
 
 
 def test_lru_cache_basic_operations():
@@ -210,9 +208,10 @@ def test_lru_cache_thread_safety():
             cache.put(f"key{i}", f"value{i}")
 
     import threading
+
     threads = [
         threading.Thread(target=put_items, args=(0, 50)),
-        threading.Thread(target=put_items, args=(50, 100))
+        threading.Thread(target=put_items, args=(50, 100)),
     ]
     for t in threads:
         t.start()

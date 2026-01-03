@@ -5,6 +5,7 @@
 """事务测试"""
 
 import pytest
+
 from src.core.sdk import RequirementSDK
 
 
@@ -19,18 +20,19 @@ def test_tc022_transaction_rollback():
     req = sdk.add_requirement(project["project_id"], "非叶子需求")
 
     with pytest.raises(ValueError, match="只能为叶子节点添加验证"):
-        sdk.add_validation(
-            req["requirement_id"],
-            [{"name": "测试"}]
-        )
+        sdk.add_validation(req["requirement_id"], [{"name": "测试"}])
 
     # Assert: 验证节点未创建
     from src.db.database import get_session
+
     with get_session() as session:
         from src.db.models import ValidationNode
-        validation = session.query(ValidationNode).filter_by(
-            requirement_id=req["requirement_id"]
-        ).first()
+
+        validation = (
+            session.query(ValidationNode)
+            .filter_by(requirement_id=req["requirement_id"])
+            .first()
+        )
         assert validation is None
 
 
@@ -43,20 +45,20 @@ def test_transaction_success():
     # Act
     req = sdk.add_requirement(project["project_id"], "需求")
     sdk.mark_as_leaf(req["requirement_id"])
-    validation = sdk.add_validation(
-        req["requirement_id"],
-        [{"name": "测试"}]
-    )
+    validation = sdk.add_validation(req["requirement_id"], [{"name": "测试"}])
 
     # Assert: 所有操作都成功
     assert validation["validation_id"] is not None
 
     with sdk._get_session() as session:
         from src.db.models import Requirement, ValidationNode
+
         saved_req = session.get(Requirement, req["requirement_id"])
-        saved_validation = session.query(ValidationNode).filter_by(
-            requirement_id=req["requirement_id"]
-        ).first()
+        saved_validation = (
+            session.query(ValidationNode)
+            .filter_by(requirement_id=req["requirement_id"])
+            .first()
+        )
 
         assert saved_req is not None
         assert saved_validation is not None
@@ -77,5 +79,6 @@ def test_transaction_partial_failure():
     # Assert: 原始需求应该仍然存在
     with sdk._get_session() as session:
         from src.db.models import Requirement
+
         saved_req = session.get(Requirement, req["requirement_id"])
         assert saved_req is not None

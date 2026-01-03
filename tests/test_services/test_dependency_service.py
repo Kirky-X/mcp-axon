@@ -6,6 +6,7 @@
 
 import pytest
 from sqlalchemy.orm.attributes import flag_modified
+
 from src.db.models import Project, Requirement
 from src.services.dependency_service import DependencyService
 
@@ -26,29 +27,21 @@ def test_tc009_dependency_single_child_inheritance(sync_session):
 
     # 创建父需求（依赖 dep1）
     parent = Requirement(
-        project_id=project.id,
-        content="父需求",
-        dependencies=[dep1.id]
+        project_id=project.id, content="父需求", dependencies=[dep1.id]
     )
     sync_session.add(parent)
     sync_session.flush()
-    flag_modified(parent, 'dependencies')
+    flag_modified(parent, "dependencies")
     sync_session.commit()
 
     # 创建子需求
-    child = Requirement(
-        project_id=project.id,
-        parent_id=parent.id,
-        content="子需求"
-    )
+    child = Requirement(project_id=project.id, parent_id=parent.id, content="子需求")
     sync_session.add(child)
     sync_session.commit()
 
     # Act: 传递依赖（单子需求自动继承）
     result = service.transfer_dependencies(
-        sync_session,
-        parent_id=parent.id,
-        dependency_mapping={}
+        sync_session, parent_id=parent.id, dependency_mapping={}
     )
 
     # Assert
@@ -73,13 +66,11 @@ def test_transfer_dependencies_with_mapping(sync_session):
 
     # 创建父需求
     parent = Requirement(
-        project_id=project.id,
-        content="父需求",
-        dependencies=[dep1.id, dep2.id]
+        project_id=project.id, content="父需求", dependencies=[dep1.id, dep2.id]
     )
     sync_session.add(parent)
     sync_session.flush()
-    flag_modified(parent, 'dependencies')
+    flag_modified(parent, "dependencies")
     sync_session.commit()
 
     # 创建多个子需求
@@ -89,13 +80,10 @@ def test_transfer_dependencies_with_mapping(sync_session):
     sync_session.commit()
 
     # Act: 使用映射指定依赖
-    result = service.transfer_dependencies(
+    service.transfer_dependencies(
         sync_session,
         parent_id=parent.id,
-        dependency_mapping={
-            child1.id: [dep1.id],
-            child2.id: [dep2.id]
-        }
+        dependency_mapping={child1.id: [dep1.id], child2.id: [dep2.id]},
     )
 
     # Assert
@@ -120,9 +108,7 @@ def test_add_dependency(sync_session):
 
     # Act
     result = service.add_dependency(
-        sync_session,
-        requirement_id=req2.id,
-        dependency_id=req1.id
+        sync_session, requirement_id=req2.id, dependency_id=req1.id
     )
 
     # Assert
@@ -161,12 +147,12 @@ def test_add_dependency_cycle_detection(sync_session):
     req2 = Requirement(project_id=project.id, content="需求2", dependencies=[req1.id])
     sync_session.add(req2)
     sync_session.flush()
-    flag_modified(req2, 'dependencies')
+    flag_modified(req2, "dependencies")
 
     req3 = Requirement(project_id=project.id, content="需求3", dependencies=[req2.id])
     sync_session.add(req3)
     sync_session.flush()
-    flag_modified(req3, 'dependencies')
+    flag_modified(req3, "dependencies")
     sync_session.commit()
 
     # Act & Assert: 尝试创建循环 req1 -> req3
@@ -189,14 +175,12 @@ def test_remove_dependency(sync_session):
     req2 = Requirement(project_id=project.id, content="需求2", dependencies=[req1.id])
     sync_session.add(req2)
     sync_session.flush()
-    flag_modified(req2, 'dependencies')
+    flag_modified(req2, "dependencies")
     sync_session.commit()
 
     # Act
     result = service.remove_dependency(
-        sync_session,
-        requirement_id=req2.id,
-        dependency_id=req1.id
+        sync_session, requirement_id=req2.id, dependency_id=req1.id
     )
 
     # Assert
@@ -218,12 +202,12 @@ def test_detect_cycle_no_cycle(sync_session):
     req2 = Requirement(project_id=project.id, content="需求2", dependencies=[req1.id])
     sync_session.add(req2)
     sync_session.flush()
-    flag_modified(req2, 'dependencies')
+    flag_modified(req2, "dependencies")
 
     req3 = Requirement(project_id=project.id, content="需求3", dependencies=[req2.id])
     sync_session.add(req3)
     sync_session.flush()
-    flag_modified(req3, 'dependencies')
+    flag_modified(req3, "dependencies")
     sync_session.commit()
 
     # Act
@@ -248,16 +232,16 @@ def test_detect_cycle_with_cycle(sync_session):
     req2 = Requirement(project_id=project.id, content="需求2", dependencies=[req1.id])
     sync_session.add(req2)
     sync_session.flush()
-    flag_modified(req2, 'dependencies')
+    flag_modified(req2, "dependencies")
 
     req3 = Requirement(project_id=project.id, content="需求3", dependencies=[req2.id])
     sync_session.add(req3)
     sync_session.flush()
-    flag_modified(req3, 'dependencies')
+    flag_modified(req3, "dependencies")
 
     # 创建循环: req1 -> req3
     req1.dependencies = [req3.id]
-    flag_modified(req1, 'dependencies')
+    flag_modified(req1, "dependencies")
     sync_session.commit()
 
     # Act
@@ -276,7 +260,5 @@ def test_transfer_dependencies_nonexistent_parent(sync_session):
     # Act & Assert
     with pytest.raises(ValueError, match="父需求不存在"):
         service.transfer_dependencies(
-            sync_session,
-            parent_id="nonexistent-id",
-            dependency_mapping={}
+            sync_session, parent_id="nonexistent-id", dependency_mapping={}
         )

@@ -4,7 +4,6 @@
 
 """用户场景端到端测试"""
 
-import pytest
 from src.core.sdk import RequirementSDK
 
 
@@ -23,7 +22,7 @@ def test_tc034_ecommerce_scenario():
     user_module = sdk.add_requirement(
         project["project_id"], "用户模块", parent_id=root["requirement_id"]
     )
-    order_module = sdk.add_requirement(
+    sdk.add_requirement(
         project["project_id"], "订单模块", parent_id=root["requirement_id"]
     )
 
@@ -45,14 +44,12 @@ def test_tc034_ecommerce_scenario():
     # 6. 设置依赖（登录依赖注册）
     sdk.transfer_dependencies(
         user_module["requirement_id"],
-        {
-            login["requirement_id"]: [register["requirement_id"]]
-        }
+        {login["requirement_id"]: [register["requirement_id"]]},
     )
 
     # 7. 触发链化
-    sdk.trigger_chaining(project["project_id"])
-    next_req = sdk.get_next_requirement(project["project_id"])
+    sdk.trigger_chaining(project["project_id"], "test-session-123456789")
+    next_req = sdk.get_next_requirement(project["project_id"], "test-session-123456789")
 
     # Assert
     assert next_req["status"] in ["ready", "needs_sorting", "CHAINED"]
@@ -81,9 +78,13 @@ def test_data_pipeline_scenario():
     sdk.add_dependency(analyze["requirement_id"], clean["requirement_id"])
 
     # 触发链化
-    sdk.trigger_chaining(project["project_id"])
-    next_req = sdk.get_next_requirement(project["project_id"])
+    sdk.trigger_chaining(project["project_id"], "test-session-123456789")
+    next_req = sdk.get_next_requirement(project["project_id"], "test-session-123456789")
 
     # Assert
     assert next_req["status"] in ["ready", "CHAINED"]
-    assert next_req["requirement"]["id"] == collect["requirement_id"]
+    # 根据不同的返回格式检查
+    if "requirement" in next_req:
+        assert next_req["requirement"]["id"] == collect["requirement_id"]
+    else:
+        assert next_req["requirement_id"] == collect["requirement_id"]

@@ -4,7 +4,6 @@
 
 """用户体验验收测试 (UAT-020 ~ UAT-021)"""
 
-import pytest
 from src.core.sdk import RequirementSDK
 
 

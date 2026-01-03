@@ -5,23 +5,23 @@
 """数据模型单元测试"""
 
 import pytest
-from datetime import datetime
 from sqlalchemy import select
 
 from src.db.models import (
-    Project, Requirement, ValidationNode, ChainState, Event,
-    ProjectStatus, RequirementStatus, ValidationStatus, ChainStatus
+    ChainState,
+    Event,
+    Project,
+    ProjectStatus,
+    Requirement,
+    ValidationNode,
 )
 
 
 @pytest.mark.asyncio
-async def test_create_project(async_session):
-    """测试创建项目"""
+async def test_tc001_create_project(async_session):
+    """TC-001: 测试项目模型创建"""
 
-    project = Project(
-        name="测试项目",
-        description="这是一个测试项目"
-    )
+    project = Project(name="测试项目", description="这是一个测试项目")
 
     async_session.add(project)
     await async_session.commit()
@@ -34,29 +34,23 @@ async def test_create_project(async_session):
 
 
 @pytest.mark.asyncio
-async def test_requirement_hierarchy(async_session):
-    """测试需求层级关系"""
+async def test_tc002_requirement_hierarchy(async_session):
+    """TC-002: 测试需求父子层级关系"""
+
     # 创建项目
     project = Project(name="测试项目")
     async_session.add(project)
     await async_session.commit()
 
     # 创建父需求
-    parent = Requirement(
-        project_id=project.id,
-        content="父需求",
-        level=0
-    )
+    parent = Requirement(project_id=project.id, content="父需求", level=0)
 
     async_session.add(parent)
     await async_session.flush()  # Flush to get parent ID
 
     # 创建子需求
     child = Requirement(
-        project_id=project.id,
-        parent_id=parent.id,
-        content="子需求",
-        level=1
+        project_id=project.id, parent_id=parent.id, content="子需求", level=1
     )
 
     async_session.add(child)
@@ -69,8 +63,9 @@ async def test_requirement_hierarchy(async_session):
 
 
 @pytest.mark.asyncio
-async def test_requirement_dependencies(async_session):
-    """测试依赖关系存储"""
+async def test_tc003_requirement_dependencies(async_session):
+    """TC-003: 测试需求依赖关系存储"""
+
     # 创建项目
     project = Project(name="测试项目")
     async_session.add(project)
@@ -79,11 +74,7 @@ async def test_requirement_dependencies(async_session):
     # 创建需求
     req1 = Requirement(project_id=project.id, content="需求1")
     req2 = Requirement(project_id=project.id, content="需求2")
-    req3 = Requirement(
-        project_id=project.id,
-        content="需求3",
-        dependencies=[]
-    )
+    req3 = Requirement(project_id=project.id, content="需求3", dependencies=[])
 
     async_session.add_all([req1, req2, req3])
     await async_session.flush()  # Flush to get IDs
@@ -99,8 +90,9 @@ async def test_requirement_dependencies(async_session):
 
 
 @pytest.mark.asyncio
-async def test_validation_node_uniqueness(async_session):
-    """测试验证节点唯一性"""
+async def test_tc004_validation_node_uniqueness(async_session):
+    """TC-004: 测试验证节点唯一性约束"""
+
     # 创建项目和需求
     project = Project(name="测试项目")
     async_session.add(project)
@@ -118,14 +110,15 @@ async def test_validation_node_uniqueness(async_session):
     # 尝试创建第二个验证节点（应该失败）
     validation2 = ValidationNode(requirement_id=requirement.id)
     async_session.add(validation2)
-    
+
     with pytest.raises(Exception):  # 应该抛出唯一性约束异常
         await async_session.commit()
 
 
 @pytest.mark.asyncio
-async def test_chain_state_cascade_delete(async_session):
-    """测试链状态级联删除"""
+async def test_tc005_chain_state_cascade_delete(async_session):
+    """TC-005: 测试链状态级联删除"""
+
     # 创建项目和链状态
     project = Project(name="测试项目")
     async_session.add(project)
@@ -182,7 +175,7 @@ async def test_event_sequence(async_session):
             event_type=f"Event{i}",
             aggregate_id=f"Aggregate{i}",
             payload={"data": f"value{i}"},
-            sequence=i
+            sequence=i,
         )
         async_session.add(event)
 

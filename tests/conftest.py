@@ -4,15 +4,16 @@
 
 """Pytest 配置和共享 fixture"""
 
-import pytest
 import asyncio
-from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
+
+import pytest
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, Session
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
-from src.db.models import Base
 from src.db.database import init_sync_db
+from src.db.models import Base
 
 
 @pytest.fixture(scope="session")
@@ -32,11 +33,11 @@ async def async_engine():
         connect_args={"check_same_thread": False},
         poolclass=StaticPool,
     )
-    
+
     # 创建表
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
-    
+
     yield engine
     await engine.dispose()
 
@@ -61,10 +62,10 @@ def sync_engine():
         connect_args={"check_same_thread": False},
         poolclass=StaticPool,
     )
-    
+
     # 创建表
     Base.metadata.create_all(engine)
-    
+
     yield engine
 
 
@@ -86,8 +87,8 @@ def sync_session(sync_engine):
 @pytest.fixture
 def test_db_path():
     """创建临时测试数据库"""
-    import tempfile
     import os
+    import tempfile
 
     fd, path = tempfile.mkstemp(suffix=".db")
     os.close(fd)

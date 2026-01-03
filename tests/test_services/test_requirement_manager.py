@@ -5,7 +5,8 @@
 """需求管理服务测试"""
 
 import pytest
-from src.db.models import Project, Requirement, RequirementStatus, ProjectStatus
+
+from src.db.models import Project, Requirement, RequirementStatus
 from src.services.requirement_manager import RequirementManager
 
 
@@ -44,7 +45,7 @@ def test_tc008_add_requirement(sync_session):
         sync_session,
         project_id=project.id,
         content="实现用户管理模块系统",
-        parent_id=None
+        parent_id=None,
     )
 
     # Assert
@@ -68,18 +69,11 @@ def test_add_requirement_with_parent(sync_session):
     sync_session.add(project)
     sync_session.commit()
 
-    parent_req = manager.add_requirement(
-        sync_session,
-        project.id,
-        "父需求"
-    )
+    parent_req = manager.add_requirement(sync_session, project.id, "父需求")
 
     # Act
     result = manager.add_requirement(
-        sync_session,
-        project.id,
-        "子需求",
-        parent_id=parent_req["requirement_id"]
+        sync_session, project.id, "子需求", parent_id=parent_req["requirement_id"]
     )
 
     # Assert
@@ -122,10 +116,7 @@ def test_mark_as_leaf_with_children(sync_session):
 
     parent_req = manager.add_requirement(sync_session, project.id, "父需求")
     manager.add_requirement(
-        sync_session,
-        project.id,
-        "子需求",
-        parent_id=parent_req["requirement_id"]
+        sync_session, project.id, "子需求", parent_id=parent_req["requirement_id"]
     )
 
     # Act & Assert
@@ -147,9 +138,7 @@ def test_update_requirement(sync_session):
 
     # Act
     result = manager.update_requirement(
-        sync_session,
-        req["requirement_id"],
-        RequirementUpdate(content="新内容")
+        sync_session, req["requirement_id"], RequirementUpdate(content="新内容")
     )
 
     # Assert

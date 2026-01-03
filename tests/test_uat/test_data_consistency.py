@@ -4,7 +4,6 @@
 
 """数据一致性验收测试 (UAT-022 ~ UAT-023)"""
 
-import pytest
 from src.core.sdk import RequirementSDK
 
 
@@ -17,11 +16,11 @@ def test_uat022_transaction_integrity():
     # 测试成功的事务
     req = sdk.add_requirement(project["project_id"], "需求")
     sdk.mark_as_leaf(req["requirement_id"])
-    validation = sdk.add_validation(req["requirement_id"], [{"name": "测试"}])
+    sdk.add_validation(req["requirement_id"], [{"name": "测试"}])
 
     # 验证所有数据都正确保存
     with sdk._get_session() as session:
-        from src.db.models import Requirement, ValidationNode, Event
+        from src.db.models import Event, Requirement, ValidationNode
 
         # 验证需求存在
         saved_req = session.get(Requirement, req["requirement_id"])
@@ -29,16 +28,18 @@ def test_uat022_transaction_integrity():
         assert saved_req.status == "VALIDATED"
 
         # 验证验证节点存在
-        saved_validation = session.query(ValidationNode).filter_by(
-            requirement_id=req["requirement_id"]
-        ).first()
+        saved_validation = (
+            session.query(ValidationNode)
+            .filter_by(requirement_id=req["requirement_id"])
+            .first()
+        )
         assert saved_validation is not None
 
         # 验证事件记录
-        events = session.query(Event).filter_by(
-            project_id=project["project_id"]
-        ).all()
-        assert len(events) >= 3  # RequirementAdded, RequirementMarkedAsLeaf, ValidationAdded
+        events = session.query(Event).filter_by(project_id=project["project_id"]).all()
+        assert (
+            len(events) >= 3
+        )  # RequirementAdded, RequirementMarkedAsLeaf, ValidationAdded
 
     # 测试失败的事务
     try:
@@ -50,9 +51,10 @@ def test_uat022_transaction_integrity():
     # 验证没有创建需求
     with sdk._get_session() as session:
         from src.db.models import Requirement
-        reqs = session.query(Requirement).filter_by(
-            project_id=project["project_id"]
-        ).all()
+
+        reqs = (
+            session.query(Requirement).filter_by(project_id=project["project_id"]).all()
+        )
         # 应该只有之前创建的一个需求
         assert len(reqs) == 1
 
@@ -71,9 +73,12 @@ def test_uat023_event_sourcing():
     with sdk._get_session() as session:
         from src.db.models import Event
 
-        events = session.query(Event).filter_by(
-            project_id=project["project_id"]
-        ).order_by(Event.sequence).all()
+        events = (
+            session.query(Event)
+            .filter_by(project_id=project["project_id"])
+            .order_by(Event.sequence)
+            .all()
+        )
 
         # 验证事件序列
         assert len(events) >= 3
@@ -98,12 +103,15 @@ def test_uat023_event_sourcing():
 
     # 测试根据事件重建状态
     with sdk._get_session() as session:
-        from src.db.models import Requirement, Event
+        from src.db.models import Event, Requirement
 
         # 获取所有事件
-        events = session.query(Event).filter_by(
-            project_id=project["project_id"]
-        ).order_by(Event.sequence).all()
+        events = (
+            session.query(Event)
+            .filter_by(project_id=project["project_id"])
+            .order_by(Event.sequence)
+            .all()
+        )
 
         # 简单验证：根据事件计算应该有多少需求
         requirement_added_count = sum(
@@ -116,8 +124,10 @@ def test_uat023_event_sourcing():
         expected_count = requirement_added_count - requirement_deleted_count
 
         # 验证实际需求数量
-        actual_count = session.query(Requirement).filter_by(
-            project_id=project["project_id"]
-        ).count()
+        actual_count = (
+            session.query(Requirement)
+            .filter_by(project_id=project["project_id"])
+            .count()
+        )
 
         assert actual_count == expected_count

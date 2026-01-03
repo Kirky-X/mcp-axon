@@ -6,13 +6,18 @@
 
 import logging
 from datetime import datetime, timezone
-from typing import Optional, Dict, Any, List
+from typing import Any, Dict, List, Optional
+
 from sqlalchemy.orm import Session
 
 from src.db.models import (
-    ValidationNode, Requirement, RequirementStatus, ValidationStatus, Event
+    Requirement,
+    RequirementStatus,
+    ValidationNode,
+    ValidationStatus,
 )
-from src.schemas import ValidationCreate, ValidationUpdate
+from src.schemas import ValidationUpdate
+from src.utils.event_logger import log_event
 from src.utils.metrics import performance_monitor
 
 logger = logging.getLogger(__name__)
@@ -31,7 +36,7 @@ class ValidationService:
         session: Session,
         requirement_id: str,
         test_cases: List[Dict[str, Any]],
-        acceptance_criteria: str = ""
+        acceptance_criteria: str = "",
     ) -> Dict[str, Any]:
         """
         添加验证节点
@@ -48,33 +53,35 @@ class ValidationService:
             验证节点信息
         """
         # 获取需求
-        requirement = session.query(Requirement).filter_by(
-            id=requirement_id
-        ).first()
+        requirement = session.query(Requirement).filter_by(id=requirement_id).first()
 
         if not requirement:
             raise ValueError(f"需求不存在: {requirement_id}")
 
         # 检查是否已有验证节点
-        existing = session.query(ValidationNode).filter_by(
-            requirement_id=requirement_id
-        ).first()
+        existing = (
+            session.query(ValidationNode)
+            .filter_by(requirement_id=requirement_id)
+            .first()
+        )
 
         if existing:
             raise ValueError("已有验证节点")
 
         # 检查是否为叶子节点
         if requirement.status != RequirementStatus.LEAF.value:
-            raise ValueError(
-                f"只能为叶子节点添加验证，当前状态: {requirement.status}"
-            )
+            raise ValueError(f"只能为叶子节点添加验证，当前状态: {requirement.status}")
+
+        # 检查 project_id 是否存在
+        if not requirement.project_id:
+            raise ValueError(f"需求缺少 project_id: {requirement_id}")
 
         # 创建验证节点
         validation = ValidationNode(
             requirement_id=requirement_id,
             test_cases=test_cases,
             acceptance_criteria=acceptance_criteria,
-            status=ValidationStatus.PENDING.value
+            status=ValidationStatus.PENDING.value,
         )
         session.add(validation)
         session.flush()
@@ -85,7 +92,7 @@ class ValidationService:
         requirement.updated_at = datetime.now(timezone.utc)
 
         # 记录事件
-        self._log_event(
+        log_event(
             session,
             requirement.project_id,
             "ValidationAdded",
@@ -95,8 +102,8 @@ class ValidationService:
                 "test_cases_count": len(test_cases),
                 "acceptance_criteria": acceptance_criteria,
                 "old_status": old_status,
-                "new_status": RequirementStatus.VALIDATED.value
-            }
+                "new_status": RequirementStatus.VALIDATED.value,
+            },
         )
 
         session.commit()
@@ -109,14 +116,11 @@ class ValidationService:
             "test_cases": validation.test_cases,
             "acceptance_criteria": validation.acceptance_criteria,
             "status": validation.status,
-            "created_at": validation.created_at.isoformat()
+            "created_at": validation.created_at.isoformat(),
         }
 
     def update_validation(
-        self,
-        session: Session,
-        validation_id: str,
-        update_data: ValidationUpdate
+        self, session: Session, validation_id: str, update_data: ValidationUpdate
     ) -> Dict[str, Any]:
         """
         更新验证节点
@@ -129,9 +133,7 @@ class ValidationService:
         Returns:
             更新后的验证节点信息
         """
-        validation = session.query(ValidationNode).filter_by(
-            id=validation_id
-        ).first()
+        validation = session.query(ValidationNode).filter_by(id=validation_id).first()
 
         if not validation:
             raise ValueError(f"验证节点不存在: {validation_id}")
@@ -150,11 +152,11 @@ class ValidationService:
             validation.status = update_data.status
 
             # 如果状态为 passed 或 failed，记录验证时间
-            if update_data.status in ['passed', 'failed']:
+            if update_data.status in ["passed", "failed"]:
                 validation.validated_at = datetime.now(timezone.utc)
 
             # 记录事件
-            self._log_event(
+            log_event(
                 session,
                 validation.requirement.project_id,
                 "ValidationStatusChanged",
@@ -162,8 +164,8 @@ class ValidationService:
                 {
                     "requirement_id": validation.requirement_id,
                     "old_status": old_status,
-                    "new_status": update_data.status
-                }
+                    "new_status": update_data.status,
+                },
             )
 
         # 更新结果
@@ -181,14 +183,12 @@ class ValidationService:
             "acceptance_criteria": validation.acceptance_criteria,
             "status": validation.status,
             "result": validation.result,
-            "validated_at": validation.validated_at.isoformat() if validation.validated_at else None
+            "validated_at": (
+                validation.validated_at.isoformat() if validation.validated_at else None
+            ),
         }
 
-    def get_validation(
-        self,
-        session: Session,
-        validation_id: str
-    ) -> Dict[str, Any]:
+    def get_validation(self, session: Session, validation_id: str) -> Dict[str, Any]:
         """
         获取验证节点信息
 
@@ -199,9 +199,7 @@ class ValidationService:
         Returns:
             验证节点信息
         """
-        validation = session.query(ValidationNode).filter_by(
-            id=validation_id
-        ).first()
+        validation = session.query(ValidationNode).filter_by(id=validation_id).first()
 
         if not validation:
             raise ValueError(f"验证节点不存在: {validation_id}")
@@ -213,14 +211,14 @@ class ValidationService:
             "acceptance_criteria": validation.acceptance_criteria,
             "status": validation.status,
             "result": validation.result,
-            "validated_at": validation.validated_at.isoformat() if validation.validated_at else None,
-            "created_at": validation.created_at.isoformat()
+            "validated_at": (
+                validation.validated_at.isoformat() if validation.validated_at else None
+            ),
+            "created_at": validation.created_at.isoformat(),
         }
 
     def get_validation_by_requirement(
-        self,
-        session: Session,
-        requirement_id: str
+        self, session: Session, requirement_id: str
     ) -> Optional[Dict[str, Any]]:
         """
         根据需求 ID 获取验证节点
@@ -232,9 +230,11 @@ class ValidationService:
         Returns:
             验证节点信息，如果不存在则返回 None
         """
-        validation = session.query(ValidationNode).filter_by(
-            requirement_id=requirement_id
-        ).first()
+        validation = (
+            session.query(ValidationNode)
+            .filter_by(requirement_id=requirement_id)
+            .first()
+        )
 
         if not validation:
             return None
@@ -246,15 +246,13 @@ class ValidationService:
             "acceptance_criteria": validation.acceptance_criteria,
             "status": validation.status,
             "result": validation.result,
-            "validated_at": validation.validated_at.isoformat() if validation.validated_at else None,
-            "created_at": validation.created_at.isoformat()
+            "validated_at": (
+                validation.validated_at.isoformat() if validation.validated_at else None
+            ),
+            "created_at": validation.created_at.isoformat(),
         }
 
-    def delete_validation(
-        self,
-        session: Session,
-        validation_id: str
-    ) -> Dict[str, Any]:
+    def delete_validation(self, session: Session, validation_id: str) -> Dict[str, Any]:
         """
         删除验证节点
 
@@ -265,9 +263,7 @@ class ValidationService:
         Returns:
             删除结果
         """
-        validation = session.query(ValidationNode).filter_by(
-            id=validation_id
-        ).first()
+        validation = session.query(ValidationNode).filter_by(id=validation_id).first()
 
         if not validation:
             raise ValueError(f"验证节点不存在: {validation_id}")
@@ -279,58 +275,16 @@ class ValidationService:
         session.delete(validation)
 
         # 记录事件
-        self._log_event(
+        log_event(
             session,
             project_id,
             "ValidationDeleted",
             validation_id,
-            {
-                "requirement_id": requirement_id
-            }
+            {"requirement_id": requirement_id},
         )
 
         session.commit()
 
         logger.info(f"验证节点删除成功: {validation_id}")
 
-        return {
-            "validation_id": validation_id,
-            "deleted": True
-        }
-
-    def _log_event(
-        self,
-        session: Session,
-        project_id: str,
-        event_type: str,
-        aggregate_id: str,
-        payload: Dict[str, Any],
-        metadata: Optional[Dict[str, Any]] = None
-    ):
-        """
-        记录事件
-
-        Args:
-            session: 数据库会话
-            project_id: 项目 ID
-            event_type: 事件类型
-            aggregate_id: 聚合根 ID
-            payload: 事件负载
-            metadata: 元数据
-        """
-        # 获取当前序列号
-        last_event = session.query(Event).filter_by(
-            project_id=project_id
-        ).order_by(Event.sequence.desc()).first()
-
-        sequence = (last_event.sequence + 1) if last_event else 1
-
-        event = Event(
-            project_id=project_id,
-            event_type=event_type,
-            aggregate_id=aggregate_id,
-            payload=payload,
-            event_metadata=metadata,
-            sequence=sequence
-        )
-        session.add(event)
+        return {"validation_id": validation_id, "deleted": True}

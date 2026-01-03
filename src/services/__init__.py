@@ -17,5 +17,5 @@ __all__ = [
     "DependencyService",
     "ProjectManager",
     "RequirementManager",
-    "ValidationService"
+    "ValidationService",
 ]

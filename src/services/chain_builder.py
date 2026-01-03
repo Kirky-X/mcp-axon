@@ -6,16 +6,15 @@
 
 import logging
 from datetime import datetime, timezone
-from typing import Dict, List, Optional, Any
+from typing import Any, Dict, List
+
 from sqlalchemy.orm import Session
 
-from src.db.models import (
-    Requirement, RequirementStatus, ChainState, ChainStatus, Event
-)
-from src.utils.graph import GraphAlgorithms
+from src.db.models import ChainState, ChainStatus, Requirement, RequirementStatus
 from src.utils.cache import cache_manager
-from src.utils.metrics import performance_monitor, metrics_collector
 from src.utils.event_logger import log_event
+from src.utils.graph import GraphAlgorithms
+from src.utils.metrics import performance_monitor
 
 logger = logging.getLogger(__name__)
 
@@ -28,11 +27,7 @@ class ChainBuilder:
         self.graph_algos = GraphAlgorithms()
 
     @performance_monitor("build_chain")
-    def build_chain(
-        self,
-        session: Session,
-        project_id: str
-    ) -> Dict[str, Any]:
+    def build_chain(self, session: Session, project_id: str) -> Dict[str, Any]:
         """
         构建需求链
 
@@ -52,15 +47,16 @@ class ChainBuilder:
             return cached_result
 
         # 获取所有已验证的需求
-        requirements = session.query(Requirement).filter_by(
-            project_id=project_id,
-            status=RequirementStatus.VALIDATED.value
-        ).all()
+        requirements = (
+            session.query(Requirement)
+            .filter_by(project_id=project_id, status=RequirementStatus.VALIDATED.value)
+            .all()
+        )
 
         if not requirements:
             result = {
                 "status": "no_requirements",
-                "message": "没有已验证的需求需要链化"
+                "message": "没有已验证的需求需要链化",
             }
             cache_manager.set_chain_result(project_id, result)
             return result
@@ -73,10 +69,10 @@ class ChainBuilder:
         if cycle:
             error_result = {
                 "status": "error",
-                "message": f"检测到循环依赖: {' -> '.join(cycle)}"
+                "message": f"检测到循环依赖: {' -> '.join(cycle)}",
             }
             cache_manager.set_chain_result(project_id, error_result)
-            cycle_str = ' -> '.join(cycle)
+            cycle_str = " -> ".join(cycle)
             raise ValueError(
                 f"检测到循环依赖: {cycle_str}。"
                 f"循环依赖会导致需求无法按顺序执行。"
@@ -100,19 +96,11 @@ class ChainBuilder:
             req_map = {req.id: req for req in requirements}
 
             # 使用默认顺序构建链表
-            result = self._link_requirements(
-                session,
-                project_id,
-                sorted_ids,
-                req_map
-            )
+            result = self._link_requirements(session, project_id, sorted_ids, req_map)
         else:
             # 没有并行节点，直接构建链表
             result = self._build_chain_from_sorted(
-                session,
-                project_id,
-                layers,
-                requirements
+                session, project_id, layers, requirements
             )
 
         # 缓存结果
@@ -121,10 +109,7 @@ class ChainBuilder:
 
     @performance_monitor("build_chain_with_order")
     def build_chain_with_order(
-        self,
-        session: Session,
-        project_id: str,
-        sorted_order: List[str]
+        self, session: Session, project_id: str, sorted_order: List[str]
     ) -> Dict[str, Any]:
         """
         使用指定的顺序构建链
@@ -143,10 +128,11 @@ class ChainBuilder:
         cache_manager.invalidate_project(project_id)
 
         # 获取所有已验证的需求
-        requirements = session.query(Requirement).filter_by(
-            project_id=project_id,
-            status=RequirementStatus.VALIDATED.value
-        ).all()
+        requirements = (
+            session.query(Requirement)
+            .filter_by(project_id=project_id, status=RequirementStatus.VALIDATED.value)
+            .all()
+        )
 
         # 构建需求 ID 到需求的映射
         req_map = {req.id: req for req in requirements}
@@ -160,28 +146,20 @@ class ChainBuilder:
             extra = sorted_ids - req_ids
             error_result = {
                 "status": "error",
-                "message": f"排序顺序不匹配。缺失: {missing}, 多余: {extra}"
+                "message": f"排序顺序不匹配。缺失: {missing}, 多余: {extra}",
             }
             cache_manager.set_chain_result(project_id, error_result)
-            raise ValueError(
-                f"排序顺序不匹配。缺失: {missing}, 多余: {extra}"
-            )
+            raise ValueError(f"排序顺序不匹配。缺失: {missing}, 多余: {extra}")
 
         # 按排序顺序构建链表
-        result = self._link_requirements(
-            session,
-            project_id,
-            sorted_order,
-            req_map
-        )
+        result = self._link_requirements(session, project_id, sorted_order, req_map)
 
         # 缓存结果
         cache_manager.set_chain_result(project_id, result)
         return result
 
     def _build_dependency_graph(
-        self,
-        requirements: List[Requirement]
+        self, requirements: List[Requirement]
     ) -> Dict[str, List[str]]:
         """
         构建依赖图
@@ -197,7 +175,7 @@ class ChainBuilder:
         return self.graph_algos.build_dependency_graph(
             requirements,
             get_id_func=lambda req: req.id,
-            get_deps_func=lambda req: req.dependencies
+            get_deps_func=lambda req: req.dependencies,
         )
 
     def _build_chain_from_sorted(
@@ -205,7 +183,7 @@ class ChainBuilder:
         session: Session,
         project_id: str,
         layers: List[List[str]],
-        requirements: List[Requirement]
+        requirements: List[Requirement],
     ) -> Dict[str, Any]:
         """
         从分层排序结果构建链
@@ -225,19 +203,14 @@ class ChainBuilder:
         # 构建需求 ID 到需求的映射
         req_map = {req.id: req for req in requirements}
 
-        return self._link_requirements(
-            session,
-            project_id,
-            sorted_ids,
-            req_map
-        )
+        return self._link_requirements(session, project_id, sorted_ids, req_map)
 
     def _link_requirements(
         self,
         session: Session,
         project_id: str,
         sorted_ids: List[str],
-        req_map: Dict[str, Requirement]
+        req_map: Dict[str, Requirement],
     ) -> Dict[str, Any]:
         """
         构建链表结构
@@ -252,23 +225,16 @@ class ChainBuilder:
             链化结果
         """
         if not sorted_ids:
-            result = {
-                "status": "completed",
-                "chain_head": None,
-                "total_nodes": 0
-            }
+            result = {"status": "completed", "chain_head": None, "total_nodes": 0}
             cache_manager.set_chain_result(project_id, result)
             return result
 
         # 获取或创建链化状态
-        chain_state = session.query(ChainState).filter_by(
-            project_id=project_id
-        ).first()
+        chain_state = session.query(ChainState).filter_by(project_id=project_id).first()
 
         if not chain_state:
             chain_state = ChainState(
-                project_id=project_id,
-                status=ChainStatus.BUILDING.value
+                project_id=project_id, status=ChainStatus.BUILDING.value
             )
             session.add(chain_state)
 
@@ -301,7 +267,7 @@ class ChainBuilder:
         chain_state.total_nodes = len(sorted_ids)
         chain_state.completed_nodes = 0
         chain_state.progress_percentage = 0
-        from datetime import datetime, timezone
+
         chain_state.last_chained_at = datetime.now(timezone.utc)
 
         # 记录事件
@@ -313,8 +279,8 @@ class ChainBuilder:
             {
                 "chain_head_id": chain_head_id,
                 "total_nodes": len(sorted_ids),
-                "chain_order": sorted_ids
-            }
+                "chain_order": sorted_ids,
+            },
         )
 
         session.commit()
@@ -323,7 +289,7 @@ class ChainBuilder:
             "status": "completed",
             "chain_head": chain_head_id,
             "total_nodes": len(sorted_ids),
-            "message": "链化构建完成"
+            "message": "链化构建完成",
         }
 
         # 缓存结果
@@ -336,11 +302,7 @@ class ChainBuilder:
         return result
 
     @performance_monitor("reset_chain")
-    def reset_chain(
-        self,
-        session: Session,
-        project_id: str
-    ) -> Dict[str, Any]:
+    def reset_chain(self, session: Session, project_id: str) -> Dict[str, Any]:
         """
         重置链化状态
 
@@ -352,10 +314,11 @@ class ChainBuilder:
             重置结果
         """
         # 获取所有已链化的需求
-        requirements = session.query(Requirement).filter_by(
-            project_id=project_id,
-            status=RequirementStatus.CHAINED.value
-        ).all()
+        requirements = (
+            session.query(Requirement)
+            .filter_by(project_id=project_id, status=RequirementStatus.CHAINED.value)
+            .all()
+        )
 
         # 重置需求状态
         for req in requirements:
@@ -364,9 +327,7 @@ class ChainBuilder:
             req.next_requirement_id = None
 
         # 重置链化状态
-        chain_state = session.query(ChainState).filter_by(
-            project_id=project_id
-        ).first()
+        chain_state = session.query(ChainState).filter_by(project_id=project_id).first()
 
         if chain_state:
             chain_state.status = ChainStatus.IDLE.value
@@ -382,9 +343,7 @@ class ChainBuilder:
             project_id,
             "ChainReset",
             project_id,
-            {
-                "reset_count": len(requirements)
-            }
+            {"reset_count": len(requirements)},
         )
 
         session.commit()
@@ -397,5 +356,5 @@ class ChainBuilder:
         return {
             "status": "reset",
             "reset_count": len(requirements),
-            "message": "链化状态已重置"
+            "message": "链化状态已重置",
         }

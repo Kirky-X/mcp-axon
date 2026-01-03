@@ -6,15 +6,15 @@
 
 import logging
 from datetime import datetime, timezone
-from typing import Optional, Dict, Any
-from sqlalchemy.orm import Session
-from sqlalchemy import select
+from typing import Any, Dict
 
-from src.db.models import Project, ProjectStatus, Event, ChainState
-from src.schemas import ProjectCreate, ProjectUpdate
+from sqlalchemy.orm import Session
+
+from src.db.models import ChainState, Project, ProjectStatus
+from src.schemas import ProjectUpdate
 from src.utils.cache import cache_manager
-from src.utils.metrics import performance_monitor
 from src.utils.event_logger import log_event
+from src.utils.metrics import performance_monitor
 
 logger = logging.getLogger(__name__)
 
@@ -28,10 +28,7 @@ class ProjectManager:
 
     @performance_monitor("create_project")
     def create_project(
-        self,
-        session: Session,
-        name: str,
-        description: str = ""
+        self, session: Session, name: str, description: str = ""
     ) -> Dict[str, Any]:
         """
         创建项目
@@ -46,18 +43,13 @@ class ProjectManager:
         """
         # 创建项目
         project = Project(
-            name=name,
-            description=description,
-            status=ProjectStatus.CREATED.value
+            name=name, description=description, status=ProjectStatus.CREATED.value
         )
         session.add(project)
         session.flush()
 
         # 创建链化状态
-        chain_state = ChainState(
-            project_id=project.id,
-            status="IDLE"
-        )
+        chain_state = ChainState(project_id=project.id, status="IDLE")
         session.add(chain_state)
 
         # 记录事件
@@ -66,10 +58,7 @@ class ProjectManager:
             project.id,
             "ProjectCreated",
             project.id,
-            {
-                "name": name,
-                "description": description
-            }
+            {"name": name, "description": description},
         )
 
         session.commit()
@@ -79,9 +68,9 @@ class ProjectManager:
             "name": project.name,
             "description": project.description,
             "status": project.status,
-            "created_at": project.created_at.isoformat()
+            "created_at": project.created_at.isoformat(),
         }
-        
+
         # 将新创建的项目添加到缓存
         self.cache.set_project(project.id, result)
 
@@ -91,10 +80,7 @@ class ProjectManager:
 
     @performance_monitor("update_project")
     def update_project(
-        self,
-        session: Session,
-        project_id: str,
-        update_data: ProjectUpdate
+        self, session: Session, project_id: str, update_data: ProjectUpdate
     ) -> Dict[str, Any]:
         """
         更新项目信息
@@ -110,7 +96,9 @@ class ProjectManager:
         project = session.query(Project).filter_by(id=project_id).first()
 
         if not project:
-            raise ValueError(f"项目不存在（ID: {project_id}）。请检查项目 ID 是否正确，或先创建项目。")
+            raise ValueError(
+                f"项目不存在（ID: {project_id}）。请检查项目 ID 是否正确，或先创建项目。"
+            )
 
         # 更新字段
         if update_data.name is not None:
@@ -121,7 +109,7 @@ class ProjectManager:
                 project_id,
                 "ProjectNameChanged",
                 project_id,
-                {"old_name": old_name, "new_name": update_data.name}
+                {"old_name": old_name, "new_name": update_data.name},
             )
 
         if update_data.description is not None:
@@ -140,15 +128,11 @@ class ProjectManager:
             "name": project.name,
             "description": project.description,
             "status": project.status,
-            "updated_at": project.updated_at.isoformat()
+            "updated_at": project.updated_at.isoformat(),
         }
 
     @performance_monitor("get_project")
-    def get_project(
-        self,
-        session: Session,
-        project_id: str
-    ) -> Dict[str, Any]:
+    def get_project(self, session: Session, project_id: str) -> Dict[str, Any]:
         """
         获取项目信息
 
@@ -178,19 +162,15 @@ class ProjectManager:
             "locked_by": project.locked_by,
             "locked_at": project.locked_at.isoformat() if project.locked_at else None,
             "created_at": project.created_at.isoformat(),
-            "updated_at": project.updated_at.isoformat()
+            "updated_at": project.updated_at.isoformat(),
         }
-        
+
         # 将结果存入缓存
         self.cache.set_project(project_id, result)
 
         return result
 
-    def get_project_state(
-        self,
-        session: Session,
-        project_id: str
-    ) -> Dict[str, Any]:
+    def get_project_state(self, session: Session, project_id: str) -> Dict[str, Any]:
         """
         获取项目状态
 
@@ -210,15 +190,33 @@ class ProjectManager:
         chain_state = session.query(ChainState).filter_by(project_id=project_id).first()
 
         # 使用单次查询统计所有状态的需求数量
-        from sqlalchemy import func, case
-        
-        stats = session.query(
-            func.count(Requirement.id).label('total'),
-            func.sum(case((Requirement.status == RequirementStatus.LEAF.value, 1), else_=0)).label('leaf'),
-            func.sum(case((Requirement.status == RequirementStatus.VALIDATED.value, 1), else_=0)).label('validated'),
-            func.sum(case((Requirement.status == RequirementStatus.CHAINED.value, 1), else_=0)).label('chained')
-        ).filter(Requirement.project_id == project_id).first()
-        
+        from sqlalchemy import case, func
+
+        stats = (
+            session.query(
+                func.count(Requirement.id).label("total"),
+                func.sum(
+                    case(
+                        (Requirement.status == RequirementStatus.LEAF.value, 1), else_=0
+                    )
+                ).label("leaf"),
+                func.sum(
+                    case(
+                        (Requirement.status == RequirementStatus.VALIDATED.value, 1),
+                        else_=0,
+                    )
+                ).label("validated"),
+                func.sum(
+                    case(
+                        (Requirement.status == RequirementStatus.CHAINED.value, 1),
+                        else_=0,
+                    )
+                ).label("chained"),
+            )
+            .filter(Requirement.project_id == project_id)
+            .first()
+        )
+
         total_requirements = stats.total or 0
         leaf_requirements = stats.leaf or 0
         validated_requirements = stats.validated or 0
@@ -234,16 +232,15 @@ class ProjectManager:
             "chained_requirements": chained_requirements,
             "chain_status": chain_state.status if chain_state else None,
             "current_node_id": chain_state.current_node_id if chain_state else None,
-            "progress_percentage": chain_state.progress_percentage if chain_state else 0,
+            "progress_percentage": chain_state.progress_percentage
+            if chain_state
+            else 0,
             "created_at": project.created_at.isoformat(),
-            "updated_at": project.updated_at.isoformat()
+            "updated_at": project.updated_at.isoformat(),
         }
 
     def update_project_status(
-        self,
-        session: Session,
-        project_id: str,
-        status: ProjectStatus
+        self, session: Session, project_id: str, status: ProjectStatus
     ):
         """
         更新项目状态
@@ -267,14 +264,11 @@ class ProjectManager:
             project_id,
             "ProjectStatusChanged",
             project_id,
-            {
-                "old_status": old_status,
-                "new_status": status.value
-            }
+            {"old_status": old_status, "new_status": status.value},
         )
 
         session.commit()
-        
+
         # 使项目缓存失效
         self.cache.invalidate_project(project_id)
 

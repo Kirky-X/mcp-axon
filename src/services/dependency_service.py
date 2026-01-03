@@ -5,12 +5,12 @@
 """依赖关系管理服务"""
 
 import logging
-from typing import Dict, List, Optional, Set, Any
+from typing import Any, Dict, List, Optional, Set
+
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.attributes import flag_modified
 
-from src.db.models import Requirement, Event
-from src.schemas import DependencyMapping
+from src.db.models import Requirement
 from src.utils.event_logger import log_event
 from src.utils.metrics import performance_monitor
 
@@ -26,10 +26,7 @@ class DependencyService:
 
     @performance_monitor("transfer_dependencies")
     def transfer_dependencies(
-        self,
-        session: Session,
-        parent_id: str,
-        dependency_mapping: Dict[str, List[str]]
+        self, session: Session, parent_id: str, dependency_mapping: Dict[str, List[str]]
     ) -> Dict[str, Any]:
         """
         应用依赖传递映射
@@ -56,9 +53,7 @@ class DependencyService:
         project_id = parent.project_id
 
         # 获取所有子需求
-        children = session.query(Requirement).filter_by(
-            parent_id=parent_id
-        ).all()
+        children = session.query(Requirement).filter_by(parent_id=parent_id).all()
 
         if not children:
             raise ValueError(f"父需求没有子需求: {parent_id}")
@@ -76,9 +71,11 @@ class DependencyService:
             all_dep_ids.update(dep_ids)
 
         if all_dep_ids:
-            existing_deps = session.query(Requirement.id).filter(
-                Requirement.id.in_(all_dep_ids)
-            ).all()
+            existing_deps = (
+                session.query(Requirement.id)
+                .filter(Requirement.id.in_(all_dep_ids))
+                .all()
+            )
             existing_dep_ids = {dep[0] for dep in existing_deps}
 
             missing_deps = all_dep_ids - existing_dep_ids
@@ -95,12 +92,11 @@ class DependencyService:
                 # 单子需求：自动继承父需求的所有依赖
                 child.dependencies = parent.dependencies.copy()
 
-            flag_modified(child, 'dependencies')
+            flag_modified(child, "dependencies")
 
-            updated_children.append({
-                "child_id": child.id,
-                "dependencies": child.dependencies
-            })
+            updated_children.append(
+                {"child_id": child.id, "dependencies": child.dependencies}
+            )
 
         # 记录事件
         log_event(
@@ -111,8 +107,8 @@ class DependencyService:
             {
                 "parent_id": parent_id,
                 "mapping": dependency_mapping,
-                "updated_children": updated_children
-            }
+                "updated_children": updated_children,
+            },
         )
 
         session.commit()
@@ -122,15 +118,12 @@ class DependencyService:
         return {
             "parent_id": parent_id,
             "updated_children": updated_children,
-            "total_children": len(children)
+            "total_children": len(children),
         }
 
     @performance_monitor("add_dependency")
     def add_dependency(
-        self,
-        session: Session,
-        requirement_id: str,
-        dependency_id: str
+        self, session: Session, requirement_id: str, dependency_id: str
     ) -> Dict[str, Any]:
         """
         添加依赖关系
@@ -144,17 +137,13 @@ class DependencyService:
             操作结果
         """
         # 获取需求
-        requirement = session.query(Requirement).filter_by(
-            id=requirement_id
-        ).first()
+        requirement = session.query(Requirement).filter_by(id=requirement_id).first()
 
         if not requirement:
             raise ValueError(f"需求不存在: {requirement_id}")
 
         # 获取依赖需求
-        dependency = session.query(Requirement).filter_by(
-            id=dependency_id
-        ).first()
+        dependency = session.query(Requirement).filter_by(id=dependency_id).first()
 
         if not dependency:
             raise ValueError(f"依赖需求不存在: {dependency_id}")
@@ -179,7 +168,7 @@ class DependencyService:
 
         # 添加依赖
         requirement.dependencies.append(dependency_id)
-        flag_modified(requirement, 'dependencies')
+        flag_modified(requirement, "dependencies")
 
         # 记录事件
         log_event(
@@ -187,10 +176,7 @@ class DependencyService:
             requirement.project_id,
             "DependencyAdded",
             requirement_id,
-            {
-                "requirement_id": requirement_id,
-                "dependency_id": dependency_id
-            }
+            {"requirement_id": requirement_id, "dependency_id": dependency_id},
         )
 
         session.commit()
@@ -200,14 +186,11 @@ class DependencyService:
         return {
             "requirement_id": requirement_id,
             "dependency_id": dependency_id,
-            "dependencies": requirement.dependencies
+            "dependencies": requirement.dependencies,
         }
 
     def remove_dependency(
-        self,
-        session: Session,
-        requirement_id: str,
-        dependency_id: str
+        self, session: Session, requirement_id: str, dependency_id: str
     ) -> Dict[str, Any]:
         """
         移除依赖关系
@@ -220,9 +203,7 @@ class DependencyService:
         Returns:
             操作结果
         """
-        requirement = session.query(Requirement).filter_by(
-            id=requirement_id
-        ).first()
+        requirement = session.query(Requirement).filter_by(id=requirement_id).first()
 
         if not requirement:
             raise ValueError(f"需求不存在: {requirement_id}")
@@ -232,7 +213,7 @@ class DependencyService:
 
         # 移除依赖
         requirement.dependencies.remove(dependency_id)
-        flag_modified(requirement, 'dependencies')
+        flag_modified(requirement, "dependencies")
 
         # 记录事件
         log_event(
@@ -240,10 +221,7 @@ class DependencyService:
             requirement.project_id,
             "DependencyRemoved",
             requirement_id,
-            {
-                "requirement_id": requirement_id,
-                "dependency_id": dependency_id
-            }
+            {"requirement_id": requirement_id, "dependency_id": dependency_id},
         )
 
         session.commit()
@@ -253,14 +231,10 @@ class DependencyService:
         return {
             "requirement_id": requirement_id,
             "dependency_id": dependency_id,
-            "dependencies": requirement.dependencies
+            "dependencies": requirement.dependencies,
         }
 
-    def detect_cycle(
-        self,
-        session: Session,
-        project_id: str
-    ) -> Optional[List[str]]:
+    def detect_cycle(self, session: Session, project_id: str) -> Optional[List[str]]:
         """
         检测项目中的循环依赖
 
@@ -272,9 +246,7 @@ class DependencyService:
             循环路径，如果没有循环则返回 None
         """
         # 获取所有需求
-        requirements = session.query(Requirement).filter_by(
-            project_id=project_id
-        ).all()
+        requirements = session.query(Requirement).filter_by(project_id=project_id).all()
 
         # 构建依赖图
         graph: Dict[str, List[str]] = {}
@@ -285,10 +257,7 @@ class DependencyService:
         return self._detect_cycle_dfs(graph)
 
     def _would_create_cycle(
-        self,
-        session: Session,
-        requirement_id: str,
-        dependency_id: str
+        self, session: Session, requirement_id: str, dependency_id: str
     ) -> bool:
         """
         检查添加依赖是否会创建循环依赖（优化版本）
@@ -301,43 +270,49 @@ class DependencyService:
         Returns:
             是否会创建循环依赖
         """
-        # 获取当前项目的所有需求，构建内存中的依赖图
+        # 快速检查：如果两个ID相同，直接返回True
+        if requirement_id == dependency_id:
+            return True
+
+        # 获取依赖需求对象
         req_obj = session.query(Requirement).filter_by(id=dependency_id).first()
         if not req_obj:
             raise ValueError(f"依赖需求不存在: {dependency_id}")
 
         project_id = req_obj.project_id
-        all_reqs = session.query(Requirement).filter_by(
-            project_id=project_id
-        ).all()
+
+        # 使用优化的查询只获取需要的字段，并添加行锁防止竞态条件
+        all_reqs = (
+            session.query(Requirement.id, Requirement.dependencies)
+            .filter_by(project_id=project_id)
+            .with_for_update()
+            .all()
+        )
 
         # 构建内存中的依赖图
         dependency_graph = {req.id: req.dependencies for req in all_reqs}
 
         # 检查从 dependency_id 是否能到达 requirement_id
-        # 如果能，则添加 requirement_id -> dependency_id 会形成循环
+        # 使用迭代DFS避免递归栈溢出
         visited = set()
-        stack = [(dependency_id, iter(dependency_graph.get(dependency_id, [])))]
+        stack = [dependency_id]
 
         while stack:
-            current, children = stack[-1]
+            current = stack.pop()
             if current == requirement_id:
                 return True
 
-            try:
-                child = next(children)
-                if child not in visited:
-                    visited.add(child)
-                    stack.append((child, iter(dependency_graph.get(child, []))))
-            except StopIteration:
-                stack.pop()
+            if current in visited:
+                continue
+            visited.add(current)
+
+            # 获取当前节点的依赖
+            dependencies = dependency_graph.get(current, [])
+            stack.extend(dependencies)
 
         return False
 
-    def _detect_cycle_dfs(
-        self,
-        graph: Dict[str, List[str]]
-    ) -> Optional[List[str]]:
+    def _detect_cycle_dfs(self, graph: Dict[str, List[str]]) -> Optional[List[str]]:
         """
         使用 DFS 检测环路
 

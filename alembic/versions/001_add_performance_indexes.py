@@ -28,7 +28,6 @@ def upgrade() -> None:
 
     # 获取数据库连接
     bind = op.get_bind()
-    conn = bind.connect()
 
     # 获取现有索引
     inspector = sa.inspect(bind)
@@ -65,8 +64,6 @@ def upgrade() -> None:
         op.create_index(
             "idx_project_updated_at", "projects", ["updated_at"], unique=False
         )
-
-    conn.close()
 
 
 def downgrade() -> None:

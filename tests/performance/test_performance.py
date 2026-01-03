@@ -60,11 +60,11 @@ def test_tc031_chain_performance():
         sdk.add_validation(req["requirement_id"], [{"name": f"测试{i}"}])
 
     # 先进行链化
-    sdk.trigger_chaining(project["project_id"])
+    sdk.trigger_chaining(project["project_id"], session_id="test-session")
 
     # 测试获取下一个需求的性能
     start = time.perf_counter()
-    result = sdk.get_next_requirement(project["project_id"])
+    result = sdk.get_next_requirement(project["project_id"], session_id="test-session")
     elapsed = (time.perf_counter() - start) * 1000
 
     # Assert: < 2000ms

@@ -6,6 +6,11 @@
 
 from mcp.types import Tool
 
+from src.constants import APIVersion
+
+# API 版本信息
+API_VERSION = APIVersion.CURRENT_VERSION
+
 # 工具定义列表
 TOOL_DEFINITIONS = [
     Tool(
@@ -14,17 +19,11 @@ TOOL_DEFINITIONS = [
         inputSchema={
             "type": "object",
             "properties": {
-                "name": {
-                    "type": "string",
-                    "description": "项目名称（必填）"
-                },
-                "description": {
-                    "type": "string",
-                    "description": "项目描述（可选）"
-                }
+                "name": {"type": "string", "description": "项目名称（必填）"},
+                "description": {"type": "string", "description": "项目描述（可选）"},
             },
-            "required": ["name"]
-        }
+            "required": ["name"],
+        },
     ),
     Tool(
         name="update_project",
@@ -32,21 +31,12 @@ TOOL_DEFINITIONS = [
         inputSchema={
             "type": "object",
             "properties": {
-                "project_id": {
-                    "type": "string",
-                    "description": "项目 ID（必填）"
-                },
-                "name": {
-                    "type": "string",
-                    "description": "新项目名称（可选）"
-                },
-                "description": {
-                    "type": "string",
-                    "description": "新项目描述（可选）"
-                }
+                "project_id": {"type": "string", "description": "项目 ID（必填）"},
+                "name": {"type": "string", "description": "新项目名称（可选）"},
+                "description": {"type": "string", "description": "新项目描述（可选）"},
             },
-            "required": ["project_id"]
-        }
+            "required": ["project_id"],
+        },
     ),
     Tool(
         name="get_project",
@@ -54,13 +44,10 @@ TOOL_DEFINITIONS = [
         inputSchema={
             "type": "object",
             "properties": {
-                "project_id": {
-                    "type": "string",
-                    "description": "项目 ID（必填）"
-                }
+                "project_id": {"type": "string", "description": "项目 ID（必填）"}
             },
-            "required": ["project_id"]
-        }
+            "required": ["project_id"],
+        },
     ),
     Tool(
         name="add_requirement",
@@ -68,25 +55,19 @@ TOOL_DEFINITIONS = [
         inputSchema={
             "type": "object",
             "properties": {
-                "project_id": {
-                    "type": "string",
-                    "description": "项目 ID（必填）"
-                },
-                "content": {
-                    "type": "string",
-                    "description": "需求内容（必填）"
-                },
+                "project_id": {"type": "string", "description": "项目 ID（必填）"},
+                "content": {"type": "string", "description": "需求内容（必填）"},
                 "parent_id": {
                     "type": "string",
-                    "description": "父需求 ID（可选，用于创建子需求）"
+                    "description": "父需求 ID（可选，用于创建子需求）",
                 },
                 "order_in_parent": {
                     "type": "integer",
-                    "description": "在父需求中的顺序（默认为 0）"
-                }
+                    "description": "在父需求中的顺序（默认为 0）",
+                },
             },
-            "required": ["project_id", "content"]
-        }
+            "required": ["project_id", "content"],
+        },
     ),
     Tool(
         name="update_requirement",
@@ -94,21 +75,12 @@ TOOL_DEFINITIONS = [
         inputSchema={
             "type": "object",
             "properties": {
-                "requirement_id": {
-                    "type": "string",
-                    "description": "需求 ID（必填）"
-                },
-                "content": {
-                    "type": "string",
-                    "description": "新需求内容（可选）"
-                },
-                "status": {
-                    "type": "string",
-                    "description": "新状态（可选）"
-                }
+                "requirement_id": {"type": "string", "description": "需求 ID（必填）"},
+                "content": {"type": "string", "description": "新需求内容（可选）"},
+                "status": {"type": "string", "description": "新状态（可选）"},
             },
-            "required": ["requirement_id"]
-        }
+            "required": ["requirement_id"],
+        },
     ),
     Tool(
         name="mark_as_leaf",
@@ -116,13 +88,10 @@ TOOL_DEFINITIONS = [
         inputSchema={
             "type": "object",
             "properties": {
-                "requirement_id": {
-                    "type": "string",
-                    "description": "需求 ID（必填）"
-                }
+                "requirement_id": {"type": "string", "description": "需求 ID（必填）"}
             },
-            "required": ["requirement_id"]
-        }
+            "required": ["requirement_id"],
+        },
     ),
     Tool(
         name="delete_requirement",
@@ -130,13 +99,10 @@ TOOL_DEFINITIONS = [
         inputSchema={
             "type": "object",
             "properties": {
-                "requirement_id": {
-                    "type": "string",
-                    "description": "需求 ID（必填）"
-                }
+                "requirement_id": {"type": "string", "description": "需求 ID（必填）"}
             },
-            "required": ["requirement_id"]
-        }
+            "required": ["requirement_id"],
+        },
     ),
     Tool(
         name="add_validation",
@@ -146,7 +112,7 @@ TOOL_DEFINITIONS = [
             "properties": {
                 "requirement_id": {
                     "type": "string",
-                    "description": "需求 ID（必填，必须是叶子节点）"
+                    "description": "需求 ID（必填，必须是叶子节点）",
                 },
                 "test_cases": {
                     "type": "array",
@@ -154,29 +120,26 @@ TOOL_DEFINITIONS = [
                     "items": {
                         "type": "object",
                         "properties": {
-                            "name": {
-                                "type": "string",
-                                "description": "测试用例名称"
-                            },
+                            "name": {"type": "string", "description": "测试用例名称"},
                             "steps": {
                                 "type": "array",
                                 "description": "测试步骤",
-                                "items": {"type": "string"}
+                                "items": {"type": "string"},
                             },
                             "expected_result": {
                                 "type": "string",
-                                "description": "预期结果"
-                            }
-                        }
-                    }
+                                "description": "预期结果",
+                            },
+                        },
+                    },
                 },
                 "acceptance_criteria": {
                     "type": "string",
-                    "description": "验收标准（可选）"
-                }
+                    "description": "验收标准（可选）",
+                },
             },
-            "required": ["requirement_id"]
-        }
+            "required": ["requirement_id"],
+        },
     ),
     Tool(
         name="transfer_dependencies",
@@ -184,21 +147,18 @@ TOOL_DEFINITIONS = [
         inputSchema={
             "type": "object",
             "properties": {
-                "parent_id": {
-                    "type": "string",
-                    "description": "父需求 ID（必填）"
-                },
+                "parent_id": {"type": "string", "description": "父需求 ID（必填）"},
                 "dependency_mapping": {
                     "type": "object",
                     "description": "依赖映射（必填），格式：{子需求ID: [依赖ID列表]}",
                     "additionalProperties": {
                         "type": "array",
-                        "items": {"type": "string"}
-                    }
-                }
+                        "items": {"type": "string"},
+                    },
+                },
             },
-            "required": ["parent_id", "dependency_mapping"]
-        }
+            "required": ["parent_id", "dependency_mapping"],
+        },
     ),
     Tool(
         name="add_dependency",
@@ -206,17 +166,14 @@ TOOL_DEFINITIONS = [
         inputSchema={
             "type": "object",
             "properties": {
-                "requirement_id": {
-                    "type": "string",
-                    "description": "需求 ID（必填）"
-                },
+                "requirement_id": {"type": "string", "description": "需求 ID（必填）"},
                 "dependency_id": {
                     "type": "string",
-                    "description": "依赖的需求 ID（必填）"
-                }
+                    "description": "依赖的需求 ID（必填）",
+                },
             },
-            "required": ["requirement_id", "dependency_id"]
-        }
+            "required": ["requirement_id", "dependency_id"],
+        },
     ),
     Tool(
         name="resolve_parallel_order",
@@ -224,23 +181,20 @@ TOOL_DEFINITIONS = [
         inputSchema={
             "type": "object",
             "properties": {
-                "project_id": {
-                    "type": "string",
-                    "description": "项目 ID（必填）"
-                },
+                "project_id": {"type": "string", "description": "项目 ID（必填）"},
                 "parallel_nodes": {
                     "type": "array",
                     "description": "并行节点 ID 列表（必填）",
-                    "items": {"type": "string"}
+                    "items": {"type": "string"},
                 },
                 "sorted_order": {
                     "type": "array",
                     "description": "排序后的节点 ID 列表（必填，必须包含所有并行节点）",
-                    "items": {"type": "string"}
-                }
+                    "items": {"type": "string"},
+                },
             },
-            "required": ["project_id", "parallel_nodes", "sorted_order"]
-        }
+            "required": ["project_id", "parallel_nodes", "sorted_order"],
+        },
     ),
     Tool(
         name="get_next_requirement",
@@ -248,13 +202,10 @@ TOOL_DEFINITIONS = [
         inputSchema={
             "type": "object",
             "properties": {
-                "project_id": {
-                    "type": "string",
-                    "description": "项目 ID（必填）"
-                }
+                "project_id": {"type": "string", "description": "项目 ID（必填）"}
             },
-            "required": ["project_id"]
-        }
+            "required": ["project_id"],
+        },
     ),
     Tool(
         name="mark_requirement_completed",
@@ -262,17 +213,11 @@ TOOL_DEFINITIONS = [
         inputSchema={
             "type": "object",
             "properties": {
-                "project_id": {
-                    "type": "string",
-                    "description": "项目 ID（必填）"
-                },
-                "requirement_id": {
-                    "type": "string",
-                    "description": "需求 ID（必填）"
-                }
+                "project_id": {"type": "string", "description": "项目 ID（必填）"},
+                "requirement_id": {"type": "string", "description": "需求 ID（必填）"},
             },
-            "required": ["project_id", "requirement_id"]
-        }
+            "required": ["project_id", "requirement_id"],
+        },
     ),
     Tool(
         name="get_project_state",
@@ -280,13 +225,10 @@ TOOL_DEFINITIONS = [
         inputSchema={
             "type": "object",
             "properties": {
-                "project_id": {
-                    "type": "string",
-                    "description": "项目 ID（必填）"
-                }
+                "project_id": {"type": "string", "description": "项目 ID（必填）"}
             },
-            "required": ["project_id"]
-        }
+            "required": ["project_id"],
+        },
     ),
     Tool(
         name="trigger_chaining",
@@ -294,13 +236,10 @@ TOOL_DEFINITIONS = [
         inputSchema={
             "type": "object",
             "properties": {
-                "project_id": {
-                    "type": "string",
-                    "description": "项目 ID（必填）"
-                }
+                "project_id": {"type": "string", "description": "项目 ID（必填）"}
             },
-            "required": ["project_id"]
-        }
+            "required": ["project_id"],
+        },
     ),
     Tool(
         name="create_snapshot",
@@ -308,13 +247,10 @@ TOOL_DEFINITIONS = [
         inputSchema={
             "type": "object",
             "properties": {
-                "project_id": {
-                    "type": "string",
-                    "description": "项目 ID（必填）"
-                }
+                "project_id": {"type": "string", "description": "项目 ID（必填）"}
             },
-            "required": ["project_id"]
-        }
+            "required": ["project_id"],
+        },
     ),
     Tool(
         name="restore_snapshot",
@@ -322,13 +258,10 @@ TOOL_DEFINITIONS = [
         inputSchema={
             "type": "object",
             "properties": {
-                "snapshot_id": {
-                    "type": "string",
-                    "description": "快照 ID（必填）"
-                }
+                "snapshot_id": {"type": "string", "description": "快照 ID（必填）"}
             },
-            "required": ["snapshot_id"]
-        }
+            "required": ["snapshot_id"],
+        },
     ),
     Tool(
         name="list_snapshots",
@@ -336,17 +269,14 @@ TOOL_DEFINITIONS = [
         inputSchema={
             "type": "object",
             "properties": {
-                "project_id": {
-                    "type": "string",
-                    "description": "项目 ID（必填）"
-                },
+                "project_id": {"type": "string", "description": "项目 ID（必填）"},
                 "limit": {
                     "type": "integer",
-                    "description": "返回数量限制（默认为 10）"
-                }
+                    "description": "返回数量限制（默认为 10）",
+                },
             },
-            "required": ["project_id"]
-        }
+            "required": ["project_id"],
+        },
     ),
     Tool(
         name="acquire_lock",
@@ -354,17 +284,11 @@ TOOL_DEFINITIONS = [
         inputSchema={
             "type": "object",
             "properties": {
-                "project_id": {
-                    "type": "string",
-                    "description": "项目 ID（必填）"
-                },
-                "session_id": {
-                    "type": "string",
-                    "description": "会话 ID（必填）"
-                }
+                "project_id": {"type": "string", "description": "项目 ID（必填）"},
+                "session_id": {"type": "string", "description": "会话 ID（必填）"},
             },
-            "required": ["project_id", "session_id"]
-        }
+            "required": ["project_id", "session_id"],
+        },
     ),
     Tool(
         name="release_lock",
@@ -372,17 +296,11 @@ TOOL_DEFINITIONS = [
         inputSchema={
             "type": "object",
             "properties": {
-                "project_id": {
-                    "type": "string",
-                    "description": "项目 ID（必填）"
-                },
-                "session_id": {
-                    "type": "string",
-                    "description": "会话 ID（必填）"
-                }
+                "project_id": {"type": "string", "description": "项目 ID（必填）"},
+                "session_id": {"type": "string", "description": "会话 ID（必填）"},
             },
-            "required": ["project_id", "session_id"]
-        }
+            "required": ["project_id", "session_id"],
+        },
     ),
     Tool(
         name="is_locked",
@@ -390,13 +308,10 @@ TOOL_DEFINITIONS = [
         inputSchema={
             "type": "object",
             "properties": {
-                "project_id": {
-                    "type": "string",
-                    "description": "项目 ID（必填）"
-                }
+                "project_id": {"type": "string", "description": "项目 ID（必填）"}
             },
-            "required": ["project_id"]
-        }
+            "required": ["project_id"],
+        },
     ),
     Tool(
         name="get_lock_info",
@@ -404,12 +319,9 @@ TOOL_DEFINITIONS = [
         inputSchema={
             "type": "object",
             "properties": {
-                "project_id": {
-                    "type": "string",
-                    "description": "项目 ID（必填）"
-                }
+                "project_id": {"type": "string", "description": "项目 ID（必填）"}
             },
-            "required": ["project_id"]
-        }
-    )
+            "required": ["project_id"],
+        },
+    ),
 ]

@@ -40,13 +40,13 @@ def init_sync_db(
 
     for attempt in range(max_retries):
         try:
+            # SQLite 不支持连接池，禁用连接池以避免并发问题
             _engine = create_engine(
                 f"sqlite:///{db_path}",
                 echo=echo,
                 connect_args={"check_same_thread": False},
-                pool_pre_ping=True,  # 连接健康检查
-                pool_size=pool_size,  # 连接池大小
-                pool_recycle=3600,  # 1小时回收连接
+                poolclass=None,  # 禁用连接池
+                pool_pre_ping=False,  # 禁用连接健康检查
             )
             _session_factory = sessionmaker(bind=_engine)
 

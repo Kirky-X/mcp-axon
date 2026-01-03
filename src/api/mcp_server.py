@@ -31,8 +31,13 @@ server = Server("requirement-chain")
 
 # 注册服务器信息
 
+# 检查是否在测试环境中，使用内存数据库
+import os
+IS_TESTING = os.getenv("PYTEST_CURRENT_TEST") is not None
+db_path = ":memory:" if IS_TESTING else "requirements.db"
+
 # 初始化 SDK
-sdk = RequirementSDK()
+sdk = RequirementSDK(db_path=db_path)
 
 # 获取限流器
 rate_limiter = get_rate_limiter()

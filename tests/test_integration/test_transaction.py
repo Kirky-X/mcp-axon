@@ -19,10 +19,27 @@ def test_tc022_transaction_rollback():
     # Act: 尝试为非叶子节点添加验证（应失败）
     req = sdk.add_requirement(project["project_id"], "非叶子需求")
 
+    # 现在需求默认是叶子节点，所以这个测试需要修改
+    # 创建父需求和子需求，父需求不再是叶子节点
+    parent = sdk.add_requirement(project["project_id"], "父需求")
+    child = sdk.add_requirement(project["project_id"], "子需求", parent_id=parent["requirement_id"])
+
+    # 尝试为非叶子节点（父需求）添加验证（应失败）
     with pytest.raises(ValueError, match="只能为叶子节点添加验证"):
-        sdk.add_validation(req["requirement_id"], [{"name": "测试"}])
+        sdk.add_validation(parent["requirement_id"], [{"name": "测试"}])
 
     # Assert: 验证节点未创建
+    from src.db.database import get_session
+
+    with get_session() as session:
+        from src.db.models import ValidationNode
+
+        validation = (
+            session.query(ValidationNode)
+            .filter_by(requirement_id=parent["requirement_id"])
+            .first()
+        )
+        assert validation is None
     from src.db.database import get_session
 
     with get_session() as session:
@@ -44,7 +61,7 @@ def test_transaction_success():
 
     # Act
     req = sdk.add_requirement(project["project_id"], "需求")
-    sdk.mark_as_leaf(req["requirement_id"])
+    # 需求默认是叶子节点(req["requirement_id"])
     validation = sdk.add_validation(req["requirement_id"], [{"name": "测试"}])
 
     # Assert: 所有操作都成功

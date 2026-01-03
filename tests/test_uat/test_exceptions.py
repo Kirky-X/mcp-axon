@@ -61,7 +61,6 @@ def test_uat013_chain_rollback():
 
     # 创建需求
     req1 = sdk.add_requirement(project["project_id"], "需求1")
-    sdk.mark_as_leaf(req1["requirement_id"])
     sdk.add_validation(req1["requirement_id"], [{"name": "测试1"}])
 
     # 创建快照
@@ -86,10 +85,6 @@ def test_uat014_data_validation():
         sdk.add_requirement(project["project_id"], "")
 
     # 测试不存在的需求 ID
-    with pytest.raises(ValueError, match="需求不存在"):
-        sdk.mark_as_leaf("nonexistent-id")
-
-    # 测试不存在的依赖 ID
     req = sdk.add_requirement(project["project_id"], "需求")
     with pytest.raises(ValueError, match="依赖需求不存在"):
         sdk.add_dependency(req["requirement_id"], "nonexistent-id")

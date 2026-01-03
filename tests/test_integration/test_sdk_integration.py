@@ -24,10 +24,10 @@ def test_tc020_dependency_transfer_integration():
     )
     root_id = root["requirement_id"]
 
-    # 3. 添加依赖需求（独立需求）
+    # 3. 添加依赖需求（独立需求，默认是叶子节点）
     dep_req = sdk.add_requirement(project_id=project_id, content="数据库设计")
     dep_id = dep_req["requirement_id"]
-    sdk.mark_as_leaf(dep_id)
+    assert dep_req["status"] == "LEAF"
     sdk.add_validation(requirement_id=dep_id, test_cases=[{"name": "测试数据库"}])
 
     # 4. 添加子需求
@@ -41,13 +41,13 @@ def test_tc020_dependency_transfer_integration():
         project_id=project_id, content="密码重置", parent_id=root_id
     )
 
-    # 5. 标记子需求为叶子并添加验证
+    # 5. 子需求默认是叶子节点，添加验证
     for child_id in [
         child1["requirement_id"],
         child2["requirement_id"],
         child3["requirement_id"],
     ]:
-        sdk.mark_as_leaf(child_id)
+        # 默认已经是叶子节点，不需要 mark_as_leaf
         sdk.add_validation(
             requirement_id=child_id, test_cases=[{"name": f"测试{child_id[:8]}"}]
         )
@@ -90,11 +90,11 @@ def test_tc021_chain_integration():
     root = sdk.add_requirement(project_id=project_id, content="实现电商平台")
     root_id = root["requirement_id"]
 
-    # 独立需求（无依赖）
+    # 独立需求（无依赖，默认是叶子节点）
     req1 = sdk.add_requirement(
         project_id=project_id, content="首页设计", parent_id=root_id
     )
-    sdk.mark_as_leaf(req1["requirement_id"])
+    assert req1["status"] == "LEAF"
     sdk.add_validation(
         requirement_id=req1["requirement_id"], test_cases=[{"name": "测试首页"}]
     )
@@ -103,7 +103,7 @@ def test_tc021_chain_integration():
     reqA = sdk.add_requirement(
         project_id=project_id, content="数据库设计", parent_id=root_id
     )
-    sdk.mark_as_leaf(reqA["requirement_id"])
+    assert reqA["status"] == "LEAF"
     sdk.add_validation(
         requirement_id=reqA["requirement_id"], test_cases=[{"name": "测试数据库"}]
     )
@@ -111,7 +111,7 @@ def test_tc021_chain_integration():
     reqB = sdk.add_requirement(
         project_id=project_id, content="用户模块", parent_id=root_id
     )
-    sdk.mark_as_leaf(reqB["requirement_id"])
+    assert reqB["status"] == "LEAF"
     sdk.add_validation(
         requirement_id=reqB["requirement_id"], test_cases=[{"name": "测试用户模块"}]
     )
@@ -120,7 +120,7 @@ def test_tc021_chain_integration():
     reqC = sdk.add_requirement(
         project_id=project_id, content="订单模块", parent_id=root_id
     )
-    sdk.mark_as_leaf(reqC["requirement_id"])
+    assert reqC["status"] == "LEAF"
     sdk.add_validation(
         requirement_id=reqC["requirement_id"], test_cases=[{"name": "测试订单模块"}]
     )
@@ -130,7 +130,7 @@ def test_tc021_chain_integration():
     req4 = sdk.add_requirement(
         project_id=project_id, content="支付集成", parent_id=root_id
     )
-    sdk.mark_as_leaf(req4["requirement_id"])
+    assert req4["status"] == "LEAF"
     sdk.add_validation(
         requirement_id=req4["requirement_id"], test_cases=[{"name": "测试支付"}]
     )
@@ -185,9 +185,8 @@ def test_tc019_full_requirement_flow():
         project_id=project_id, content="用户登录", parent_id=root_req_id
     )
 
-    # 4. 标记为叶子
-    leaf_result = sdk.mark_as_leaf(child1["requirement_id"])
-    assert leaf_result["status"] in ["leaf", "LEAF"]
+    # 4. 子需求默认是叶子节点，直接添加验证
+    assert child1["status"] == "LEAF"
 
     # 5. 添加验证
     validation_result = sdk.add_validation(
@@ -195,8 +194,8 @@ def test_tc019_full_requirement_flow():
     )
     assert validation_result["validation_id"] is not None
 
-    # 6. 标记另一个叶子并添加验证
-    sdk.mark_as_leaf(child2["requirement_id"])
+    # 6. 另一个叶子节点添加验证
+    assert child2["status"] == "LEAF"
     sdk.add_validation(
         requirement_id=child2["requirement_id"], test_cases=[{"name": "测试登录"}]
     )
@@ -252,28 +251,28 @@ def test_sdk_add_requirement():
     assert "needs_decomposition" in result
 
 
-def test_sdk_mark_as_leaf():
-    """测试 SDK 标记叶子节点"""
+def test_new_requirement_is_leaf_by_default():
+    """测试新创建的需求默认是叶子节点"""
     # Arrange
     sdk = RequirementSDK(db_path=":memory:")
     project = sdk.create_project("测试项目")
-    req = sdk.add_requirement(project["project_id"], "简单需求")
 
     # Act
-    result = sdk.mark_as_leaf(req["requirement_id"])
+    req = sdk.add_requirement(project["project_id"], "简单需求")
 
     # Assert
-    assert result["status"] == "LEAF"
-    assert "next_action" in result
+    assert req["status"] == "LEAF"
 
 
 def test_sdk_add_validation():
-    """测试 SDK 添加验证"""
+    """测试 SDK 添加验证（需求默认是叶子节点）"""
     # Arrange
     sdk = RequirementSDK(db_path=":memory:")
     project = sdk.create_project("测试项目")
     req = sdk.add_requirement(project["project_id"], "简单需求")
-    sdk.mark_as_leaf(req["requirement_id"])
+
+    # 验证新创建的需求是叶子节点
+    assert req["status"] == "LEAF"
 
     test_cases = [{"name": "测试1", "steps": ["步骤1"], "expected": "结果1"}]
 
@@ -349,7 +348,7 @@ def test_sdk_transfer_dependencies():
     sdk = RequirementSDK(db_path=":memory:")
     project = sdk.create_project("测试项目")
     dep1 = sdk.add_requirement(project["project_id"], "依赖1")
-    sdk.mark_as_leaf(dep1["requirement_id"])
+    assert dep1["status"] == "LEAF"
 
     parent = sdk.add_requirement(project["project_id"], "父需求")
     child1 = sdk.add_requirement(

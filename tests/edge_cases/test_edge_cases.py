@@ -43,7 +43,7 @@ def test_tc025_single_requirement_project():
     project = sdk.create_project("单需求项目")
 
     req = sdk.add_requirement(project["project_id"], "唯一需求")
-    sdk.mark_as_leaf(req["requirement_id"])
+    assert req["status"] == "LEAF"
     sdk.add_validation(req["requirement_id"], [{"name": "测试"}])
 
     # Act
@@ -71,8 +71,8 @@ def test_tc026_deep_nested_requirements():
         )
         parent_id = req["requirement_id"]
 
-    # Act
-    sdk.mark_as_leaf(parent_id)
+    # Act - 最后一个节点是叶子节点（没有子节点）
+    assert req["status"] == "LEAF"
 
     # Assert
     from src.db.database import get_session
@@ -93,7 +93,7 @@ def test_tc027_many_parallel_nodes():
     req_ids = []
     for i in range(100):
         req = sdk.add_requirement(project["project_id"], f"需求{i}")
-        sdk.mark_as_leaf(req["requirement_id"])
+        assert req["status"] == "LEAF"
         sdk.add_validation(req["requirement_id"], [{"name": f"测试{i}"}])
         req_ids.append(req["requirement_id"])
 

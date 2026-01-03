@@ -19,8 +19,8 @@ def test_snapshot_delete_requirements_after_snapshot():
     # 创建初始需求
     req1 = sdk.add_requirement(project["project_id"], "需求1")
     req2 = sdk.add_requirement(project["project_id"], "需求2")
-    sdk.mark_as_leaf(req1["requirement_id"])
-    sdk.mark_as_leaf(req2["requirement_id"])
+    # 需求默认是叶子节点(req1["requirement_id"])
+    # 需求默认是叶子节点(req2["requirement_id"])
     sdk.add_validation(req1["requirement_id"], [{"name": "测试1"}])
     sdk.add_validation(req2["requirement_id"], [{"name": "测试2"}])
 
@@ -30,8 +30,8 @@ def test_snapshot_delete_requirements_after_snapshot():
     # 在快照后创建新需求
     req3 = sdk.add_requirement(project["project_id"], "需求3")
     req4 = sdk.add_requirement(project["project_id"], "需求4")
-    sdk.mark_as_leaf(req3["requirement_id"])
-    sdk.mark_as_leaf(req4["requirement_id"])
+    # 需求默认是叶子节点(req3["requirement_id"])
+    # 需求默认是叶子节点(req4["requirement_id"])
     sdk.add_validation(req3["requirement_id"], [{"name": "测试3"}])
     sdk.add_validation(req4["requirement_id"], [{"name": "测试4"}])
 
@@ -78,8 +78,8 @@ def test_snapshot_with_nested_requirements():
     child2 = sdk.add_requirement(
         project["project_id"], "子需求2", parent_id=parent["requirement_id"]
     )
-    sdk.mark_as_leaf(child1["requirement_id"])
-    sdk.mark_as_leaf(child2["requirement_id"])
+    # 需求默认是叶子节点(child1["requirement_id"])
+    # 需求默认是叶子节点(child2["requirement_id"])
     sdk.add_validation(child1["requirement_id"], [{"name": "测试1"}])
     sdk.add_validation(child2["requirement_id"], [{"name": "测试2"}])
 
@@ -90,7 +90,7 @@ def test_snapshot_with_nested_requirements():
     child3 = sdk.add_requirement(
         project["project_id"], "子需求3", parent_id=parent["requirement_id"]
     )
-    sdk.mark_as_leaf(child3["requirement_id"])
+    # 需求默认是叶子节点(child3["requirement_id"])
     sdk.add_validation(child3["requirement_id"], [{"name": "测试3"}])
 
     # Act: 恢复快照
@@ -150,7 +150,7 @@ def test_snapshot_multiple_restores():
 
     # 创建需求
     req1 = sdk.add_requirement(project["project_id"], "需求1")
-    sdk.mark_as_leaf(req1["requirement_id"])
+    # 需求默认是叶子节点(req1["requirement_id"])
     sdk.add_validation(req1["requirement_id"], [{"name": "测试1"}])
 
     # 创建快照
@@ -191,8 +191,8 @@ def test_snapshot_with_dependencies():
     child2 = sdk.add_requirement(
         project["project_id"], "子需求2", parent_id=parent["requirement_id"]
     )
-    sdk.mark_as_leaf(child1["requirement_id"])
-    sdk.mark_as_leaf(child2["requirement_id"])
+    # 需求默认是叶子节点(child1["requirement_id"])
+    # 需求默认是叶子节点(child2["requirement_id"])
     sdk.add_validation(child1["requirement_id"], [{"name": "测试1"}])
     sdk.add_validation(child2["requirement_id"], [{"name": "测试2"}])
 
@@ -209,7 +209,7 @@ def test_snapshot_with_dependencies():
     child3 = sdk.add_requirement(
         project["project_id"], "子需求3", parent_id=parent["requirement_id"]
     )
-    sdk.mark_as_leaf(child3["requirement_id"])
+    # 需求默认是叶子节点(child3["requirement_id"])
     sdk.add_validation(child3["requirement_id"], [{"name": "测试3"}])
 
     # Act: 恢复快照

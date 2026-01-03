@@ -536,9 +536,6 @@ async def execute_tool(name: str, arguments: dict) -> dict:
             status=arguments.get("status"),
         )
 
-    elif name == "mark_as_leaf":
-        return get_sdk().mark_as_leaf(requirement_id=arguments["requirement_id"])
-
     elif name == "delete_requirement":
         return get_sdk().delete_requirement(requirement_id=arguments["requirement_id"])
 
@@ -694,7 +691,6 @@ def validate_tool_input(name: str, arguments: dict) -> None:
     # 需求 ID 验证
     if name in [
         "update_requirement",
-        "mark_as_leaf",
         "delete_requirement",
         "add_validation",
         "add_dependency",

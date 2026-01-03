@@ -97,17 +97,6 @@ TOOL_DEFINITIONS = [
         },
     ),
     Tool(
-        name="mark_as_leaf",
-        description="标记需求为叶子节点。叶子节点表示该需求不需要进一步分解，可以添加验证。",
-        inputSchema={
-            "type": "object",
-            "properties": {
-                "requirement_id": {"type": "string", "description": "需求 ID（必填）"}
-            },
-            "required": ["requirement_id"],
-        },
-    ),
-    Tool(
         name="delete_requirement",
         description="删除需求节点（会级联删除所有子需求和验证节点）。",
         inputSchema={

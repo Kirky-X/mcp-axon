@@ -15,7 +15,7 @@ def test_uat022_transaction_integrity():
 
     # 测试成功的事务
     req = sdk.add_requirement(project["project_id"], "需求")
-    sdk.mark_as_leaf(req["requirement_id"])
+    # 需求默认是叶子节点(req["requirement_id"])
     sdk.add_validation(req["requirement_id"], [{"name": "测试"}])
 
     # 验证所有数据都正确保存
@@ -66,7 +66,7 @@ def test_uat023_event_sourcing():
 
     # 执行一系列操作
     req = sdk.add_requirement(project["project_id"], "需求")
-    sdk.mark_as_leaf(req["requirement_id"])
+    # 需求默认是叶子节点(req["requirement_id"])
     sdk.add_validation(req["requirement_id"], [{"name": "测试"}])
 
     # 查询事件表
@@ -87,7 +87,7 @@ def test_uat023_event_sourcing():
         event_types = [e.event_type for e in events]
         assert "ProjectCreated" in event_types
         assert "RequirementAdded" in event_types
-        assert "RequirementMarkedAsLeaf" in event_types
+        # 需求默认是叶子节点，不再有 RequirementMarkedAsLeaf 事件
         assert "ValidationAdded" in event_types
 
         # 验证序列号连续

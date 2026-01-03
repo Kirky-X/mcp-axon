@@ -184,21 +184,6 @@ class RequirementSDK:
                 session, requirement_id, update_data
             )
 
-    def mark_as_leaf(self, requirement_id: str) -> Dict[str, Any]:
-        """
-        标记需求为叶子节点
-
-        Args:
-            requirement_id: 需求 ID
-
-        Returns:
-            需求信息
-        """
-        with get_session() as session:
-            result = self.requirement_manager.mark_as_leaf(session, requirement_id)
-            result["next_action"] = "add_validation"
-            return result
-
     def delete_requirement(self, requirement_id: str) -> Dict[str, Any]:
         """
         删除需求

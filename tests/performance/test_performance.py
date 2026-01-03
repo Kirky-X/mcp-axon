@@ -56,7 +56,7 @@ def test_tc031_chain_performance():
     # 创建 500 个叶子节点（减少数量以避免超时）
     for i in range(500):
         req = sdk.add_requirement(project["project_id"], f"需求{i}")
-        sdk.mark_as_leaf(req["requirement_id"])
+        # 需求默认是叶子节点
         sdk.add_validation(req["requirement_id"], [{"name": f"测试{i}"}])
 
     # 先进行链化
@@ -161,29 +161,20 @@ def test_benchmark_add_requirement():
     assert p95_time < 10, f"P95添加需求耗时 {p95_time:.2f}ms 超过 10ms"
 
 
-def test_benchmark_mark_as_leaf():
-    """基准测试: 标记叶子节点性能"""
+def test_benchmark_new_requirement_is_leaf():
+    """基准测试: 验证新需求默认是叶子节点"""
     sdk = RequirementSDK(db_path=":memory:")
     project = sdk.create_project("性能测试")
 
-    # 创建 100 个需求
+    # 创建 100 个需求并验证它们默认是叶子节点
     req_ids = []
     for i in range(100):
         req = sdk.add_requirement(project["project_id"], f"需求{i}")
+        assert req["status"] == "LEAF", f"需求 {i} 不是叶子节点"
         req_ids.append(req["requirement_id"])
 
-    # 测试标记叶子节点的性能
-    times = []
-    for req_id in req_ids:
-        start = time.perf_counter()
-        sdk.mark_as_leaf(req_id)
-        elapsed = (time.perf_counter() - start) * 1000
-        times.append(elapsed)
-
-    avg_time = sum(times) / len(times)
-
-    # 断言: 平均 < 5ms
-    assert avg_time < 5, f"平均标记叶子节点耗时 {avg_time:.2f}ms 超过 5ms"
+    # 验证所有需求都是叶子节点
+    assert len(req_ids) == 100
 
 
 def test_benchmark_add_validation():
@@ -195,7 +186,7 @@ def test_benchmark_add_validation():
     req_ids = []
     for i in range(100):
         req = sdk.add_requirement(project["project_id"], f"需求{i}")
-        sdk.mark_as_leaf(req["requirement_id"])
+        # 需求默认是叶子节点
         req_ids.append(req["requirement_id"])
 
     # 测试添加验证节点的性能
@@ -220,7 +211,7 @@ def test_benchmark_get_next_requirement():
     # 创建 100 个叶子需求并验证
     for i in range(100):
         req = sdk.add_requirement(project["project_id"], f"需求{i}")
-        sdk.mark_as_leaf(req["requirement_id"])
+        # 需求默认是叶子节点
         sdk.add_validation(req["requirement_id"], [{"name": f"测试{i}"}])
 
     # 触发链化
@@ -332,7 +323,7 @@ def test_benchmark_snapshot_operations():
     # 创建 100 个需求
     for i in range(100):
         req = sdk.add_requirement(project["project_id"], f"需求{i}")
-        sdk.mark_as_leaf(req["requirement_id"])
+        # 需求默认是叶子节点
         sdk.add_validation(req["requirement_id"], [{"name": f"测试{i}"}])
 
     # 测试创建快照性能
@@ -418,7 +409,7 @@ def test_uat016_large_scale_performance():
     # 创建 2000 个需求
     for i in range(2000):
         req = sdk.add_requirement(project["project_id"], f"需求{i}")
-        sdk.mark_as_leaf(req["requirement_id"])
+        # 需求默认是叶子节点
         sdk.add_validation(req["requirement_id"], [{"name": f"测试{i}"}])
 
     # 测试链化性能

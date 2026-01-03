@@ -11,7 +11,7 @@ def test_tool_definitions_not_empty():
     """测试工具定义列表不为空"""
     # Arrange & Act & Assert
     assert len(TOOL_DEFINITIONS) > 0
-    assert len(TOOL_DEFINITIONS) == 23
+    assert len(TOOL_DEFINITIONS) == 22
 
 
 def test_tool_definitions_structure():
@@ -219,7 +219,6 @@ def test_all_core_tools_exist():
     core_tools = [
         "create_project",
         "add_requirement",
-        "mark_as_leaf",
         "add_validation",
         "get_next_requirement",
         "mark_requirement_completed",

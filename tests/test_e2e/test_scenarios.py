@@ -35,10 +35,10 @@ def test_tc034_ecommerce_scenario():
     )
 
     # 5. 标记叶子并添加验证
-    sdk.mark_as_leaf(register["requirement_id"])
+    # 需求默认是叶子节点(register["requirement_id"])
     sdk.add_validation(register["requirement_id"], [{"name": "测试注册"}])
 
-    sdk.mark_as_leaf(login["requirement_id"])
+    # 需求默认是叶子节点(login["requirement_id"])
     sdk.add_validation(login["requirement_id"], [{"name": "测试登录"}])
 
     # 6. 设置依赖（登录依赖注册）
@@ -64,16 +64,16 @@ def test_data_pipeline_scenario():
 
     # 创建线性依赖链
     collect = sdk.add_requirement(project["project_id"], "数据采集")
-    sdk.mark_as_leaf(collect["requirement_id"])
+    # 需求默认是叶子节点(collect["requirement_id"])
     sdk.add_validation(collect["requirement_id"], [{"name": "测试采集"}])
 
     clean = sdk.add_requirement(project["project_id"], "数据清洗")
-    sdk.mark_as_leaf(clean["requirement_id"])
+    # 需求默认是叶子节点(clean["requirement_id"])
     sdk.add_validation(clean["requirement_id"], [{"name": "测试清洗"}])
     sdk.add_dependency(clean["requirement_id"], collect["requirement_id"])
 
     analyze = sdk.add_requirement(project["project_id"], "数据分析")
-    sdk.mark_as_leaf(analyze["requirement_id"])
+    # 需求默认是叶子节点(analyze["requirement_id"])
     sdk.add_validation(analyze["requirement_id"], [{"name": "测试分析"}])
     sdk.add_dependency(analyze["requirement_id"], clean["requirement_id"])
 

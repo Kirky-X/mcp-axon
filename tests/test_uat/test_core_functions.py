@@ -67,9 +67,9 @@ def test_uat004_dependency_management():
     sdk = RequirementSDK(db_path=":memory:")
     project = sdk.create_project("测试项目")
 
-    # 创建需求
+    # 创建需求（默认是叶子节点）
     dep1 = sdk.add_requirement(project["project_id"], "依赖1")
-    sdk.mark_as_leaf(dep1["requirement_id"])
+    assert dep1["status"] == "LEAF"
 
     parent = sdk.add_requirement(project["project_id"], "父需求")
     child = sdk.add_requirement(
@@ -89,25 +89,14 @@ def test_uat004_dependency_management():
         assert dep1["requirement_id"] in saved_child.dependencies
 
 
-def test_uat005_mark_as_leaf():
-    """UAT-005: 叶子节点标记"""
-    sdk = RequirementSDK(db_path=":memory:")
-    project = sdk.create_project("测试项目")
-
-    req = sdk.add_requirement(project["project_id"], "叶子需求")
-    result = sdk.mark_as_leaf(req["requirement_id"])
-
-    assert result["status"] == "LEAF"
-    assert "next_action" in result
-
-
 def test_uat006_validation_configuration():
-    """UAT-006: 验证节点配置"""
+    """UAT-006: 验证节点配置（需求默认是叶子节点）"""
     sdk = RequirementSDK(db_path=":memory:")
     project = sdk.create_project("测试项目")
 
+    # 需求创建时自动是叶子节点
     req = sdk.add_requirement(project["project_id"], "叶子需求")
-    sdk.mark_as_leaf(req["requirement_id"])
+    assert req["status"] == "LEAF", "新创建的需求应该是叶子节点"
 
     test_cases = [
         {
@@ -128,10 +117,10 @@ def test_uat007_auto_chaining_trigger():
     sdk = RequirementSDK(db_path=":memory:")
     project = sdk.create_project("测试项目")
 
-    # 创建多个叶子需求并配置验证
+    # 创建多个叶子需求并配置验证（需求默认是叶子节点）
     for i in range(5):
         req = sdk.add_requirement(project["project_id"], f"需求{i}")
-        sdk.mark_as_leaf(req["requirement_id"])
+        assert req["status"] == "LEAF", "新创建的需求应该是叶子节点"
         sdk.add_validation(req["requirement_id"], [{"name": f"测试{i}"}])
 
     # 触发链化
@@ -146,13 +135,13 @@ def test_uat008_parallel_order_resolution():
     sdk = RequirementSDK(db_path=":memory:")
     project = sdk.create_project("测试项目")
 
-    # 创建并行节点
+    # 创建并行节点（默认是叶子节点）
     req1 = sdk.add_requirement(project["project_id"], "需求1")
-    sdk.mark_as_leaf(req1["requirement_id"])
+    assert req1["status"] == "LEAF"
     sdk.add_validation(req1["requirement_id"], [{"name": "测试1"}])
 
     req2 = sdk.add_requirement(project["project_id"], "需求2")
-    sdk.mark_as_leaf(req2["requirement_id"])
+    assert req2["status"] == "LEAF"
     sdk.add_validation(req2["requirement_id"], [{"name": "测试2"}])
 
     # 触发链化
@@ -172,7 +161,7 @@ def test_uat009_get_next_requirement():
     project = sdk.create_project("测试项目")
 
     req = sdk.add_requirement(project["project_id"], "需求")
-    sdk.mark_as_leaf(req["requirement_id"])
+    assert req["status"] == "LEAF"
     sdk.add_validation(req["requirement_id"], [{"name": "测试"}])
 
     # 获取下一个需求
@@ -187,10 +176,10 @@ def test_uat010_project_status_query():
     sdk = RequirementSDK(db_path=":memory:")
     project = sdk.create_project("测试项目")
 
-    # 添加一些需求
+    # 添加一些需求（默认是叶子节点）
     for i in range(3):
         req = sdk.add_requirement(project["project_id"], f"需求{i}")
-        sdk.mark_as_leaf(req["requirement_id"])
+        assert req["status"] == "LEAF"
 
     # 查询项目状态
     state = sdk.get_project_state(project["project_id"])

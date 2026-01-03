@@ -46,7 +46,7 @@ def test_uat017_microservices_scenario():
 
     # 5. 标记叶子并添加验证
     for req_id in [register_api["requirement_id"], login_api["requirement_id"]]:
-        sdk.mark_as_leaf(req_id)
+        # 需求默认是叶子节点(req_id)
         sdk.add_validation(req_id, [{"name": "测试"}])
 
     # 6. 设置依赖
@@ -74,21 +74,21 @@ def test_uat018_data_pipeline_scenario():
 
     # 创建线性依赖链
     collect = sdk.add_requirement(project["project_id"], "数据采集")
-    sdk.mark_as_leaf(collect["requirement_id"])
+    # 需求默认是叶子节点(collect["requirement_id"])
     sdk.add_validation(collect["requirement_id"], [{"name": "测试采集"}])
 
     clean = sdk.add_requirement(project["project_id"], "数据清洗")
-    sdk.mark_as_leaf(clean["requirement_id"])
+    # 需求默认是叶子节点(clean["requirement_id"])
     sdk.add_validation(clean["requirement_id"], [{"name": "测试清洗"}])
     sdk.add_dependency(clean["requirement_id"], collect["requirement_id"])
 
     analyze = sdk.add_requirement(project["project_id"], "数据分析")
-    sdk.mark_as_leaf(analyze["requirement_id"])
+    # 需求默认是叶子节点(analyze["requirement_id"])
     sdk.add_validation(analyze["requirement_id"], [{"name": "测试分析"}])
     sdk.add_dependency(analyze["requirement_id"], clean["requirement_id"])
 
     visualize = sdk.add_requirement(project["project_id"], "数据可视化")
-    sdk.mark_as_leaf(visualize["requirement_id"])
+    # 需求默认是叶子节点(visualize["requirement_id"])
     sdk.add_validation(visualize["requirement_id"], [{"name": "测试可视化"}])
     sdk.add_dependency(visualize["requirement_id"], analyze["requirement_id"])
 
@@ -133,7 +133,7 @@ def test_uat019_ai_assistant_scenario():
     )
 
     # 标记叶子
-    sdk.mark_as_leaf(layer6["requirement_id"])
+    # 需求默认是叶子节点(layer6["requirement_id"])
     sdk.add_validation(layer6["requirement_id"], [{"name": "测试"}])
 
     # 验证深度

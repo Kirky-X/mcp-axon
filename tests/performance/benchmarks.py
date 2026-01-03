@@ -106,7 +106,7 @@ def benchmark_chaining():
         # 创建叶子节点
         for i in range(size):
             req = sdk.add_requirement(project["project_id"], f"需求{i}")
-            sdk.mark_as_leaf(req["requirement_id"])
+            # 需求默认是叶子节点(req["requirement_id"])
             sdk.add_validation(req["requirement_id"], [{"name": f"测试{i}"}])
 
         # 测试链化性能

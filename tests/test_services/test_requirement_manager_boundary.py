@@ -127,10 +127,6 @@ def test_validation_node_uniqueness(sync_session):
     req = manager.add_requirement(sync_session, project.id, "叶子需求")
     sync_session.flush()
 
-    # 标记为叶子节点
-    manager.mark_as_leaf(sync_session, req["requirement_id"])
-
-    # 添加第一个验证节点
     validation_service.add_validation(
         sync_session, req["requirement_id"], [{"name": "测试1"}], "验收标准1"
     )

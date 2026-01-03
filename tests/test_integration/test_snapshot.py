@@ -16,7 +16,7 @@ def test_tc023_snapshot_restore():
 
     # 创建需求
     req1 = sdk.add_requirement(project["project_id"], "需求1")
-    sdk.mark_as_leaf(req1["requirement_id"])
+    # 需求默认是叶子节点(req1["requirement_id"])
     sdk.add_validation(req1["requirement_id"], [{"name": "测试1"}])
 
     # 创建快照

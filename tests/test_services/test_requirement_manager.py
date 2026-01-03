@@ -58,7 +58,8 @@ def test_tc008_add_requirement(sync_session):
     # 验证数据库
     req = sync_session.get(Requirement, result["requirement_id"])
     assert req.project_id == project.id
-    assert req.status == RequirementStatus.DRAFT.value
+    # 新创建的需求默认是叶子节点
+    assert req.status == RequirementStatus.LEAF.value
 
 
 def test_add_requirement_with_parent(sync_session):
@@ -85,43 +86,46 @@ def test_add_requirement_with_parent(sync_session):
     assert parent.status == RequirementStatus.DECOMPOSING.value
 
 
-def test_mark_as_leaf(sync_session):
-    """测试标记叶子节点"""
+def test_new_requirement_is_leaf_by_default(sync_session):
+    """测试新创建的需求默认是叶子节点"""
     # Arrange
     manager = RequirementManager()
     project = Project(name="测试项目")
     sync_session.add(project)
     sync_session.commit()
-
-    req = manager.add_requirement(sync_session, project.id, "叶子需求")
 
     # Act
-    result = manager.mark_as_leaf(sync_session, req["requirement_id"])
+    req = manager.add_requirement(sync_session, project.id, "新需求")
 
     # Assert
-    assert result["status"] == "LEAF"
+    assert req["status"] == "LEAF"
 
     # 验证数据库
-    leaf_req = sync_session.get(Requirement, req["requirement_id"])
-    assert leaf_req.status == RequirementStatus.LEAF.value
+    db_req = sync_session.get(Requirement, req["requirement_id"])
+    assert db_req.status == RequirementStatus.LEAF.value
 
 
-def test_mark_as_leaf_with_children(sync_session):
-    """测试标记有子需求的节点为叶子（应失败）"""
+def test_parent_loses_leaf_status_when_child_added(sync_session):
+    """测试添加子节点时父节点自动取消叶子状态"""
     # Arrange
     manager = RequirementManager()
     project = Project(name="测试项目")
     sync_session.add(project)
     sync_session.commit()
 
+    # 创建父需求（默认是叶子节点）
     parent_req = manager.add_requirement(sync_session, project.id, "父需求")
-    manager.add_requirement(
+    assert parent_req["status"] == "LEAF"
+
+    # Act - 添加子需求
+    child_req = manager.add_requirement(
         sync_session, project.id, "子需求", parent_id=parent_req["requirement_id"]
     )
 
-    # Act & Assert
-    with pytest.raises(ValueError, match="有.*个子需求"):
-        manager.mark_as_leaf(sync_session, parent_req["requirement_id"])
+    # Assert - 父节点应该自动变为 DECOMPOSING
+    parent = sync_session.get(Requirement, parent_req["requirement_id"])
+    assert parent.status == RequirementStatus.DECOMPOSING.value
+    assert child_req["status"] == "LEAF"
 
 
 def test_update_requirement(sync_session):

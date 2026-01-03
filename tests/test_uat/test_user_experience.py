@@ -22,8 +22,7 @@ def test_uat020_ai_interaction_experience():
     assert "next_action" in req
 
     # 3. 标记叶子
-    leaf = sdk.mark_as_leaf(req["requirement_id"])
-    assert "next_action" in leaf
+    # 需求默认是叶子节点，next_action 已在 add_requirement 返回
 
     # 4. 添加验证
     validation = sdk.add_validation(req["requirement_id"], [{"name": "测试"}])
@@ -34,7 +33,8 @@ def test_uat020_ai_interaction_experience():
     assert "project_id" in state
 
     # 验证所有操作都有清晰的 next_action
-    assert all("next_action" in r for r in [project, req, leaf, validation])
+    # 验证所有操作都有清晰的 next_action
+    assert all("next_action" in r for r in [project, req, validation])
 
 
 def test_uat021_response_message_quality():
@@ -62,5 +62,5 @@ def test_uat021_response_message_quality():
 
     # 测试叶子节点引导
     simple_req = sdk.add_requirement(project["project_id"], "简单需求")
-    sdk.mark_as_leaf(simple_req["requirement_id"])
+    # 需求默认是叶子节点(simple_req["requirement_id"])
     assert "next_action" in simple_req

@@ -75,17 +75,17 @@ class RequirementManager:
                 raise ValueError("父需求不属于该项目")
             level = parent.level + 1
 
-            # 更新父需求状态为 DECOMPOSING
-            if parent.status == RequirementStatus.DRAFT.value:
+            # 如果父节点是叶子节点，取消其叶子状态
+            if parent.status == RequirementStatus.LEAF.value:
                 parent.status = RequirementStatus.DECOMPOSING.value
                 parent.updated_at = datetime.now(timezone.utc)
 
-        # 创建需求
+        # 创建需求（默认状态为叶子节点 LEAF）
         requirement = Requirement(
             project_id=project_id,
             parent_id=parent_id,
             content=content,
-            status=RequirementStatus.DRAFT.value,
+            status=RequirementStatus.LEAF.value,
             level=level,
             order_in_parent=order_in_parent,
         )
@@ -226,59 +226,6 @@ class RequirementManager:
         return {
             "requirement_id": requirement.id,
             "content": requirement.content,
-            "status": requirement.status,
-            "updated_at": requirement.updated_at.isoformat(),
-        }
-
-    @performance_monitor("mark_as_leaf")
-    def mark_as_leaf(self, session: Session, requirement_id: str) -> Dict[str, Any]:
-        """
-        标记需求为叶子节点
-
-        Args:
-            session: 数据库会话
-            requirement_id: 需求 ID
-
-        Returns:
-            需求信息
-        """
-        requirement = session.query(Requirement).filter_by(id=requirement_id).first()
-
-        if not requirement:
-            raise ValueError(f"需求不存在: {requirement_id}")
-
-        # 检查是否有子需求
-        children_count = (
-            session.query(Requirement).filter_by(parent_id=requirement_id).count()
-        )
-
-        if children_count > 0:
-            raise ValueError(f"需求有 {children_count} 个子需求，不能标记为叶子节点")
-
-        # 更新状态
-        old_status = requirement.status
-        requirement.status = RequirementStatus.LEAF.value
-        requirement.updated_at = datetime.now(timezone.utc)
-
-        # 记录事件
-        log_event(
-            session,
-            requirement.project_id,
-            "RequirementMarkedAsLeaf",
-            requirement.id,
-            {"old_status": old_status, "new_status": RequirementStatus.LEAF.value},
-        )
-
-        session.commit()
-
-        # 使缓存失效
-        self.cache.invalidate_project(requirement.project_id)
-        self.cache.requirement_cache.invalidate(f"req_{requirement_id}")
-
-        logger.info(f"需求标记为叶子节点: {requirement_id}")
-
-        return {
-            "requirement_id": requirement.id,
             "status": requirement.status,
             "updated_at": requirement.updated_at.isoformat(),
         }

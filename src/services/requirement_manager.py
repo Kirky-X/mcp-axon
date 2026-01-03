@@ -77,8 +77,27 @@ class RequirementManager:
 
             # 如果父节点是叶子节点，取消其叶子状态
             if parent.status == RequirementStatus.LEAF.value:
+                old_status = parent.status
                 parent.status = RequirementStatus.DECOMPOSING.value
                 parent.updated_at = datetime.now(timezone.utc)
+                session.flush()  # 确保父节点状态变更持久化
+                
+                # 使父节点缓存失效
+                self.cache.invalidate_requirement(parent.id, project_id)
+                self.cache.invalidate_project(project_id)
+                
+                # 记录父节点状态变更事件
+                log_event(
+                    session,
+                    project_id,
+                    "ParentStatusChanged",
+                    parent.id,
+                    {
+                        "old_status": old_status,
+                        "new_status": RequirementStatus.DECOMPOSING.value,
+                        "child_requirement_id": None,  # ID 未知，在创建需求后记录
+                    },
+                )
 
         # 创建需求（默认状态为叶子节点 LEAF）
         requirement = Requirement(
@@ -416,7 +435,7 @@ class RequirementManager:
                     project_id=project_id,
                     parent_id=parent_id,
                     content=content,
-                    status=RequirementStatus.DRAFT.value,
+                    status=RequirementStatus.LEAF.value,
                     level=0 if not parent_id else (parent.level if parent else 0) + 1,
                     order_in_parent=req_data.get("order_in_parent", i),
                     dependencies=[],

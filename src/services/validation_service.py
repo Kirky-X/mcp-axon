@@ -68,9 +68,14 @@ class ValidationService:
         if existing:
             raise ValueError("已有验证节点")
 
-        # 检查是否为叶子节点
+        # 检查是否为叶子节点（没有子节点的节点）
         if requirement.status != RequirementStatus.LEAF.value:
             raise ValueError(f"只能为叶子节点添加验证，当前状态: {requirement.status}")
+
+        # 检查是否已有子需求（确保是真正的叶子节点）
+        children_count = session.query(Requirement).filter_by(parent_id=requirement_id).count()
+        if children_count > 0:
+            raise ValueError(f"只能为叶子节点添加验证，该需求已有 {children_count} 个子需求")
 
         # 检查 project_id 是否存在
         if not requirement.project_id:

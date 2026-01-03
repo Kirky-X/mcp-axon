@@ -154,7 +154,7 @@ class RequirementSDK:
             elif result["level"] == 0:
                 result["next_action"] = "add_child_requirement"
             else:
-                result["next_action"] = "mark_as_leaf"
+                result["next_action"] = "add_validation"
 
             return result
 

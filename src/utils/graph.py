@@ -23,7 +23,7 @@ def _graph_key(graph: Dict[str, List[str]]) -> str:
     sorted_items = sorted(graph.items())
     graph_str = str(sorted_items)
     # 使用哈希作为键
-    return hashlib.md5(graph_str.encode()).hexdigest()
+    return hashlib.md5(graph_str.encode(), usedforsecurity=False).hexdigest()
 
 
 class GraphAlgorithms:

@@ -14,7 +14,7 @@ import threading
 import time
 import uuid
 from datetime import datetime
-from http.server import HTTPServer, BaseHTTPRequestHandler
+from http.server import BaseHTTPRequestHandler, HTTPServer
 from typing import Any, Dict, Optional
 
 from mcp.server import Server
@@ -327,7 +327,7 @@ class HTTPRequestHandler(BaseHTTPRequestHandler):
 class HTTPServerThread(threading.Thread):
     """HTTP 服务器线程"""
 
-    def __init__(self, host: str = "0.0.0.0", port: int = 8080):
+    def __init__(self, host: str = "0.0.0.0", port: int = 8080):  # noqa: B104
         super().__init__(daemon=True)
         self.host = host
         self.port = port
@@ -358,7 +358,7 @@ class HTTPServerThread(threading.Thread):
 http_server: Optional[HTTPServerThread] = None
 
 
-def start_http_server(host: str = "0.0.0.0", port: int = 8080) -> HTTPServerThread:
+def start_http_server(host: str = "0.0.0.0", port: int = 8080) -> HTTPServerThread:  # noqa: B104
     """启动 HTTP 服务器"""
     global http_server
     http_server = HTTPServerThread(host=host, port=port)
@@ -763,7 +763,7 @@ async def main():
         default="mcp",
         help="运行模式: mcp (默认), http, both",
     )
-    parser.add_argument(
+    parser.add_argument(  # noqa: B104
         "--http-host",
         default="0.0.0.0",
         help="HTTP 服务器绑定地址 (默认: 0.0.0.0)",

@@ -120,9 +120,7 @@ print(f"下一个需求: {next_req}")
         "--isolated",
         "--with",
         "git+https://github.com/Kirky-X/mcp-axon.git",
-        "python",
-        "-m",
-        "src.api.mcp_server"
+        "mcp-axon"
       ]
     }
   }

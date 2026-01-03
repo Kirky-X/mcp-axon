@@ -24,6 +24,9 @@ dev = [
     "alembic==1.13.0",
 ]
 
+[project.scripts]
+mcp-axon = "src.api.mcp_server:main"
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"

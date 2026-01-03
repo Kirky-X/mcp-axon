@@ -133,7 +133,9 @@ class SecurityAuditor:
                 if event.event_metadata
                 else "unknown"
             )
-            operation_counts[event.event_type][session_id] += 1
+            # 确保 session_id 是字符串
+            session_id_str = str(session_id) if session_id is not None else "unknown"
+            operation_counts[event.event_type][session_id_str] += 1
 
         # 检查是否超过阈值
         for event_type, counts in operation_counts.items():
@@ -202,7 +204,9 @@ class SecurityAuditor:
                 if event.event_metadata
                 else "unknown"
             )
-            session_counts[session_id] += 1
+            # 确保 session_id 是字符串
+            session_id_str = str(session_id) if session_id is not None else "unknown"
+            session_counts[session_id_str] += 1
 
         # 检查异常活跃的会话
         avg_events = len(events) / len(session_counts) if session_counts else 0

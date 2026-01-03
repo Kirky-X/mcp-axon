@@ -10,6 +10,7 @@ from typing import Any, Dict, List, Optional
 
 from sqlalchemy.orm import Session
 
+from src.constants import Chain
 from src.db.models import (
     Project,
     ProjectStatus,
@@ -461,7 +462,7 @@ class RequirementManager:
 
                 # 评估复杂度
                 self._evaluate_complexity(
-                    content, 0 if not parent_id else parent.level + 1
+                    content, 0 if not parent_id else (parent.level if parent else 0) + 1
                 )
 
                 # 创建需求对象
@@ -470,7 +471,7 @@ class RequirementManager:
                     parent_id=parent_id,
                     content=content,
                     status=RequirementStatus.DRAFT.value,
-                    level=0 if not parent_id else parent.level + 1,
+                    level=0 if not parent_id else (parent.level if parent else 0) + 1,
                     order_in_parent=req_data.get("order_in_parent", i),
                     dependencies=[],
                 )
@@ -553,11 +554,15 @@ class RequirementManager:
 
         for update_data in updates:
             try:
+                # 创建 RequirementUpdate 对象
+                update_obj = RequirementUpdate(
+                    content=update_data.get("content"),
+                    status=update_data.get("status"),
+                )
                 result = self.update_requirement(
                     session=session,
                     requirement_id=update_data["requirement_id"],
-                    content=update_data.get("content"),
-                    status=update_data.get("status"),
+                    update_data=update_obj,
                 )
                 updated_requirements.append(result)
             except Exception as e:

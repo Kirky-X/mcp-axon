@@ -4,7 +4,7 @@
 
 """性能调优配置"""
 
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, cast
 
 import yaml
 
@@ -133,7 +133,7 @@ class PerformanceConfig:
             配置值
         """
         keys = key_path.split(".")
-        value = self.config
+        value: Any = self.config
 
         for key in keys:
             if isinstance(value, dict) and key in value:
@@ -157,7 +157,8 @@ class PerformanceConfig:
         for key in keys[:-1]:
             if key not in config:
                 config[key] = {}
-            config = config[key]
+            # 明确类型转换
+            config = cast(Dict[str, Any], config[key])
 
         config[keys[-1]] = value
 
@@ -178,7 +179,7 @@ class PerformanceConfig:
         Returns:
             数据库配置字典
         """
-        return self.config["database"]
+        return cast(Dict[str, Any], self.config.get("database", {}))
 
     def get_cache_config(self) -> Dict[str, Any]:
         """
@@ -187,7 +188,7 @@ class PerformanceConfig:
         Returns:
             缓存配置字典
         """
-        return self.config["cache"]
+        return cast(Dict[str, Any], self.config.get("cache", {}))
 
     def get_performance_thresholds(self) -> Dict[str, Any]:
         """
@@ -196,7 +197,7 @@ class PerformanceConfig:
         Returns:
             性能阈值字典
         """
-        return self.config["performance_thresholds"]
+        return cast(Dict[str, Any], self.config.get("performance_thresholds", {}))
 
     def get_graph_config(self) -> Dict[str, Any]:
         """
@@ -205,7 +206,7 @@ class PerformanceConfig:
         Returns:
             图算法配置字典
         """
-        return self.config["graph"]
+        return cast(Dict[str, Any], self.config.get("graph", {}))
 
     def get_chaining_config(self) -> Dict[str, Any]:
         """
@@ -214,7 +215,7 @@ class PerformanceConfig:
         Returns:
             链化配置字典
         """
-        return self.config["chaining"]
+        return cast(Dict[str, Any], self.config.get("chaining", {}))
 
     def get_security_config(self) -> Dict[str, Any]:
         """
@@ -223,7 +224,7 @@ class PerformanceConfig:
         Returns:
             安全配置字典
         """
-        return self.config["security"]
+        return cast(Dict[str, Any], self.config.get("security", {}))
 
     def get_monitoring_config(self) -> Dict[str, Any]:
         """
@@ -232,7 +233,7 @@ class PerformanceConfig:
         Returns:
             监控配置字典
         """
-        return self.config["monitoring"]
+        return cast(Dict[str, Any], self.config.get("monitoring", {}))
 
 
 # 全局配置实例

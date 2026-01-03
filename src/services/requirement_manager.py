@@ -436,7 +436,7 @@ class RequirementManager:
         failed_requirements = []
 
         # 限制批量大小
-        batch_size = min(len(requirements), Limits.MAX_BATCH_SIZE)
+        batch_size = min(len(requirements), Chain.DEFAULT_BATCH_SIZE)
 
         # 验证项目存在
         project = session.query(Project).filter_by(id=project_id).first()

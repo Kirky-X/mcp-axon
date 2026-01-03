@@ -164,7 +164,7 @@ class MetricsCollector:
 
     def get_summary(self) -> Dict[str, Any]:
         """获取指标摘要（保持向后兼容）"""
-        summary = {"timestamp": datetime.now(timezone.utc).isoformat()}
+        summary: Dict[str, Any] = {"timestamp": datetime.now(timezone.utc).isoformat()}
 
         # 通用指标
         if self.metrics:

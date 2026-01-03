@@ -4,11 +4,13 @@
 
 """统一异常类定义"""
 
+from typing import Optional
+
 
 class MCPAxonError(Exception):
     """基础异常类"""
 
-    def __init__(self, message: str, error_code: str = None):
+    def __init__(self, message: str, error_code: Optional[str] = None):
         self.message = message
         self.error_code = error_code
         super().__init__(self.message)

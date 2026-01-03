@@ -152,7 +152,7 @@ class PerformanceConfig:
             value: 配置值
         """
         keys = key_path.split(".")
-        config = self.config
+        config: Dict[str, Any] = self.config
 
         for key in keys[:-1]:
             if key not in config:
@@ -189,7 +189,7 @@ class PerformanceConfig:
         """
         return self.config["cache"]
 
-    def get_performance_thresholds(self) -> Dict[str, float]:
+    def get_performance_thresholds(self) -> Dict[str, Any]:
         """
         获取性能阈值
 
@@ -198,7 +198,7 @@ class PerformanceConfig:
         """
         return self.config["performance_thresholds"]
 
-    def get_graph_config(self) -> Dict[str, int]:
+    def get_graph_config(self) -> Dict[str, Any]:
         """
         获取图算法配置
 

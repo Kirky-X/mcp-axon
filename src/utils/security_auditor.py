@@ -125,7 +125,7 @@ class SecurityAuditor:
             events: 事件列表
         """
         # 按事件类型和会话统计
-        operation_counts = defaultdict(lambda: defaultdict(int))
+        operation_counts: Dict[str, Dict[str, int]] = defaultdict(lambda: defaultdict(int))
 
         for event in events:
             session_id = (
@@ -194,7 +194,7 @@ class SecurityAuditor:
             events: 事件列表
         """
         # 按会话统计事件数
-        session_counts = defaultdict(int)
+        session_counts: Dict[str, int] = defaultdict(int)
 
         for event in events:
             session_id = (
@@ -229,7 +229,7 @@ class SecurityAuditor:
         Returns:
             审计摘要
         """
-        severity_counts = defaultdict(int)
+        severity_counts: Dict[str, int] = defaultdict(int)
 
         for alert in self.alerts:
             severity_counts[alert["severity"]] += 1

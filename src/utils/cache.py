@@ -243,14 +243,15 @@ def get_cache_manager() -> CacheManager:
             if _cache_manager is None:
                 # 尝试从性能配置中读取缓存大小
                 try:
-                    from src.utils.performance_config import get_performance_config
+                    from src.utils.performance_config import PerformanceConfig
 
-                    config = get_performance_config()
+                    config = PerformanceConfig()
+                    cache_config = config.get("cache", {})
                     _cache_manager = CacheManager(
-                        project_cache_size=config.cache_project_size,
-                        requirement_cache_size=config.cache_requirement_size,
-                        chain_cache_size=config.cache_chain_size,
-                        ttl_seconds=config.cache_ttl_seconds,
+                        project_cache_size=cache_config.get("project_size", 50),
+                        requirement_cache_size=cache_config.get("requirement_size", 200),
+                        chain_cache_size=cache_config.get("chain_size", 50),
+                        ttl_seconds=cache_config.get("ttl_seconds", 300),
                     )
                 except Exception:
                     # 如果配置不可用，使用默认值

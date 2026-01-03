@@ -60,7 +60,7 @@ def log_event(
     session: Session,
     project_id: str,
     event_type: str,
-    aggregate_id: str,
+    aggregate_id: Optional[str],
     payload: Dict[str, Any],
     metadata: Optional[Dict[str, Any]] = None,
     session_id: Optional[str] = None,

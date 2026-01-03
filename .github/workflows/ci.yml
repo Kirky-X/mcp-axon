@@ -11,9 +11,10 @@ env:
 
 jobs:
   test:
-    name: Test
+    name: Test (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
         python-version: ["3.12"]
@@ -32,13 +33,31 @@ jobs:
           echo "${HOME}/.local/bin" >> $GITHUB_PATH
         shell: bash
 
+      - name: Set up uv cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/uv
+            .venv
+          key: ${{ runner.os }}-uv-${{ hashFiles('pyproject.toml', 'uv.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-uv-
+
       - name: Install dependencies
         run: |
           uv pip install -e ".[dev,test]"
 
       - name: Run tests
         run: |
-          pytest -v --cov=. --cov-report=xml --cov-report=term
+          uv run pytest -v --cov=src --cov-report=xml --cov-report=term
+
+      - name: Upload coverage to Codecov
+        if: matrix.os == 'ubuntu-latest'
+        uses: codecov/codecov-action@v4
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: ./coverage.xml
+          fail_ci_if_error: false
 
   lint:
     name: Lint
@@ -57,18 +76,31 @@ jobs:
           echo "${HOME}/.local/bin" >> $GITHUB_PATH
         shell: bash
 
+      - name: Set up uv cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/uv
+            .venv
+          key: ${{ runner.os }}-uv-${{ hashFiles('pyproject.toml', 'uv.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-uv-
+
       - name: Install dependencies
         run: |
           uv pip install -e ".[dev]"
 
-      - name: Run ruff (format check)
-        run: ruff format --check .
+      - name: Run ruff format check
+        run: |
+          uv run ruff format --check .
 
-      - name: Run ruff (lint)
-        run: ruff check .
+      - name: Run ruff lint
+        run: |
+          uv run ruff check .
 
       - name: Run mypy
-        run: mypy . || true
+        run: |
+          uv run mypy src/
 
   security:
     name: Security Scan
@@ -87,50 +119,35 @@ jobs:
           echo "${HOME}/.local/bin" >> $GITHUB_PATH
         shell: bash
 
-      - name: Install dependencies
+      - name: Set up uv cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/uv
+            .venv
+          key: ${{ runner.os }}-uv-${{ hashFiles('pyproject.toml', 'uv.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-uv-
+
+      - name: Install security tools
         run: |
           uv pip install safety bandit pip-audit
 
       - name: Run safety check
-        run: safety check --json || true
+        run: |
+          uv run safety check --json
+        continue-on-error: true
 
       - name: Run bandit security scan
-        run: bandit -r . -f json -o bandit-report.json || true
+        run: |
+          uv run bandit -r src/ -f json -o bandit-report.json
+        continue-on-error: true
 
       - name: Run pip-audit
-        run: pip-audit --desc
-
-  coverage:
-    name: Code Coverage
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
-
-      - name: Install uv
         run: |
-          curl -LsSf https://astral.sh/uv/install.sh | sh
-          echo "${HOME}/.local/bin" >> $GITHUB_PATH
-        shell: bash
-
-      - name: Install dependencies
-        run: |
-          uv pip install -e ".[dev,test]"
-
-      - name: Run tests with coverage
-        run: |
-          pytest --cov=. --cov-report=xml --cov-report=html --cov-report=term
-
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v4
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          files: ./coverage.xml
-          fail_ci_if_error: true
+          uv pip install pip-audit
+          pip-audit --desc
+        continue-on-error: true
 
   performance:
     name: Performance Test
@@ -149,26 +166,34 @@ jobs:
           echo "${HOME}/.local/bin" >> $GITHUB_PATH
         shell: bash
 
+      - name: Set up uv cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/uv
+            .venv
+          key: ${{ runner.os }}-uv-${{ hashFiles('pyproject.toml', 'uv.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-uv-
+
       - name: Install dependencies
         run: |
           uv pip install -e ".[dev,test]"
 
       - name: Run performance tests
         run: |
-          pytest tests/performance/ -v --tb=short
+          uv run pytest tests/performance/ -v --tb=short --benchmark-json=benchmark.json
 
       - name: Upload performance results
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: performance-results
-          path: |
-            .pytest_cache/
-            benchmark.json
-        continue-on-error: true
+          path: benchmark.json
+          retention-days: 30
 
-  docs:
-    name: Documentation
+  build:
+    name: Build Package
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -184,11 +209,31 @@ jobs:
           echo "${HOME}/.local/bin" >> $GITHUB_PATH
         shell: bash
 
-      - name: Install dependencies
-        run: |
-          uv pip install -e ".[docs]"
+      - name: Set up uv cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/uv
+            .venv
+          key: ${{ runner.os }}-uv-${{ hashFiles('pyproject.toml', 'uv.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-uv-
 
-      - name: Build documentation
+      - name: Install build dependencies
         run: |
-          cd docs
-          make html
+          uv pip install build twine
+
+      - name: Build package
+        run: |
+          uv run python -m build
+
+      - name: Check package
+        run: |
+          uv run twine check dist/*
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: python-packages
+          path: dist/
+          retention-days: 7

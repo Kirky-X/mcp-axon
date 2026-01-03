@@ -5,17 +5,16 @@
 """需求链化 SDK - 核心类"""
 
 import logging
-from typing import Optional, Dict, Any, List
-from sqlalchemy.orm import Session
+from typing import Any, Dict, List, Optional
 
 from src.db.database import get_session
-from src.db.models import Project, Requirement, ValidationNode
-from src.services.project_manager import ProjectManager
-from src.services.requirement_manager import RequirementManager
-from src.services.dependency_service import DependencyService
-from src.services.validation_service import ValidationService
+from src.db.models import Requirement
 from src.services.chain_builder import ChainBuilder
 from src.services.chain_orchestrator import ChainOrchestrator
+from src.services.dependency_service import DependencyService
+from src.services.project_manager import ProjectManager
+from src.services.requirement_manager import RequirementManager
+from src.services.validation_service import ValidationService
 from src.utils.lock_manager import ProjectLockManager
 from src.utils.snapshot_manager import SnapshotManager
 
@@ -34,21 +33,30 @@ class RequirementSDK:
         """
         self.db_path = db_path
 
-        # 初始化数据库
-        from src.db.database import init_sync_db
-        init_sync_db(db_path, echo=False)
+        try:
+            # 初始化数据库
+            from src.db.database import init_sync_db
 
-        # 初始化服务
-        self.project_manager = ProjectManager()
-        self.requirement_manager = RequirementManager()
-        self.dependency_service = DependencyService()
-        self.validation_service = ValidationService()
-        self.chain_builder = ChainBuilder()
-        self.chain_orchestrator = ChainOrchestrator()
-        self.lock_manager = ProjectLockManager()
-        self.snapshot_manager = SnapshotManager()
+            init_sync_db(db_path, echo=False)
+        except Exception as e:
+            logger.error(f"数据库初始化失败: {e}")
+            raise RuntimeError(f"无法初始化数据库: {e}")
 
-        logger.info(f"SDK 初始化完成: {db_path}")
+        try:
+            # 初始化服务
+            self.project_manager = ProjectManager()
+            self.requirement_manager = RequirementManager()
+            self.dependency_service = DependencyService()
+            self.validation_service = ValidationService()
+            self.chain_builder = ChainBuilder()
+            self.chain_orchestrator = ChainOrchestrator()
+            self.lock_manager = ProjectLockManager()
+            self.snapshot_manager = SnapshotManager()
+
+            logger.info(f"SDK 初始化完成: {db_path}")
+        except Exception as e:
+            logger.error(f"服务初始化失败: {e}")
+            raise RuntimeError(f"无法初始化服务: {e}")
 
     def _get_session(self):
         """
@@ -59,11 +67,7 @@ class RequirementSDK:
         """
         return get_session()
 
-    def create_project(
-        self,
-        name: str,
-        description: str = ""
-    ) -> Dict[str, Any]:
+    def create_project(self, name: str, description: str = "") -> Dict[str, Any]:
         """
         创建项目
 
@@ -75,9 +79,7 @@ class RequirementSDK:
             项目信息
         """
         with get_session() as session:
-            result = self.project_manager.create_project(
-                session, name, description
-            )
+            result = self.project_manager.create_project(session, name, description)
 
             result["next_action"] = "add_root_requirement"
 
@@ -87,7 +89,7 @@ class RequirementSDK:
         self,
         project_id: str,
         name: Optional[str] = None,
-        description: Optional[str] = None
+        description: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
         更新项目信息
@@ -105,9 +107,7 @@ class RequirementSDK:
         with get_session() as session:
             update_data = ProjectUpdate(name=name, description=description)
 
-            return self.project_manager.update_project(
-                session, project_id, update_data
-            )
+            return self.project_manager.update_project(session, project_id, update_data)
 
     def get_project(self, project_id: str) -> Dict[str, Any]:
         """
@@ -127,7 +127,7 @@ class RequirementSDK:
         project_id: str,
         content: str,
         parent_id: Optional[str] = None,
-        order_in_parent: int = 0
+        order_in_parent: int = 0,
     ) -> Dict[str, Any]:
         """
         添加需求节点
@@ -160,7 +160,7 @@ class RequirementSDK:
         self,
         requirement_id: str,
         content: Optional[str] = None,
-        status: Optional[str] = None
+        status: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
         更新需求
@@ -208,15 +208,13 @@ class RequirementSDK:
             删除结果
         """
         with get_session() as session:
-            return self.requirement_manager.delete_requirement(
-                session, requirement_id
-            )
+            return self.requirement_manager.delete_requirement(session, requirement_id)
 
     def add_validation(
         self,
         requirement_id: str,
         test_cases: List[Dict[str, Any]],
-        acceptance_criteria: str = ""
+        acceptance_criteria: str = "",
     ) -> Dict[str, Any]:
         """
         添加验证节点
@@ -235,9 +233,7 @@ class RequirementSDK:
             )
 
             # 检查是否应该触发链化
-            req = session.query(Requirement).filter_by(
-                id=requirement_id
-            ).first()
+            req = session.query(Requirement).filter_by(id=requirement_id).first()
 
             if req and self.chain_orchestrator.should_trigger_chaining(
                 session, req.project_id
@@ -249,9 +245,7 @@ class RequirementSDK:
             return result
 
     def transfer_dependencies(
-        self,
-        parent_id: str,
-        dependency_mapping: Dict[str, List[str]]
+        self, parent_id: str, dependency_mapping: Dict[str, List[str]]
     ) -> Dict[str, Any]:
         """
         应用依赖传递映射
@@ -268,11 +262,7 @@ class RequirementSDK:
                 session, parent_id, dependency_mapping
             )
 
-    def add_dependency(
-        self,
-        requirement_id: str,
-        dependency_id: str
-    ) -> Dict[str, Any]:
+    def add_dependency(self, requirement_id: str, dependency_id: str) -> Dict[str, Any]:
         """
         添加依赖关系
 
@@ -289,10 +279,7 @@ class RequirementSDK:
             )
 
     def resolve_parallel_order(
-        self,
-        project_id: str,
-        parallel_nodes: List[str],
-        sorted_order: List[str]
+        self, project_id: str, parallel_nodes: List[str], sorted_order: List[str]
     ) -> Dict[str, Any]:
         """
         应用并行节点排序
@@ -310,25 +297,24 @@ class RequirementSDK:
                 session, project_id, parallel_nodes, sorted_order
             )
 
-    def get_next_requirement(self, project_id: str) -> Dict[str, Any]:
+    def get_next_requirement(self, project_id: str, session_id: str) -> Dict[str, Any]:
         """
         获取下一个需求
 
         Args:
             project_id: 项目 ID
+            session_id: 会话 ID（用于权限验证）
 
         Returns:
             下一个需求信息
         """
         with get_session() as session:
             return self.chain_orchestrator.get_next_requirement(
-                session, project_id
+                session, project_id, session_id
             )
 
     def mark_requirement_completed(
-        self,
-        project_id: str,
-        requirement_id: str
+        self, project_id: str, requirement_id: str
     ) -> Dict[str, Any]:
         """
         标记需求为已完成
@@ -358,50 +344,55 @@ class RequirementSDK:
         with get_session() as session:
             return self.project_manager.get_project_state(session, project_id)
 
-    def trigger_chaining(self, project_id: str) -> Dict[str, Any]:
+    def trigger_chaining(self, project_id: str, session_id: str) -> Dict[str, Any]:
         """
         触发链化
 
         Args:
             project_id: 项目 ID
+            session_id: 会话 ID（用于权限验证）
 
         Returns:
             链化结果
         """
         with get_session() as session:
-            return self.chain_orchestrator.trigger_chaining(session, project_id)
+            return self.chain_orchestrator.trigger_chaining(
+                session, project_id, session_id
+            )
 
-    def create_snapshot(self, project_id: str) -> str:
+    def create_snapshot(self, project_id: str, session_id: str) -> str:
         """
         创建快照
 
         Args:
             project_id: 项目 ID
+            session_id: 会话 ID（用于权限验证）
 
         Returns:
             快照 ID
         """
         with get_session() as session:
-            return self.snapshot_manager.create_snapshot(session, project_id)
+            return self.snapshot_manager.create_snapshot(
+                session, project_id, session_id
+            )
 
-    def restore_snapshot(self, snapshot_id: str) -> Dict[str, Any]:
+    def restore_snapshot(self, snapshot_id: str, session_id: str) -> Dict[str, Any]:
         """
         恢复快照
 
         Args:
             snapshot_id: 快照 ID
+            session_id: 会话 ID（用于权限验证）
 
         Returns:
             恢复结果
         """
         with get_session() as session:
-            return self.snapshot_manager.restore_snapshot(session, snapshot_id)
+            return self.snapshot_manager.restore_snapshot(
+                session, snapshot_id, session_id
+            )
 
-    def list_snapshots(
-        self,
-        project_id: str,
-        limit: int = 10
-    ) -> List[Dict[str, Any]]:
+    def list_snapshots(self, project_id: str, limit: int = 10) -> List[Dict[str, Any]]:
         """
         列出快照
 
@@ -413,15 +404,9 @@ class RequirementSDK:
             快照列表
         """
         with get_session() as session:
-            return self.snapshot_manager.list_snapshots(
-                session, project_id, limit
-            )
+            return self.snapshot_manager.list_snapshots(session, project_id, limit)
 
-    def acquire_lock(
-        self,
-        project_id: str,
-        session_id: str
-    ) -> bool:
+    def acquire_lock(self, project_id: str, session_id: str) -> bool:
         """
         获取项目锁
 
@@ -433,15 +418,9 @@ class RequirementSDK:
             是否获取成功
         """
         with get_session() as session:
-            return self.lock_manager.acquire_lock(
-                session, project_id, session_id
-            )
+            return self.lock_manager.acquire_lock(session, project_id, session_id)
 
-    def release_lock(
-        self,
-        project_id: str,
-        session_id: str
-    ) -> bool:
+    def release_lock(self, project_id: str, session_id: str) -> bool:
         """
         释放项目锁
 
@@ -453,9 +432,7 @@ class RequirementSDK:
             是否释放成功
         """
         with get_session() as session:
-            return self.lock_manager.release_lock(
-                session, project_id, session_id
-            )
+            return self.lock_manager.release_lock(session, project_id, session_id)
 
     def is_locked(self, project_id: str) -> bool:
         """

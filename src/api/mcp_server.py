@@ -804,3 +804,8 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
+
+
+def entry_point():
+    """同步入口点，用于 setuptools 脚本入口"""
+    asyncio.run(main())

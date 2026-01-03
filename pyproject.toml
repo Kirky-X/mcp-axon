@@ -25,7 +25,7 @@ dev = [
 ]
 
 [project.scripts]
-mcp-axon = "src.api.mcp_server:main"
+mcp-axon = "src.api.mcp_server:entry_point"
 
 [build-system]
 requires = ["hatchling"]

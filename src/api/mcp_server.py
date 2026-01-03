@@ -42,7 +42,8 @@ IS_TESTING = (
     or "pytest" in sys.modules
     or any("pytest" in arg for arg in sys.argv)
 )
-db_path = ":memory:" if IS_TESTING else "requirements.db"
+# 优先使用环境变量，其次是测试模式
+db_path = ":memory:" if IS_TESTING else os.getenv("MCP_AXON_DB_PATH", "requirements.db")
 
 # 延迟初始化 SDK（避免在模块加载时创建全局实例）
 _sdk = None
@@ -52,13 +53,7 @@ def get_sdk() -> RequirementSDK:
     """获取或创建 SDK 实例（延迟初始化）"""
     global _sdk
     if _sdk is None:
-        # 每次调用时重新检查环境变量
-        is_testing = (
-            os.getenv("PYTEST_CURRENT_TEST") is not None
-            or "pytest" in sys.modules
-            or any("pytest" in arg for arg in sys.argv)
-        )
-        db_path = ":memory:" if is_testing else "requirements.db"
+        db_path = os.getenv("MCP_AXON_DB_PATH", "requirements.db")
         _sdk = RequirementSDK(db_path=db_path)
     return _sdk
 
@@ -763,6 +758,11 @@ async def main():
         default="mcp",
         help="运行模式: mcp (默认), http, both",
     )
+    parser.add_argument(
+        "--db-path",
+        default="requirements.db",
+        help="数据库文件路径 (默认: requirements.db)",
+    )
     parser.add_argument(  # noqa: B104
         "--http-host",
         default="0.0.0.0",
@@ -776,9 +776,13 @@ async def main():
     )
     args = parser.parse_args()
 
-    # 启动 HTTP 服务器（如果需要）
-    if args.mode in ["http", "both"]:
-        start_http_server(host=args.http_host, port=args.http_port)
+    # 设置数据库路径环境变量，供 SDK 使用
+    os.environ["MCP_AXON_DB_PATH"] = args.db_path
+
+    # 初始化数据库
+    from src.db.database import init_sync_db
+    init_sync_db(db_path=args.db_path)
+    logger.info(f"数据库初始化完成: {args.db_path}")
 
     # 启动 MCP 服务器
     if args.mode in ["mcp", "both"]:

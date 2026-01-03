@@ -24,14 +24,16 @@ logger = logging.getLogger(__name__)
 class RequirementSDK:
     """需求链化 SDK - 主入口"""
 
-    def __init__(self, db_path: str = "requirements.db"):
+    def __init__(self, db_path: str = None):
         """
         初始化 SDK
 
         Args:
-            db_path: 数据库文件路径
+            db_path: 数据库文件路径 (默认从环境变量 MCP_AXON_DB_PATH 获取)
         """
-        self.db_path = db_path
+        # 优先使用环境变量，其次使用参数，最后使用默认值
+        import os
+        self.db_path = os.getenv("MCP_AXON_DB_PATH", db_path or "requirements.db")
 
         try:
             # 初始化数据库

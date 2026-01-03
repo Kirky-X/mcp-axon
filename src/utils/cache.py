@@ -249,7 +249,9 @@ def get_cache_manager() -> CacheManager:
                     cache_config = config.get("cache", {})
                     _cache_manager = CacheManager(
                         project_cache_size=cache_config.get("project_size", 50),
-                        requirement_cache_size=cache_config.get("requirement_size", 200),
+                        requirement_cache_size=cache_config.get(
+                            "requirement_size", 200
+                        ),
                         chain_cache_size=cache_config.get("chain_size", 50),
                         ttl_seconds=cache_config.get("ttl_seconds", 300),
                     )

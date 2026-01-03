@@ -125,7 +125,9 @@ class SecurityAuditor:
             events: 事件列表
         """
         # 按事件类型和会话统计
-        operation_counts: Dict[str, Dict[str, int]] = defaultdict(lambda: defaultdict(int))
+        operation_counts: Dict[str, Dict[str, int]] = defaultdict(
+            lambda: defaultdict(int)
+        )
 
         for event in events:
             session_id = (

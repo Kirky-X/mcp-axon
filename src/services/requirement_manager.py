@@ -431,7 +431,6 @@ class RequirementManager:
         Returns:
             批量操作结果
         """
-        from src.constants import Limits
 
         created_requirements = []
         failed_requirements = []

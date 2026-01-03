@@ -7,7 +7,9 @@
 import asyncio
 import json
 import logging
+import os
 import re
+import sys
 import uuid
 
 from mcp.server import Server
@@ -31,13 +33,35 @@ server = Server("requirement-chain")
 
 # 注册服务器信息
 
-# 检查是否在测试环境中，使用内存数据库
-import os
-IS_TESTING = os.getenv("PYTEST_CURRENT_TEST") is not None
+# 检测是否在 pytest 测试环境中
+IS_TESTING = (
+    os.getenv("PYTEST_CURRENT_TEST") is not None
+    or "pytest" in sys.modules
+    or any("pytest" in arg for arg in sys.argv)
+)
 db_path = ":memory:" if IS_TESTING else "requirements.db"
 
-# 初始化 SDK
-sdk = RequirementSDK(db_path=db_path)
+# 延迟初始化 SDK（避免在模块加载时创建全局实例）
+_sdk = None
+
+
+def get_sdk() -> RequirementSDK:
+    """获取或创建 SDK 实例（延迟初始化）"""
+    global _sdk
+    if _sdk is None:
+        # 每次调用时重新检查环境变量
+        import os
+        import sys
+
+        is_testing = (
+            os.getenv("PYTEST_CURRENT_TEST") is not None
+            or "pytest" in sys.modules
+            or any("pytest" in arg for arg in sys.argv)
+        )
+        db_path = ":memory:" if is_testing else "requirements.db"
+        _sdk = RequirementSDK(db_path=db_path)
+    return _sdk
+
 
 # 获取限流器
 rate_limiter = get_rate_limiter()
@@ -198,22 +222,22 @@ async def execute_tool(name: str, arguments: dict) -> dict:
         project_name = arguments.get("name")
         if project_name is None:
             raise ValueError("缺少必需参数: name")
-        return sdk.create_project(
+        return get_sdk().create_project(
             name=project_name, description=arguments.get("description", "")
         )
 
     elif name == "update_project":
-        return sdk.update_project(
+        return get_sdk().update_project(
             project_id=arguments["project_id"],
             name=arguments.get("name"),
             description=arguments.get("description"),
         )
 
     elif name == "get_project":
-        return sdk.get_project(project_id=arguments["project_id"])
+        return get_sdk().get_project(project_id=arguments["project_id"])
 
     elif name == "add_requirement":
-        return sdk.add_requirement(
+        return get_sdk().add_requirement(
             project_id=arguments["project_id"],
             content=arguments["content"],
             parent_id=arguments.get("parent_id"),
@@ -221,85 +245,85 @@ async def execute_tool(name: str, arguments: dict) -> dict:
         )
 
     elif name == "update_requirement":
-        return sdk.update_requirement(
+        return get_sdk().update_requirement(
             requirement_id=arguments["requirement_id"],
             content=arguments.get("content"),
             status=arguments.get("status"),
         )
 
     elif name == "mark_as_leaf":
-        return sdk.mark_as_leaf(requirement_id=arguments["requirement_id"])
+        return get_sdk().mark_as_leaf(requirement_id=arguments["requirement_id"])
 
     elif name == "delete_requirement":
-        return sdk.delete_requirement(requirement_id=arguments["requirement_id"])
+        return get_sdk().delete_requirement(requirement_id=arguments["requirement_id"])
 
     elif name == "add_validation":
-        return sdk.add_validation(
+        return get_sdk().add_validation(
             requirement_id=arguments["requirement_id"],
             test_cases=arguments.get("test_cases", []),
             acceptance_criteria=arguments.get("acceptance_criteria", ""),
         )
 
     elif name == "transfer_dependencies":
-        return sdk.transfer_dependencies(
+        return get_sdk().transfer_dependencies(
             parent_id=arguments["parent_id"],
             dependency_mapping=arguments["dependency_mapping"],
         )
 
     elif name == "add_dependency":
-        return sdk.add_dependency(
+        return get_sdk().add_dependency(
             requirement_id=arguments["requirement_id"],
             dependency_id=arguments["dependency_id"],
         )
 
     elif name == "resolve_parallel_order":
-        return sdk.resolve_parallel_order(
+        return get_sdk().resolve_parallel_order(
             project_id=arguments["project_id"],
             parallel_nodes=arguments["parallel_nodes"],
             sorted_order=arguments["sorted_order"],
         )
 
     elif name == "get_next_requirement":
-        return sdk.get_next_requirement(
+        return get_sdk().get_next_requirement(
             project_id=arguments["project_id"],
             session_id=session_context.session_id,
         )
 
     elif name == "mark_requirement_completed":
-        return sdk.mark_requirement_completed(
+        return get_sdk().mark_requirement_completed(
             project_id=arguments["project_id"],
             requirement_id=arguments["requirement_id"],
         )
 
     elif name == "get_project_state":
-        return sdk.get_project_state(project_id=arguments["project_id"])
+        return get_sdk().get_project_state(project_id=arguments["project_id"])
 
     elif name == "trigger_chaining":
-        return sdk.trigger_chaining(
+        return get_sdk().trigger_chaining(
             project_id=arguments["project_id"],
             session_id=session_context.session_id,
         )
 
     elif name == "create_snapshot":
-        snapshot_id = sdk.create_snapshot(
+        snapshot_id = get_sdk().create_snapshot(
             project_id=arguments["project_id"], session_id=session_context.session_id
         )
         return {"snapshot_id": snapshot_id, "message": "快照创建成功"}
 
     elif name == "restore_snapshot":
-        return sdk.restore_snapshot(
+        return get_sdk().restore_snapshot(
             snapshot_id=arguments["snapshot_id"], session_id=session_context.session_id
         )
 
     elif name == "list_snapshots":
         return {
-            "snapshots": sdk.list_snapshots(
+            "snapshots": get_sdk().list_snapshots(
                 project_id=arguments["project_id"], limit=arguments.get("limit", 10)
             )
         }
 
     elif name == "acquire_lock":
-        success = sdk.acquire_lock(
+        success = get_sdk().acquire_lock(
             project_id=arguments["project_id"], session_id=arguments["session_id"]
         )
         return {
@@ -308,7 +332,7 @@ async def execute_tool(name: str, arguments: dict) -> dict:
         }
 
     elif name == "release_lock":
-        success = sdk.release_lock(
+        success = get_sdk().release_lock(
             project_id=arguments["project_id"], session_id=arguments["session_id"]
         )
         return {
@@ -317,11 +341,11 @@ async def execute_tool(name: str, arguments: dict) -> dict:
         }
 
     elif name == "is_locked":
-        locked = sdk.is_locked(project_id=arguments["project_id"])
+        locked = get_sdk().is_locked(project_id=arguments["project_id"])
         return {"locked": locked, "message": "项目已锁定" if locked else "项目未锁定"}
 
     elif name == "get_lock_info":
-        lock_info = sdk.get_lock_info(project_id=arguments["project_id"])
+        lock_info = get_sdk().get_lock_info(project_id=arguments["project_id"])
         return {
             "lock_info": lock_info,
             "message": "项目已锁定" if lock_info else "项目未锁定",

@@ -7,7 +7,6 @@
 import pytest
 
 from src.api.mcp_server import execute_tool, list_tools
-from tests.conftest import async_engine, async_session
 
 
 @pytest.mark.asyncio

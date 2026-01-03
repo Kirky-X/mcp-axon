@@ -5,6 +5,7 @@
 """Pytest 配置和共享 fixture"""
 
 import asyncio
+import os
 
 import pytest
 from sqlalchemy import create_engine
@@ -14,6 +15,12 @@ from sqlalchemy.pool import StaticPool
 
 from src.db.database import init_sync_db
 from src.db.models import Base
+
+
+def pytest_configure():
+    """配置 pytest 环境"""
+    # 设置环境变量，确保所有测试使用内存数据库
+    os.environ["PYTEST_CURRENT_TEST"] = "1"
 
 
 @pytest.fixture(scope="session")

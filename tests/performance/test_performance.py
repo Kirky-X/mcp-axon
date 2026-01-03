@@ -224,13 +224,13 @@ def test_benchmark_get_next_requirement():
         sdk.add_validation(req["requirement_id"], [{"name": f"测试{i}"}])
 
     # 触发链化
-    sdk.trigger_chaining(project["project_id"])
+    sdk.trigger_chaining(project["project_id"], session_id="benchmark")
 
     # 测试获取下一个需求的性能
     times = []
     for _ in range(100):
         start = time.perf_counter()
-        sdk.get_next_requirement(project["project_id"])
+        sdk.get_next_requirement(project["project_id"], session_id="benchmark")
         elapsed = (time.perf_counter() - start) * 1000
         times.append(elapsed)
 
@@ -337,7 +337,7 @@ def test_benchmark_snapshot_operations():
 
     # 测试创建快照性能
     start = time.perf_counter()
-    snapshot_id = sdk.create_snapshot(project["project_id"])
+    snapshot_id = sdk.create_snapshot(project["project_id"], session_id="benchmark")
     create_time = (time.perf_counter() - start) * 1000
 
     # 添加新需求
@@ -345,7 +345,7 @@ def test_benchmark_snapshot_operations():
 
     # 测试恢复快照性能
     start = time.perf_counter()
-    sdk.restore_snapshot(snapshot_id)
+    sdk.restore_snapshot(snapshot_id, session_id="benchmark")
     restore_time = (time.perf_counter() - start) * 1000
 
     # 断言: 创建 < 100ms, 恢复 < 200ms
@@ -423,7 +423,7 @@ def test_uat016_large_scale_performance():
 
     # 测试链化性能
     start = time.perf_counter()
-    result = sdk.get_next_requirement(project["project_id"])
+    result = sdk.get_next_requirement(project["project_id"], session_id="benchmark")
     elapsed = (time.perf_counter() - start) * 1000
 
     # Assert: < 2000ms

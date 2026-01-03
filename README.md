@@ -119,24 +119,15 @@ print(f"下一个需求: {next_req}")
         "run",
         "--isolated",
         "--with",
-        ".",
+        "git+https://github.com/Kirky-X/mcp-axon.git",
         "python",
         "-m",
         "src.api.mcp_server"
-      ],
-      "env": {
-        "DB_PATH": "requirements.db",
-        "LOG_LEVEL": "INFO"
-      }
+      ]
     }
   }
 }
 ```
-
-**说明**:
-- `--isolated`: 隔离模式，不使用项目的虚拟环境
-- `DB_PATH`: 数据库文件路径（可选，默认 `requirements.db`）
-- `LOG_LEVEL`: 日志级别（可选，默认 `INFO`）
 
 ---
 

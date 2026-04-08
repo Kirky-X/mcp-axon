@@ -11,7 +11,7 @@ import sys
 
 from src.api.mcp_server import main as server_main
 from src.core.sdk import RequirementSDK
-from src.db.database import create_tables_async, init_async_db, init_sync_db
+from src.core.containers import init_container, init_database, close_database
 
 # 配置日志
 logging.basicConfig(
@@ -20,39 +20,19 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-def init_database(db_path: str = "requirements.db"):
+def init_db(db_path: str = "mcp_axon.lbug"):
     """初始化数据库"""
 
     logger.info(f"初始化数据库: {db_path}")
 
-    # 初始化同步数据库
-    init_sync_db(db_path, echo=False)
-
-    # 初始化异步数据库
-    init_async_db(db_path, echo=False)
+    # 初始化容器和数据库
+    init_container(db_path=db_path)
+    init_database()
 
     logger.info("数据库初始化完成")
 
 
-async def async_init_database(db_path: str = "requirements.db"):
-    """异步初始化数据库表"""
-    from src.db.database import get_async_engine
-
-    # 初始化引擎
-    init_async_db(db_path, echo=False)
-
-    # 创建表
-    await create_tables_async()
-
-    # 关闭引擎
-    engine = get_async_engine()
-    if engine:
-        await engine.dispose()
-
-    logger.info("数据库表创建完成")
-
-
-def run_server(db_path: str = "requirements.db"):
+def run_server(db_path: str = "mcp_axon.lbug"):
     """运行 MCP 服务器"""
     logger.info("启动 MCP 服务器...")
 
@@ -81,16 +61,16 @@ def main():
         "command", choices=["init", "server", "test", "demo"], help="命令"
     )
 
-    parser.add_argument("--db-path", default="requirements.db", help="数据库文件路径")
+    parser.add_argument("--db-path", default="mcp_axon.lbug", help="数据库文件路径")
 
     args = parser.parse_args()
 
     if args.command == "init":
-        init_database(args.db_path)
+        init_db(args.db_path)
 
     elif args.command == "server":
         # 先初始化数据库
-        init_database(args.db_path)
+        init_db(args.db_path)
         # 运行服务器
         run_server(args.db_path)
 
@@ -107,7 +87,7 @@ def run_demo(db_path: str):
     logger.info("运行演示...")
 
     # 初始化数据库
-    init_database(db_path)
+    init_db(db_path)
 
     # 创建 SDK
     sdk = RequirementSDK(db_path)
@@ -203,6 +183,9 @@ def run_demo(db_path: str):
     print(f"是否最后: {next_req['is_last']}")
 
     print("\n=== 演示完成 ===")
+
+    # 清理
+    close_database()
 
 
 if __name__ == "__main__":

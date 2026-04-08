@@ -7,14 +7,15 @@
 用于分析事件日志，检测安全问题和异常行为
 """
 
+import json
 import logging
 from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 
-from sqlalchemy.orm import Session
+import real_ladybug as lb
 
-from src.db.models import Event
+from src.db.graph_queries import GET_EVENTS_BY_TIME_RANGE
 
 logger = logging.getLogger(__name__)
 
@@ -51,13 +52,13 @@ class SecurityAuditor:
         self.alerts: List[Dict[str, Any]] = []
 
     def audit_events(
-        self, session: Session, project_id: Optional[str] = None
+        self, conn: lb.Connection, project_id: Optional[str] = None
     ) -> Dict[str, Any]:
         """
         审计事件
 
         Args:
-            session: 数据库会话
+            conn: LadybugDB 连接
             project_id: 项目 ID（可选）
 
         Returns:
@@ -67,13 +68,33 @@ class SecurityAuditor:
 
         # 获取时间窗口内的事件
         cutoff_time = datetime.now(timezone.utc) - self.time_window
+        cutoff_time_str = cutoff_time.isoformat()
+        end_time_str = datetime.now(timezone.utc).isoformat()
 
-        query = session.query(Event).filter(Event.created_at >= cutoff_time)
-
+        # 查询事件
         if project_id:
-            query = query.filter_by(project_id=project_id)
+            result = conn.execute(
+                GET_EVENTS_BY_TIME_RANGE,
+                {
+                    "project_uuid": project_id,
+                    "start_time": cutoff_time_str,
+                    "end_time": end_time_str,
+                },
+            )
+        else:
+            # 查询所有项目的事件
+            query = """
+            MATCH (e:Event)
+            WHERE e.created_at >= $start_time AND e.created_at <= $end_time
+            RETURN e.uuid, e.project_uuid, e.event_type, e.aggregate_uuid, e.payload,
+                   e.event_metadata, e.sequence, e.created_at
+            ORDER BY e.created_at ASC
+            """
+            result = conn.execute(
+                query, {"start_time": cutoff_time_str, "end_time": end_time_str}
+            )
 
-        events = query.all()
+        events = self._parse_events(result)
 
         # 执行各种审计检查
         self._check_suspicious_operations(events)
@@ -89,7 +110,45 @@ class SecurityAuditor:
             "status": "safe" if not self.alerts else "warning",
         }
 
-    def _check_suspicious_operations(self, events: List[Event]) -> None:
+    def _parse_events(self, result) -> List[Dict[str, Any]]:
+        """解析事件结果"""
+        events = []
+        for row in result:
+            event = {
+                "uuid": row[0],
+                "project_uuid": row[1],
+                "event_type": row[2],
+                "aggregate_uuid": row[3],
+                "payload": self._parse_json(row[4]),
+                "event_metadata": self._parse_json(row[5]),
+                "sequence": row[6],
+                "created_at": self._parse_datetime(row[7]),
+            }
+            events.append(event)
+        return events
+
+    def _parse_json(self, data: Optional[str]) -> Optional[Dict]:
+        """解析 JSON 数据"""
+        if not data:
+            return None
+        try:
+            return json.loads(data)
+        except json.JSONDecodeError:
+            return None
+
+    def _parse_datetime(self, dt_str: Optional[str]) -> Optional[datetime]:
+        """解析日期时间字符串"""
+        if not dt_str:
+            return None
+        try:
+            dt = datetime.fromisoformat(dt_str)
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=timezone.utc)
+            return dt
+        except ValueError:
+            return None
+
+    def _check_suspicious_operations(self, events: List[Dict]) -> None:
         """
         检查可疑操作
 
@@ -97,27 +156,29 @@ class SecurityAuditor:
             events: 事件列表
         """
         suspicious_events = [
-            e for e in events if e.event_type in self.SUSPICIOUS_EVENT_TYPES
+            e for e in events if e["event_type"] in self.SUSPICIOUS_EVENT_TYPES
         ]
 
         for event in suspicious_events:
             alert = {
                 "severity": "medium",
                 "type": "suspicious_operation",
-                "event_type": event.event_type,
-                "project_id": event.project_id,
-                "aggregate_id": event.aggregate_id,
-                "timestamp": event.created_at.isoformat(),
+                "event_type": event["event_type"],
+                "project_id": event["project_uuid"],
+                "aggregate_id": event["aggregate_uuid"],
+                "timestamp": event["created_at"].isoformat()
+                if event["created_at"]
+                else None,
                 "session_id": (
-                    event.event_metadata.get("session_id")
-                    if event.event_metadata
+                    event["event_metadata"].get("session_id")
+                    if event["event_metadata"]
                     else None
                 ),
-                "description": f"检测到可疑操作: {event.event_type}",
+                "description": f"检测到可疑操作: {event['event_type']}",
             }
             self.alerts.append(alert)
 
-    def _check_rapid_operations(self, events: List[Event]) -> None:
+    def _check_rapid_operations(self, events: List[Dict]) -> None:
         """
         检查快速操作（可能表示攻击）
 
@@ -131,13 +192,13 @@ class SecurityAuditor:
 
         for event in events:
             session_id = (
-                event.event_metadata.get("session_id")
-                if event.event_metadata
+                event["event_metadata"].get("session_id")
+                if event["event_metadata"]
                 else "unknown"
             )
             # 确保 session_id 是字符串
             session_id_str = str(session_id) if session_id is not None else "unknown"
-            operation_counts[event.event_type][session_id_str] += 1
+            operation_counts[event["event_type"]][session_id_str] += 1
 
         # 检查是否超过阈值
         for event_type, counts in operation_counts.items():
@@ -159,7 +220,7 @@ class SecurityAuditor:
                     }
                     self.alerts.append(alert)
 
-    def _check_unusual_patterns(self, events: List[Event]) -> None:
+    def _check_unusual_patterns(self, events: List[Dict]) -> None:
         """
         检查异常模式
 
@@ -167,7 +228,9 @@ class SecurityAuditor:
             events: 事件列表
         """
         # 检查循环依赖检测失败
-        cycle_detection_events = [e for e in events if e.event_type == "CycleDetected"]
+        cycle_detection_events = [
+            e for e in events if e["event_type"] == "CycleDetected"
+        ]
 
         if len(cycle_detection_events) > 0:
             alert = {
@@ -179,7 +242,7 @@ class SecurityAuditor:
             self.alerts.append(alert)
 
         # 检查链化失败
-        chain_failure_events = [e for e in events if e.event_type == "ChainFailed"]
+        chain_failure_events = [e for e in events if e["event_type"] == "ChainFailed"]
 
         if len(chain_failure_events) > 0:
             alert = {
@@ -190,7 +253,7 @@ class SecurityAuditor:
             }
             self.alerts.append(alert)
 
-    def _check_session_anomalies(self, events: List[Event]) -> None:
+    def _check_session_anomalies(self, events: List[Dict]) -> None:
         """
         检查会话异常
 
@@ -202,8 +265,8 @@ class SecurityAuditor:
 
         for event in events:
             session_id = (
-                event.event_metadata.get("session_id")
-                if event.event_metadata
+                event["event_metadata"].get("session_id")
+                if event["event_metadata"]
                 else "unknown"
             )
             # 确保 session_id 是字符串
@@ -259,20 +322,20 @@ class SecurityReportGenerator:
         self.auditor = SecurityAuditor()
 
     def generate_report(
-        self, session: Session, project_id: Optional[str] = None
+        self, conn: lb.Connection, project_id: Optional[str] = None
     ) -> Dict[str, Any]:
         """
         生成安全报告
 
         Args:
-            session: 数据库会话
+            conn: LadybugDB 连接
             project_id: 项目 ID（可选）
 
         Returns:
             安全报告
         """
         # 执行审计
-        audit_result = self.auditor.audit_events(session, project_id)
+        audit_result = self.auditor.audit_events(conn, project_id)
 
         # 生成报告
         report = {
@@ -366,19 +429,19 @@ report_generator = SecurityReportGenerator()
 
 
 def perform_security_audit(
-    session: Session, project_id: Optional[str] = None
+    conn: lb.Connection, project_id: Optional[str] = None
 ) -> Dict[str, Any]:
     """
     执行安全审计
 
     Args:
-        session: 数据库会话
+        conn: LadybugDB 连接
         project_id: 项目 ID（可选）
 
     Returns:
         审计结果
     """
-    return report_generator.generate_report(session, project_id)
+    return report_generator.generate_report(conn, project_id)
 
 
 # 使用示例

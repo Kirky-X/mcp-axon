@@ -6,11 +6,23 @@
 
 import logging
 from datetime import datetime, timezone
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
-from sqlalchemy.orm import Session
+import real_ladybug as lb
 
-from src.db.models import ChainState, Event, Requirement
+from src.db.graph_queries import (
+    CREATE_EVENT,
+    GET_EVENT_BY_UUID,
+    GET_EVENTS_BY_PROJECT_AND_TYPE,
+    GET_LATEST_EVENT_SEQUENCE,
+    GET_REQUIREMENTS_BY_PROJECT,
+    GET_CHAIN_STATE_BY_PROJECT,
+    DELETE_EVENT,
+    GET_DEPENDENCIES,
+    GET_NEXT_IN_CHAIN,
+)
+from src.db.graph_models import deserialize_json, serialize_json
+from src.utils.event_logger import log_event
 
 logger = logging.getLogger(__name__)
 
@@ -19,13 +31,13 @@ class SnapshotManager:
     """状态快照管理器"""
 
     def create_snapshot(
-        self, session: Session, project_id: str, session_id: str
+        self, conn: lb.Connection, project_id: str, session_id: str
     ) -> str:
         """
         创建状态快照
 
         Args:
-            session: 数据库会话
+            conn: LadybugDB 连接
             project_id: 项目 ID
             session_id: 会话 ID（用于权限验证）
 
@@ -35,76 +47,70 @@ class SnapshotManager:
         logger.info(f"创建快照: {project_id}")
 
         # 获取所有需求
-        requirements = session.query(Requirement).filter_by(project_id=project_id).all()
+        result = conn.execute(GET_REQUIREMENTS_BY_PROJECT, {"project_uuid": project_id})
+        requirements = self._parse_requirements(result)
 
         # 获取链化状态
-        chain_state = session.query(ChainState).filter_by(project_id=project_id).first()
+        result = conn.execute(GET_CHAIN_STATE_BY_PROJECT, {"project_uuid": project_id})
+        chain_state = self._parse_chain_state(list(result))
 
         # 构建快照数据
         snapshot_data = {
             "timestamp": datetime.now(timezone.utc).isoformat(),
-            "requirements": {
-                req.id: {
-                    "status": req.status,
-                    "chain_order": req.chain_order,
-                    "next_requirement_id": req.next_requirement_id,
-                    "dependencies": req.dependencies,
-                }
-                for req in requirements
-            },
-            "chain_state": (
-                {
-                    "status": chain_state.status if chain_state else None,
-                    "chain_head_id": chain_state.chain_head_id if chain_state else None,
-                    "current_node_id": chain_state.current_node_id
-                    if chain_state
-                    else None,
-                    "total_nodes": chain_state.total_nodes if chain_state else 0,
-                    "completed_nodes": chain_state.completed_nodes
-                    if chain_state
-                    else 0,
-                    "progress_percentage": chain_state.progress_percentage
-                    if chain_state
-                    else 0,
-                }
-                if chain_state
-                else None
-            ),
+            "requirements": {},
+            "chain_state": {},  # 空对象而非 None
         }
 
+        # 收集需求状态
+        for req in requirements:
+            # 获取依赖
+            dep_result = conn.execute(
+                GET_DEPENDENCIES, {"requirement_uuid": req["uuid"]}
+            )
+            dependencies = [row[0] for row in dep_result]
+
+            # 获取下一个需求
+            next_result = conn.execute(GET_NEXT_IN_CHAIN, {"uuid": req["uuid"]})
+            next_rows = list(next_result)
+            next_uuid = next_rows[0][0] if next_rows else None
+
+            snapshot_data["requirements"][req["uuid"]] = {
+                "status": req["status"],
+                "chain_order": req.get("chain_order")
+                if req.get("chain_order") is not None
+                else -1,
+                "next_requirement_uuid": next_uuid if next_uuid is not None else "",
+                "dependencies": dependencies,
+            }
+
+        # 链化状态
+        if chain_state:
+            snapshot_data["chain_state"] = {
+                "status": chain_state["status"],
+                "chain_head_uuid": chain_state.get("chain_head_uuid") or "",
+                "current_node_uuid": chain_state.get("current_node_uuid") or "",
+                "total_nodes": chain_state.get("total_nodes", 0),
+                "completed_nodes": chain_state.get("completed_nodes", 0),
+                "progress_percentage": chain_state.get("progress_percentage", 0),
+            }
+
         # 保存快照到事件表
-        self._log_event(
-            session,
-            project_id,
-            "SnapshotCreated",
-            project_id,
-            snapshot_data,
-            session_id=session_id,
+        snapshot_uuid = self._create_snapshot_event(
+            conn, project_id, snapshot_data, session_id
         )
 
-        # 获取刚创建的事件
-        event = (
-            session.query(Event)
-            .filter_by(project_id=project_id, event_type="SnapshotCreated")
-            .order_by(Event.created_at.desc())
-            .first()
-        )
+        logger.info(f"快照创建成功: {snapshot_uuid}")
 
-        if event is None:
-            raise RuntimeError("Failed to create snapshot event")
-
-        logger.info(f"快照创建成功: {event.id}")
-
-        return event.id
+        return snapshot_uuid
 
     def restore_snapshot(
-        self, session: Session, snapshot_id: str, session_id: str
+        self, conn: lb.Connection, snapshot_id: str, session_id: str
     ) -> Dict[str, Any]:
         """
         从快照恢复
 
         Args:
-            session: 数据库会话
+            conn: LadybugDB 连接
             snapshot_id: 快照 ID（事件 ID）
             session_id: 会话 ID（用于权限验证）
 
@@ -114,81 +120,118 @@ class SnapshotManager:
         logger.info(f"从快照恢复: {snapshot_id}")
 
         # 获取快照事件
-        snapshot_event = session.query(Event).filter_by(id=snapshot_id).first()
-
-        if not snapshot_event:
+        result = conn.execute(GET_EVENT_BY_UUID, {"uuid": snapshot_id})
+        rows = list(result)
+        if not rows:
             raise ValueError(f"快照不存在: {snapshot_id}")
 
-        if snapshot_event.event_type != "SnapshotCreated":
-            raise ValueError(f"事件类型不是快照: {snapshot_event.event_type}")
+        snapshot_event = self._parse_event(rows[0])
+
+        if snapshot_event["event_type"] != "SnapshotCreated":
+            raise ValueError(f"事件类型不是快照: {snapshot_event['event_type']}")
 
         # 验证权限：快照必须属于当前会话创建的
-        if (
-            snapshot_event.event_metadata
-            and "session_id" in snapshot_event.event_metadata
-        ):
-            snapshot_session_id = snapshot_event.event_metadata["session_id"]
+        event_metadata = snapshot_event.get("event_metadata")
+        if event_metadata and "session_id" in event_metadata:
+            snapshot_session_id = event_metadata["session_id"]
             if snapshot_session_id != session_id:
                 logger.warning(
                     f"权限拒绝: 会话 {session_id} 尝试恢复会话 {snapshot_session_id} 创建的快照"
                 )
                 raise ValueError("无权恢复此快照")
 
-        snapshot_data = snapshot_event.payload
-        project_id = snapshot_event.project_id
+        snapshot_data = snapshot_event.get("payload")
+        if not snapshot_data:
+            raise ValueError("快照数据为空")
+
+        project_id = snapshot_event["project_uuid"]
 
         # 获取快照中的需求 ID 集合
-        snapshot_req_ids = set(snapshot_data.get("requirements", {}).keys())
+        snapshot_req_uuids = set(snapshot_data.get("requirements", {}).keys())
 
         # 获取当前所有需求
-        current_requirements = (
-            session.query(Requirement).filter_by(project_id=project_id).all()
-        )
+        result = conn.execute(GET_REQUIREMENTS_BY_PROJECT, {"project_uuid": project_id})
+        current_requirements = self._parse_requirements(result)
 
         # 删除快照后创建的需求（不在快照中的需求）
         deleted_count = 0
         for current_req in current_requirements:
-            if current_req.id not in snapshot_req_ids:
-                logger.info(f"删除快照后创建的需求: {current_req.id}")
-                session.delete(current_req)
+            if current_req["uuid"] not in snapshot_req_uuids:
+                logger.info(f"删除快照后创建的需求: {current_req['uuid']}")
+                conn.execute(
+                    "MATCH (r:Requirement {uuid: $uuid}) DETACH DELETE r",
+                    {"uuid": current_req["uuid"]},
+                )
                 deleted_count += 1
 
-        # 恢复需求状态（使用批量查询优化）
+        # 恢复需求状态
         req_data = snapshot_data.get("requirements", {})
         restored_count = 0
         missing_count = 0
 
-        # 分批处理需求恢复
-        req_ids = list(req_data.keys())
-        batch_size = 100  # 每批处理 100 个需求
-
-        for i in range(0, len(req_ids), batch_size):
-            batch_ids = req_ids[i : i + batch_size]
-
-            # 批量查询需求
-            batch_reqs = (
-                session.query(Requirement).filter(Requirement.id.in_(batch_ids)).all()
+        for req_uuid, state in req_data.items():
+            # 检查需求是否存在
+            check_result = conn.execute(
+                "MATCH (r:Requirement {uuid: $uuid}) RETURN r.uuid",
+                {"uuid": req_uuid},
             )
-
-            # 构建需求映射
-            req_map = {req.id: req for req in batch_reqs}
+            if not list(check_result):
+                missing_count += 1
+                logger.warning(f"快照中的需求在数据库中不存在: {req_uuid}")
+                continue
 
             # 更新需求状态
-            for req_id in batch_ids:
-                state = req_data[req_id]
-                req = req_map.get(req_id)
-                if req is not None:
-                    req.status = state["status"]
-                    req.chain_order = state.get("chain_order")
-                    req.next_requirement_id = state.get("next_requirement_id")
-                    req.dependencies = state.get("dependencies", [])
-                    restored_count += 1
-                else:
-                    missing_count += 1
-                    logger.warning(f"快照中的需求在数据库中不存在: {req_id}")
+            conn.execute(
+                """
+                MATCH (r:Requirement {uuid: $uuid})
+                SET r.status = $status,
+                    r.chain_order = $chain_order,
+                    r.updated_at = $updated_at
+                """,
+                {
+                    "uuid": req_uuid,
+                    "status": state["status"],
+                    "chain_order": state.get("chain_order"),
+                    "updated_at": datetime.now(timezone.utc).isoformat(),
+                },
+            )
 
-            # 每批提交一次
-            session.commit()
+            # 清除现有依赖关系
+            conn.execute(
+                "MATCH (r:Requirement {uuid: $uuid})-[e:DEPENDS_ON]->() DELETE e",
+                {"uuid": req_uuid},
+            )
+
+            # 重建依赖关系
+            for dep_uuid in state.get("dependencies", []):
+                conn.execute(
+                    """
+                    MATCH (r1:Requirement {uuid: $req_uuid})
+                    MATCH (r2:Requirement {uuid: $dep_uuid})
+                    CREATE (r1)-[:DEPENDS_ON]->(r2)
+                    """,
+                    {"req_uuid": req_uuid, "dep_uuid": dep_uuid},
+                )
+
+            # 清除现有 NEXT_IN_CHAIN 关系
+            conn.execute(
+                "MATCH (r:Requirement {uuid: $uuid})-[e:NEXT_IN_CHAIN]->() DELETE e",
+                {"uuid": req_uuid},
+            )
+
+            # 重建 NEXT_IN_CHAIN 关系
+            next_uuid = state.get("next_requirement_uuid")
+            if next_uuid:
+                conn.execute(
+                    """
+                    MATCH (r1:Requirement {uuid: $from_uuid})
+                    MATCH (r2:Requirement {uuid: $to_uuid})
+                    CREATE (r1)-[:NEXT_IN_CHAIN]->(r2)
+                    """,
+                    {"from_uuid": req_uuid, "to_uuid": next_uuid},
+                )
+
+            restored_count += 1
 
         if missing_count > 0:
             logger.warning(f"快照恢复警告: {missing_count} 个需求在数据库中不存在")
@@ -196,27 +239,41 @@ class SnapshotManager:
         # 恢复链化状态
         chain_data = snapshot_data.get("chain_state")
         if chain_data:
-            chain_state = (
-                session.query(ChainState).filter_by(project_id=project_id).first()
+            result = conn.execute(
+                GET_CHAIN_STATE_BY_PROJECT, {"project_uuid": project_id}
             )
+            chain_rows = list(result)
 
-            if chain_state is not None:
-                chain_state.status = chain_data["status"]
-                chain_state.chain_head_id = chain_data.get("chain_head_id")
-                chain_state.current_node_id = chain_data.get("current_node_id")
-                chain_state.total_nodes = chain_data.get("total_nodes", 0)
-                chain_state.completed_nodes = chain_data.get("completed_nodes", 0)
-                chain_state.progress_percentage = chain_data.get(
-                    "progress_percentage", 0
+            if chain_rows:
+                conn.execute(
+                    """
+                    MATCH (cs:ChainState {project_uuid: $project_uuid})
+                    SET cs.status = $status,
+                        cs.chain_head_uuid = $chain_head_uuid,
+                        cs.current_node_uuid = $current_node_uuid,
+                        cs.total_nodes = $total_nodes,
+                        cs.completed_nodes = $completed_nodes,
+                        cs.progress_percentage = $progress_percentage,
+                        cs.chain_version = cs.chain_version + 1,
+                        cs.updated_at = $updated_at
+                    """,
+                    {
+                        "project_uuid": project_id,
+                        "status": chain_data["status"],
+                        "chain_head_uuid": chain_data.get("chain_head_uuid"),
+                        "current_node_uuid": chain_data.get("current_node_uuid"),
+                        "total_nodes": chain_data.get("total_nodes", 0),
+                        "completed_nodes": chain_data.get("completed_nodes", 0),
+                        "progress_percentage": chain_data.get("progress_percentage", 0),
+                        "updated_at": datetime.now(timezone.utc).isoformat(),
+                    },
                 )
-                # 递增链版本以确保一致性
-                chain_state.chain_version = (chain_state.chain_version or 0) + 1
             else:
                 logger.warning(f"项目中不存在链化状态: {project_id}")
 
         # 记录恢复事件
-        self._log_event(
-            session,
+        log_event(
+            conn,
             project_id,
             "SnapshotRestored",
             project_id,
@@ -227,8 +284,6 @@ class SnapshotManager:
                 "missing_count": missing_count,
             },
         )
-
-        session.commit()
 
         logger.info(
             f"快照恢复成功: {snapshot_id}, 恢复 {restored_count} 个需求, 删除 {deleted_count} 个"
@@ -243,135 +298,213 @@ class SnapshotManager:
         }
 
     def get_latest_snapshot(
-        self, session: Session, project_id: str
+        self, conn: lb.Connection, project_id: str
     ) -> Optional[Dict[str, Any]]:
         """
         获取最新的快照
 
         Args:
-            session: 数据库会话
+            conn: LadybugDB 连接
             project_id: 项目 ID
 
         Returns:
             快照数据，如果没有快照则返回 None
         """
-        snapshot_event = (
-            session.query(Event)
-            .filter_by(project_id=project_id, event_type="SnapshotCreated")
-            .order_by(Event.created_at.desc())
-            .first()
+        result = conn.execute(
+            GET_EVENTS_BY_PROJECT_AND_TYPE,
+            {"project_uuid": project_id, "event_type": "SnapshotCreated", "limit": 1},
         )
-
-        if not snapshot_event:
+        rows = list(result)
+        if not rows:
             return None
 
+        event = self._parse_event(rows[0])
         return {
-            "snapshot_id": snapshot_event.id,
-            "created_at": snapshot_event.created_at.isoformat(),
-            "data": snapshot_event.payload,
+            "snapshot_id": event["uuid"],
+            "created_at": event["created_at"].isoformat()
+            if event["created_at"]
+            else None,
+            "data": event.get("payload"),
         }
 
     def list_snapshots(
-        self, session: Session, project_id: str, limit: int = 10
-    ) -> list:
+        self, conn: lb.Connection, project_id: str, limit: int = 10
+    ) -> List[Dict[str, Any]]:
         """
         列出项目的所有快照
 
         Args:
-            session: 数据库会话
+            conn: LadybugDB 连接
             project_id: 项目 ID
             limit: 返回数量限制
 
         Returns:
             快照列表
         """
-        snapshots = (
-            session.query(Event)
-            .filter_by(project_id=project_id, event_type="SnapshotCreated")
-            .order_by(Event.created_at.desc())
-            .limit(limit)
-            .all()
-        )
+        query = """
+        MATCH (e:Event {project_uuid: $project_uuid, event_type: 'SnapshotCreated'})
+        RETURN e.uuid, e.created_at, e.sequence
+        ORDER BY e.created_at DESC
+        LIMIT $limit
+        """
+        result = conn.execute(query, {"project_uuid": project_id, "limit": limit})
 
-        return [
-            {
-                "snapshot_id": s.id,
-                "created_at": s.created_at.isoformat(),
-                "sequence": s.sequence,
-            }
-            for s in snapshots
-        ]
+        snapshots = []
+        for row in result:
+            snapshots.append(
+                {
+                    "snapshot_id": row[0],
+                    "created_at": row[1],
+                    "sequence": row[2],
+                }
+            )
+        return snapshots
 
-    def delete_snapshot(self, session: Session, snapshot_id: str) -> bool:
+    def delete_snapshot(self, conn: lb.Connection, snapshot_id: str) -> bool:
         """
         删除快照
 
         Args:
-            session: 数据库会话
+            conn: LadybugDB 连接
             snapshot_id: 快照 ID
 
         Returns:
             是否删除成功
         """
-        snapshot_event = (
-            session.query(Event)
-            .filter_by(id=snapshot_id, event_type="SnapshotCreated")
-            .first()
-        )
-
-        if not snapshot_event:
+        # 检查快照是否存在
+        result = conn.execute(GET_EVENT_BY_UUID, {"uuid": snapshot_id})
+        rows = list(result)
+        if not rows:
             return False
 
-        session.delete(snapshot_event)
-        session.commit()
+        event = self._parse_event(rows[0])
+        if event["event_type"] != "SnapshotCreated":
+            return False
+
+        conn.execute(DELETE_EVENT, {"uuid": snapshot_id})
 
         logger.info(f"快照删除成功: {snapshot_id}")
 
         return True
 
-    def _log_event(
+    def _create_snapshot_event(
         self,
-        session: Session,
+        conn: lb.Connection,
         project_id: str,
-        event_type: str,
-        aggregate_id: str,
-        payload: Dict[str, Any],
-        metadata: Optional[Dict[str, Any]] = None,
-        session_id: Optional[str] = None,
-    ):
-        """
-        记录事件
+        snapshot_data: Dict[str, Any],
+        session_id: str,
+    ) -> str:
+        """创建快照事件"""
+        # 获取最新序列号
+        result = conn.execute(GET_LATEST_EVENT_SEQUENCE, {"project_uuid": project_id})
+        rows = list(result)
+        max_sequence = rows[0][0] if rows and rows[0][0] else 0
+        sequence = max_sequence + 1
 
-        Args:
-            session: 数据库会话
-            project_id: 项目 ID
-            event_type: 事件类型
-            aggregate_id: 聚合根 ID
-            payload: 事件负载
-            metadata: 元数据
-            session_id: 会话 ID（用于审计追踪）
-        """
-        # 获取当前序列号
-        last_event = (
-            session.query(Event)
-            .filter_by(project_id=project_id)
-            .order_by(Event.sequence.desc())
-            .first()
+        # 生成 UUID
+        import uuid
+
+        event_uuid = str(uuid.uuid4())
+
+        # 创建事件
+        conn.execute(
+            CREATE_EVENT,
+            {
+                "uuid": event_uuid,
+                "project_uuid": project_id,
+                "event_type": "SnapshotCreated",
+                "aggregate_uuid": project_id,
+                "payload": serialize_json(snapshot_data),
+                "event_metadata": serialize_json({"session_id": session_id}),
+                "sequence": sequence,
+                "created_at": datetime.now(timezone.utc).isoformat(),
+            },
         )
 
-        sequence = (last_event.sequence + 1) if last_event else 1
-
-        # 增强元数据
-        enhanced_metadata = metadata or {}
-        if session_id:
-            enhanced_metadata["session_id"] = session_id
-
-        event = Event(
-            project_id=project_id,
-            event_type=event_type,
-            aggregate_id=aggregate_id,
-            payload=payload,
-            event_metadata=enhanced_metadata,
-            sequence=sequence,
+        # 创建 HAS_EVENT 关系
+        conn.execute(
+            """
+            MATCH (p:Project {uuid: $project_uuid})
+            MATCH (e:Event {uuid: $event_uuid})
+            CREATE (p)-[:HAS_EVENT]->(e)
+            """,
+            {"project_uuid": project_id, "event_uuid": event_uuid},
         )
-        session.add(event)
+
+        return event_uuid
+
+    def _parse_requirements(self, result) -> List[Dict[str, Any]]:
+        """解析需求结果"""
+        requirements = []
+        for row in result:
+            req = {
+                "uuid": row[0],
+                "project_uuid": row[1],
+                "parent_uuid": row[2],
+                "content": row[3],
+                "decompose_reason": row[4],
+                "status": row[5],
+                "level": row[6],
+                "order_in_parent": row[7],
+                "chain_order": row[8],
+                "created_at": row[9],
+                "updated_at": row[10],
+                "version": row[11],
+                "dependencies": row[12] if len(row) > 12 else [],
+            }
+            requirements.append(req)
+        return requirements
+
+    def _parse_chain_state(self, rows: List) -> Optional[Dict[str, Any]]:
+        """解析链化状态结果"""
+        if not rows:
+            return None
+        row = rows[0]
+        return {
+            "uuid": row[0],
+            "project_uuid": row[1],
+            "status": row[2],
+            "chain_head_uuid": row[3],
+            "current_node_uuid": row[4],
+            "total_nodes": row[5],
+            "completed_nodes": row[6],
+            "progress_percentage": row[7],
+            "last_chained_at": row[8],
+            "chain_version": row[9],
+            "created_at": row[10],
+            "updated_at": row[11],
+        }
+
+    def _parse_event(self, row) -> Dict[str, Any]:
+        """解析事件结果"""
+        return {
+            "uuid": row[0],
+            "project_uuid": row[1],
+            "event_type": row[2],
+            "aggregate_uuid": row[3],
+            "payload": self._parse_json(row[4]),
+            "event_metadata": self._parse_json(row[5]),
+            "sequence": row[6],
+            "created_at": self._parse_datetime(row[7]),
+        }
+
+    def _parse_json(self, data: Optional[str]) -> Optional[Dict]:
+        """解析 JSON 数据"""
+        if not data:
+            return None
+        try:
+            return deserialize_json(data)
+        except Exception:
+            return None
+
+    def _parse_datetime(self, dt_str: Optional[str]) -> Optional[datetime]:
+        """解析日期时间字符串"""
+        if not dt_str:
+            return None
+        try:
+            dt = datetime.fromisoformat(dt_str)
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=timezone.utc)
+            return dt
+        except ValueError:
+            return None

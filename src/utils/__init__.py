@@ -4,14 +4,13 @@
 
 """工具类模块"""
 
-from .cache import CacheManager, cache_manager
+from .cache import CacheManager
 from .event_logger import log_event
 from .graph import GraphAlgorithms
 from .input_validator import InputValidator, SecurityChecker
 from .lock_manager import ProjectLockManager
 from .metrics import (
     MetricsCollector,
-    metrics_collector,
     monitored_function,
     performance_monitor,
 )
@@ -27,7 +26,7 @@ from .prometheus_exporter import (
     export_metrics_to_prometheus,
     prometheus_exporter,
 )
-from .rate_limiter import RateLimiter, get_rate_limiter
+from .rate_limiter import RateLimiter
 from .security_auditor import (
     SecurityAuditor,
     SecurityReportGenerator,
@@ -42,16 +41,13 @@ __all__ = [
     "ProjectLockManager",
     "SnapshotManager",
     "CacheManager",
-    "cache_manager",
     "MetricsCollector",
-    "metrics_collector",
     "performance_monitor",
     "monitored_function",
     "log_event",
     "InputValidator",
     "SecurityChecker",
     "RateLimiter",
-    "get_rate_limiter",
     "PrometheusMetricsExporter",
     "export_metrics_to_prometheus",
     "prometheus_exporter",

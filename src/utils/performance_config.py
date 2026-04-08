@@ -4,6 +4,8 @@
 
 """性能调优配置"""
 
+import copy
+from pathlib import Path
 from typing import Any, Dict, Optional, cast
 
 import yaml
@@ -83,7 +85,7 @@ class PerformanceConfig:
         Args:
             config_path: 配置文件路径（可选）
         """
-        self.config = self.DEFAULT_CONFIG.copy()
+        self.config = copy.deepcopy(self.DEFAULT_CONFIG)
 
         if config_path:
             self.load_from_file(config_path)
@@ -96,7 +98,8 @@ class PerformanceConfig:
             config_path: 配置文件路径
         """
         try:
-            with open(config_path, "r") as f:
+            config_file = Path(config_path)
+            with config_file.open("r") as f:
                 loaded_config = yaml.safe_load(f)
 
             if loaded_config:
@@ -169,7 +172,8 @@ class PerformanceConfig:
         Args:
             config_path: 配置文件路径
         """
-        with open(config_path, "w") as f:
+        config_file = Path(config_path)
+        with config_file.open("w") as f:
             yaml.dump(self.config, f, default_flow_style=False, allow_unicode=True)
 
     def get_database_config(self) -> Dict[str, Any]:

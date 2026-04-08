@@ -24,8 +24,8 @@ from mcp.types import TextContent, Tool
 from src.api.tools import TOOL_DEFINITIONS
 from src.constants import APIVersion
 from src.core.sdk import RequirementSDK
+from src.core.containers import get_container, init_container
 from src.utils.error_handler import get_safe_error_message
-from src.utils.rate_limiter import get_rate_limiter
 
 # 配置日志
 logging.basicConfig(
@@ -53,13 +53,24 @@ def get_sdk() -> RequirementSDK:
     """获取或创建 SDK 实例（延迟初始化）"""
     global _sdk
     if _sdk is None:
-        db_path = os.getenv("MCP_AXON_DB_PATH", "requirements.db")
         _sdk = RequirementSDK(db_path=db_path)
     return _sdk
 
 
-# 获取限流器
-rate_limiter = get_rate_limiter()
+# 获取限流器（从容器获取）
+def _get_rate_limiter():
+    """获取限流器实例"""
+    try:
+        container = get_container()
+        return container.rate_limiter()
+    except RuntimeError:
+        # 容器未初始化，创建默认实例
+        from src.utils.rate_limiter import RateLimiter
+
+        return RateLimiter()
+
+
+rate_limiter = None  # 延迟初始化
 
 
 class PerformanceMetrics:
@@ -396,6 +407,11 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
     Returns:
         工具执行结果
     """
+    # 获取限流器（延迟初始化）
+    global rate_limiter
+    if rate_limiter is None:
+        rate_limiter = _get_rate_limiter()
+
     # 限流检查
     if not rate_limiter.is_allowed(session_context.session_id):
         remaining = rate_limiter.get_remaining_requests(session_context.session_id)
@@ -633,6 +649,9 @@ async def execute_tool(name: str, arguments: dict) -> dict:
             "message": "项目已锁定" if lock_info else "项目未锁定",
         }
 
+    elif name == "mark_as_leaf":
+        return get_sdk().mark_as_leaf(requirement_id=arguments["requirement_id"])
+
     elif name == "get_api_version":
         return {
             "current_version": APIVersion.CURRENT_VERSION,
@@ -694,6 +713,7 @@ def validate_tool_input(name: str, arguments: dict) -> None:
         "delete_requirement",
         "add_validation",
         "add_dependency",
+        "mark_as_leaf",
     ]:
         requirement_id = arguments.get("requirement_id")
         if not requirement_id or not isinstance(requirement_id, str):
@@ -783,9 +803,8 @@ async def main():
     # 设置数据库路径环境变量，供 SDK 使用
     os.environ["MCP_AXON_DB_PATH"] = args.db_path
 
-    # 初始化数据库
-    from src.db.database import init_sync_db
-    init_sync_db(db_path=args.db_path)
+    # 初始化数据库（通过容器）
+    init_container(db_path=args.db_path)
     logger.info(f"数据库初始化完成: {args.db_path}")
 
     # 启动 MCP 服务器

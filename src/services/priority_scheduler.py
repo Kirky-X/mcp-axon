@@ -173,9 +173,11 @@ class PriorityScheduler:
             self.push(req)
 
         # 按优先级弹出
-        result = []
+        result: List[Dict[str, Any]] = []
         while self._queue:
-            result.append(self.pop())
+            item = self.pop()
+            if item is not None:
+                result.append(item)
         return result
 
     def size(self) -> int:

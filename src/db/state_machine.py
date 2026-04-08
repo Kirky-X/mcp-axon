@@ -84,7 +84,7 @@ class ProjectStateMachine:
         self.machine = Machine(
             model=self,
             states=self.states,
-            transitions=self.transitions,
+            transitions=self.transitions,  # type: ignore[arg-type]
             initial=initial_state,
             auto_transitions=False,  # 禁止自动生成过渡
             send_event=True,  # 传递事件对象到回调
@@ -98,26 +98,14 @@ class ProjectStateMachine:
         self._transition_log.append(f"{trigger}: {src} → {dst}")
 
     def get_allowed_transitions(self) -> List[str]:
-        """获取当前状态允许的触发器列表
-
-        Returns:
-            可执行的触发器名称列表
-        """
-        return self.machine.get_triggers(self.state)
+        """获取当前状态允许的触发器列表"""
+        return self.machine.get_triggers(self.state)  # type: ignore[attr-defined]
 
     def can_transition_to(self, target: str) -> bool:
-        """检查是否可以转换到目标状态
-
-        Args:
-            target: 目标状态
-
-        Returns:
-            是否存在合法的转换路径
-        """
-        for trigger in self.machine.get_triggers(self.state):
-            # 检查触发器是否能到达目标状态
-            for transition in self.machine.events[trigger].transitions:
-                if transition.dest == target:
+        """检查是否可以转换到目标状态"""
+        for trigger in self.machine.get_triggers(self.state):  # type: ignore[attr-defined]
+            for transition in self.machine.events[trigger].transitions:  # type: ignore[union-attr]
+                if transition.dest == target:  # type: ignore[attr-defined]
                     return True
         return False
 
@@ -135,7 +123,7 @@ class ProjectStateMachine:
         Returns:
             当前状态是否为 COMPLETED
         """
-        return self.state == "COMPLETED"
+        return self.state == "COMPLETED"  # type: ignore[attr-defined]
 
     def validate_transition(self, trigger: str) -> bool:
         """验证触发器是否可执行
@@ -146,7 +134,7 @@ class ProjectStateMachine:
         Returns:
             触发器是否合法且可执行
         """
-        return trigger in self.machine.get_triggers(self.state)
+        return trigger in self.machine.get_triggers(self.state)  # type: ignore[attr-defined]
 
 
 class RequirementStateMachine:
@@ -213,7 +201,7 @@ class RequirementStateMachine:
         self.machine = Machine(
             model=self,
             states=self.states,
-            transitions=self.transitions,
+            transitions=self.transitions,  # type: ignore[arg-type]
             initial=initial_state,
             auto_transitions=False,
             send_event=True,
@@ -228,13 +216,13 @@ class RequirementStateMachine:
 
     def get_allowed_transitions(self) -> List[str]:
         """获取当前状态允许的触发器列表"""
-        return self.machine.get_triggers(self.state)
+        return self.machine.get_triggers(self.state)  # type: ignore[attr-defined]
 
     def can_transition_to(self, target: str) -> bool:
         """检查是否可以转换到目标状态"""
-        for trigger in self.machine.get_triggers(self.state):
-            for transition in self.machine.events[trigger].transitions:
-                if transition.dest == target:
+        for trigger in self.machine.get_triggers(self.state):  # type: ignore[attr-defined]
+            for transition in self.machine.events[trigger].transitions:  # type: ignore[union-attr]
+                if transition.dest == target:  # type: ignore[attr-defined]
                     return True
         return False
 
@@ -252,7 +240,7 @@ class RequirementStateMachine:
         Returns:
             当前状态是否为 VALIDATED 或 CHAINED
         """
-        return self.state in ["VALIDATED", "CHAINED"]
+        return self.state in ["VALIDATED", "CHAINED"]  # type: ignore[attr-defined]
 
     def get_transition_history(self) -> List[str]:
         """获取状态转换历史"""
@@ -323,11 +311,11 @@ class ChainStateMachine:
 
     def is_building(self) -> bool:
         """检查是否正在构建"""
-        return self.state == "BUILDING"
+        return self.state == "BUILDING"  # type: ignore[attr-defined]
 
     def is_completed(self) -> bool:
         """检查是否已完成"""
-        return self.state == "COMPLETED"
+        return self.state == "COMPLETED"  # type: ignore[attr-defined]
 
 
 def validate_project_transition(current: str, target: str) -> bool:
@@ -370,6 +358,6 @@ def get_project_allowed_transitions(current: str) -> List[str]:
     machine = ProjectStateMachine(initial_state=current)
     targets = []
     for trigger in machine.get_allowed_transitions():
-        for transition in machine.machine.events[trigger].transitions:
-            targets.append(transition.dest)
+        for transition in machine.machine.events[trigger].transitions:  # type: ignore[union-attr]
+            targets.append(transition.dest)  # type: ignore[attr-defined]
     return targets

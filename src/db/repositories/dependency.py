@@ -53,7 +53,7 @@ class DependencyRepository(BaseRepository):
         rows = self.execute_query(
             GET_DEPENDENCIES, {"requirement_uuid": requirement_uuid}
         )
-        return [row[0] for row in rows]
+        return [row[0] for row in rows]  # type: ignore[index]
 
     def get_dependents(self, requirement_uuid: str) -> List[str]:
         """获取依赖于此需求的所有需求
@@ -67,7 +67,7 @@ class DependencyRepository(BaseRepository):
         rows = self.execute_query(
             GET_DEPENDENTS, {"requirement_uuid": requirement_uuid}
         )
-        return [row[0] for row in rows]
+        return [row[0] for row in rows]  # type: ignore[index]
 
     def add_dependency(self, requirement_uuid: str, dependency_uuid: str) -> bool:
         """添加依赖关系
@@ -157,13 +157,13 @@ class DependencyRepository(BaseRepository):
 
         # 添加所有节点
         for row in rows:
-            req_uuid = row[0]
+            req_uuid = row[0]  # type: ignore[index]
             G.add_node(req_uuid)
 
         # 添加依赖边
         for row in rows:
-            req_uuid = row[0]
-            deps = row[12] if len(row) > 12 and row[12] else []
+            req_uuid = row[0]  # type: ignore[index]
+            deps = row[12] if len(row) > 12 and row[12] else []  # type: ignore[index]
             for dep_uuid in deps:
                 G.add_edge(req_uuid, dep_uuid)
 
@@ -190,13 +190,13 @@ class DependencyRepository(BaseRepository):
 
         # 初始化所有节点
         for row in rows:
-            req_uuid = row[0]
+            req_uuid = row[0]  # type: ignore[index]
             graph[req_uuid] = []
 
         # 构建边
         for row in rows:
-            req_uuid = row[0]
-            deps = row[12] if len(row) > 12 and row[12] else []
+            req_uuid = row[0]  # type: ignore[index]
+            deps = row[12] if len(row) > 12 and row[12] else []  # type: ignore[index]
             for dep_uuid in deps:
                 if dep_uuid in graph:
                     graph[dep_uuid].append(req_uuid)

@@ -224,7 +224,7 @@ class RequirementRepository(BaseRepository):
         rows = self.execute_query(
             GET_INCOMING_DEPENDENCIES_DETAILS, {"requirement_uuid": uuid}
         )
-        return [{"uuid": row[0], "content": row[1], "status": row[2]} for row in rows]
+        return [{"uuid": row[0], "content": row[1], "status": row[2]} for row in rows]  # type: ignore[index]
 
     def check_chain_position(self, uuid: str) -> Optional[Dict[str, Any]]:
         """检查需求是否在执行链中
@@ -241,9 +241,9 @@ class RequirementRepository(BaseRepository):
         if not row:
             return None
 
-        chain_order = row[0]
-        prev_uuid = row[1]
-        next_uuid = row[2]
+        chain_order = row[0]  # type: ignore[index]
+        prev_uuid = row[1]  # type: ignore[index]
+        next_uuid = row[2]  # type: ignore[index]
 
         if chain_order is not None and chain_order >= 0:
             return {

@@ -5,18 +5,31 @@
 """验证节点管理服务"""
 
 import logging
-from datetime import datetime, timezone
+import uuid
 from typing import Any, Dict, List, Optional
 
-from sqlalchemy.orm import Session
+import real_ladybug as lb
 
-from src.db.models import (
-    Requirement,
+from src.db.graph_models import (
     RequirementStatus,
-    ValidationNode,
     ValidationStatus,
+    deserialize_json,
+    now_utc,
+    serialize_json,
+)
+from src.db.graph_queries import (
+    CREATE_HAS_VALIDATION,
+    CREATE_VALIDATION,
+    DELETE_VALIDATION,
+    GET_CHILDREN,
+    GET_REQUIREMENT_BY_UUID,
+    GET_VALIDATION_BY_REQUIREMENT,
+    GET_VALIDATION_BY_UUID,
+    UPDATE_REQUIREMENT_STATUS,
+    UPDATE_VALIDATION,
 )
 from src.schemas import ValidationUpdate
+from src.utils.cache import CacheManager
 from src.utils.event_logger import log_event
 from src.utils.metrics import performance_monitor
 
@@ -26,15 +39,19 @@ logger = logging.getLogger(__name__)
 class ValidationService:
     """验证节点管理服务"""
 
-    def __init__(self):
-        """初始化验证服务"""
-        pass
+    def __init__(self, cache: CacheManager):
+        """初始化验证服务
+
+        Args:
+            cache: 缓存管理器实例
+        """
+        self.cache = cache
 
     @performance_monitor("add_validation")
     def add_validation(
         self,
-        session: Session,
-        requirement_id: str,
+        conn: lb.Connection,
+        requirement_uuid: str,
         test_cases: List[Dict[str, Any]],
         acceptance_criteria: str = "",
     ) -> Dict[str, Any]:
@@ -44,8 +61,8 @@ class ValidationService:
         注意: 只能为叶子节点添加验证
 
         Args:
-            session: 数据库会话
-            requirement_id: 需求 ID
+            conn: 数据库连接
+            requirement_uuid: 需求 ID
             test_cases: 测试用例列表
             acceptance_criteria: 验收标准
 
@@ -53,57 +70,81 @@ class ValidationService:
             验证节点信息
         """
         # 获取需求
-        requirement = session.query(Requirement).filter_by(id=requirement_id).first()
+        result = conn.execute(GET_REQUIREMENT_BY_UUID, {"uuid": requirement_uuid})
+        rows = list(result)
+        if not rows:
+            raise ValueError(f"需求不存在: {requirement_uuid}")
 
-        if not requirement:
-            raise ValueError(f"需求不存在: {requirement_id}")
+        requirement = rows[0]
+        project_uuid = requirement[1]  # project_uuid
+        current_status = requirement[5]  # status
 
         # 检查是否已有验证节点
-        existing = (
-            session.query(ValidationNode)
-            .filter_by(requirement_id=requirement_id)
-            .first()
+        existing_result = conn.execute(
+            GET_VALIDATION_BY_REQUIREMENT, {"requirement_uuid": requirement_uuid}
         )
-
-        if existing:
+        if list(existing_result):
             raise ValueError("已有验证节点")
 
-        # 检查是否为叶子节点（没有子节点的节点）
-        if requirement.status != RequirementStatus.LEAF.value:
-            raise ValueError(f"只能为叶子节点添加验证，当前状态: {requirement.status}")
+        # 检查是否为叶子节点
+        if current_status != RequirementStatus.LEAF.value:
+            raise ValueError(f"只能为叶子节点添加验证，当前状态: {current_status}")
 
-        # 检查是否已有子需求（确保是真正的叶子节点）
-        children_count = session.query(Requirement).filter_by(parent_id=requirement_id).count()
+        # 检查是否已有子需求
+        children_result = conn.execute(GET_CHILDREN, {"parent_uuid": requirement_uuid})
+        children_count = len(list(children_result))
         if children_count > 0:
-            raise ValueError(f"只能为叶子节点添加验证，该需求已有 {children_count} 个子需求")
-
-        # 检查 project_id 是否存在
-        if not requirement.project_id:
-            raise ValueError(f"需求缺少 project_id: {requirement_id}")
+            raise ValueError(
+                f"只能为叶子节点添加验证，该需求已有 {children_count} 个子需求"
+            )
 
         # 创建验证节点
-        validation = ValidationNode(
-            requirement_id=requirement_id,
-            test_cases=test_cases,
-            acceptance_criteria=acceptance_criteria,
-            status=ValidationStatus.PENDING.value,
+        validation_uuid = str(uuid.uuid4())
+        created_at = now_utc()
+
+        conn.execute(
+            CREATE_VALIDATION,
+            {
+                "uuid": validation_uuid,
+                "requirement_uuid": requirement_uuid,
+                "test_cases": serialize_json(test_cases),
+                "acceptance_criteria": acceptance_criteria,
+                "status": ValidationStatus.PENDING.value,
+                "result": "null",
+                "validated_at": "",
+                "created_at": created_at,
+            },
         )
-        session.add(validation)
-        session.flush()
+
+        # 创建 HAS_VALIDATION 边
+        conn.execute(
+            CREATE_HAS_VALIDATION,
+            {"requirement_uuid": requirement_uuid, "validation_uuid": validation_uuid},
+        )
 
         # 更新需求状态为 VALIDATED
-        old_status = requirement.status
-        requirement.status = RequirementStatus.VALIDATED.value
-        requirement.updated_at = datetime.now(timezone.utc)
+        old_status = current_status
+        conn.execute(
+            UPDATE_REQUIREMENT_STATUS,
+            {
+                "uuid": requirement_uuid,
+                "status": RequirementStatus.VALIDATED.value,
+                "updated_at": now_utc(),
+            },
+        )
+
+        # 刷新缓存
+        self.cache.invalidate_requirement(requirement_uuid, project_uuid)
+        self.cache.invalidate_project(project_uuid)
 
         # 记录事件
         log_event(
-            session,
-            requirement.project_id,
+            conn,
+            project_uuid,
             "ValidationAdded",
-            validation.id,
+            validation_uuid,
             {
-                "requirement_id": requirement_id,
+                "requirement_uuid": requirement_uuid,
                 "test_cases_count": len(test_cases),
                 "acceptance_criteria": acceptance_criteria,
                 "old_status": old_status,
@@ -111,185 +152,213 @@ class ValidationService:
             },
         )
 
-        session.commit()
-
-        logger.info(f"验证节点添加成功: {validation.id}")
+        logger.info(f"验证节点添加成功: {validation_uuid}")
 
         return {
-            "validation_id": validation.id,
-            "requirement_id": validation.requirement_id,
-            "test_cases": validation.test_cases,
-            "acceptance_criteria": validation.acceptance_criteria,
-            "status": validation.status,
-            "created_at": validation.created_at.isoformat(),
+            "validation_id": validation_uuid,
+            "requirement_id": requirement_uuid,
+            "test_cases": test_cases,
+            "acceptance_criteria": acceptance_criteria,
+            "status": ValidationStatus.PENDING.value,
+            "created_at": created_at,
         }
 
     def update_validation(
-        self, session: Session, validation_id: str, update_data: ValidationUpdate
+        self, conn: lb.Connection, validation_uuid: str, update_data: ValidationUpdate
     ) -> Dict[str, Any]:
         """
         更新验证节点
 
         Args:
-            session: 数据库会话
-            validation_id: 验证节点 ID
+            conn: 数据库连接
+            validation_uuid: 验证节点 ID
             update_data: 更新数据
 
         Returns:
             更新后的验证节点信息
         """
-        validation = session.query(ValidationNode).filter_by(id=validation_id).first()
+        result = conn.execute(GET_VALIDATION_BY_UUID, {"uuid": validation_uuid})
+        rows = list(result)
+        if not rows:
+            raise ValueError(f"验证节点不存在: {validation_uuid}")
 
-        if not validation:
-            raise ValueError(f"验证节点不存在: {validation_id}")
+        validation = rows[0]
+        requirement_uuid = validation[1]  # requirement_uuid
+        project_uuid = None
 
-        # 更新测试用例
+        # 获取 project_uuid
+        req_result = conn.execute(GET_REQUIREMENT_BY_UUID, {"uuid": requirement_uuid})
+        req_rows = list(req_result)
+        if req_rows:
+            project_uuid = req_rows[0][1]
+
+        # 准备更新参数
+        test_cases = validation[2]  # test_cases (JSON string)
+        acceptance_criteria = validation[3] or ""  # acceptance_criteria
+        status = validation[4]  # status
+        result_json = validation[5] or "null"  # result
+        validated_at = validation[6] or ""  # validated_at
+
         if update_data.test_cases is not None:
-            validation.test_cases = update_data.test_cases
+            test_cases = serialize_json(update_data.test_cases)
 
-        # 更新验收标准
         if update_data.acceptance_criteria is not None:
-            validation.acceptance_criteria = update_data.acceptance_criteria
+            acceptance_criteria = update_data.acceptance_criteria
 
-        # 更新状态
         if update_data.status is not None:
-            old_status = validation.status
-            validation.status = update_data.status
+            old_status = status
+            status = update_data.status
 
             # 如果状态为 passed 或 failed，记录验证时间
             if update_data.status in ["passed", "failed"]:
-                validation.validated_at = datetime.now(timezone.utc)
+                validated_at = now_utc()
 
             # 记录事件
-            log_event(
-                session,
-                validation.requirement.project_id,
-                "ValidationStatusChanged",
-                validation_id,
-                {
-                    "requirement_id": validation.requirement_id,
-                    "old_status": old_status,
-                    "new_status": update_data.status,
-                },
-            )
+            if project_uuid:
+                log_event(
+                    conn,
+                    project_uuid,
+                    "ValidationStatusChanged",
+                    validation_uuid,
+                    {
+                        "requirement_uuid": requirement_uuid,
+                        "old_status": old_status,
+                        "new_status": update_data.status,
+                    },
+                )
 
-        # 更新结果
         if update_data.result is not None:
-            validation.result = update_data.result
+            result_json = serialize_json(update_data.result)
 
-        session.commit()
+        # 执行更新
+        conn.execute(
+            UPDATE_VALIDATION,
+            {
+                "uuid": validation_uuid,
+                "test_cases": test_cases,
+                "acceptance_criteria": acceptance_criteria,
+                "status": status,
+                "result": result_json,
+                "validated_at": validated_at,
+            },
+        )
 
-        logger.info(f"验证节点更新成功: {validation_id}")
+        logger.info(f"验证节点更新成功: {validation_uuid}")
 
         return {
-            "validation_id": validation.id,
-            "requirement_id": validation.requirement_id,
-            "test_cases": validation.test_cases,
-            "acceptance_criteria": validation.acceptance_criteria,
-            "status": validation.status,
-            "result": validation.result,
-            "validated_at": (
-                validation.validated_at.isoformat() if validation.validated_at else None
-            ),
+            "validation_id": validation_uuid,
+            "requirement_id": requirement_uuid,
+            "test_cases": deserialize_json(test_cases) if test_cases else [],
+            "acceptance_criteria": acceptance_criteria,
+            "status": status,
+            "result": deserialize_json(result_json) if result_json else None,
+            "validated_at": validated_at if validated_at else None,
         }
 
-    def get_validation(self, session: Session, validation_id: str) -> Dict[str, Any]:
+    def get_validation(
+        self, conn: lb.Connection, validation_uuid: str
+    ) -> Dict[str, Any]:
         """
         获取验证节点信息
 
         Args:
-            session: 数据库会话
-            validation_id: 验证节点 ID
+            conn: 数据库连接
+            validation_uuid: 验证节点 ID
 
         Returns:
             验证节点信息
         """
-        validation = session.query(ValidationNode).filter_by(id=validation_id).first()
+        result = conn.execute(GET_VALIDATION_BY_UUID, {"uuid": validation_uuid})
+        rows = list(result)
+        if not rows:
+            raise ValueError(f"验证节点不存在: {validation_uuid}")
 
-        if not validation:
-            raise ValueError(f"验证节点不存在: {validation_id}")
-
+        row = rows[0]
         return {
-            "validation_id": validation.id,
-            "requirement_id": validation.requirement_id,
-            "test_cases": validation.test_cases,
-            "acceptance_criteria": validation.acceptance_criteria,
-            "status": validation.status,
-            "result": validation.result,
-            "validated_at": (
-                validation.validated_at.isoformat() if validation.validated_at else None
-            ),
-            "created_at": validation.created_at.isoformat(),
+            "validation_id": row[0],
+            "requirement_id": row[1],
+            "test_cases": deserialize_json(row[2]) if row[2] else [],
+            "acceptance_criteria": row[3],
+            "status": row[4],
+            "result": deserialize_json(row[5]) if row[5] else None,
+            "validated_at": row[6] if row[6] else None,
+            "created_at": row[7],
         }
 
     def get_validation_by_requirement(
-        self, session: Session, requirement_id: str
+        self, conn: lb.Connection, requirement_uuid: str
     ) -> Optional[Dict[str, Any]]:
         """
         根据需求 ID 获取验证节点
 
         Args:
-            session: 数据库会话
-            requirement_id: 需求 ID
+            conn: 数据库连接
+            requirement_uuid: 需求 ID
 
         Returns:
             验证节点信息，如果不存在则返回 None
         """
-        validation = (
-            session.query(ValidationNode)
-            .filter_by(requirement_id=requirement_id)
-            .first()
+        result = conn.execute(
+            GET_VALIDATION_BY_REQUIREMENT, {"requirement_uuid": requirement_uuid}
         )
+        rows = list(result)
 
-        if not validation:
+        if not rows:
             return None
 
+        row = rows[0]
         return {
-            "validation_id": validation.id,
-            "requirement_id": validation.requirement_id,
-            "test_cases": validation.test_cases,
-            "acceptance_criteria": validation.acceptance_criteria,
-            "status": validation.status,
-            "result": validation.result,
-            "validated_at": (
-                validation.validated_at.isoformat() if validation.validated_at else None
-            ),
-            "created_at": validation.created_at.isoformat(),
+            "validation_id": row[0],
+            "requirement_id": row[1],
+            "test_cases": deserialize_json(row[2]) if row[2] else [],
+            "acceptance_criteria": row[3],
+            "status": row[4],
+            "result": deserialize_json(row[5]) if row[5] else None,
+            "validated_at": row[6] if row[6] else None,
+            "created_at": row[7],
         }
 
-    def delete_validation(self, session: Session, validation_id: str) -> Dict[str, Any]:
+    def delete_validation(
+        self, conn: lb.Connection, validation_uuid: str
+    ) -> Dict[str, Any]:
         """
         删除验证节点
 
         Args:
-            session: 数据库会话
-            validation_id: 验证节点 ID
+            conn: 数据库连接
+            validation_uuid: 验证节点 ID
 
         Returns:
             删除结果
         """
-        validation = session.query(ValidationNode).filter_by(id=validation_id).first()
+        result = conn.execute(GET_VALIDATION_BY_UUID, {"uuid": validation_uuid})
+        rows = list(result)
+        if not rows:
+            raise ValueError(f"验证节点不存在: {validation_uuid}")
 
-        if not validation:
-            raise ValueError(f"验证节点不存在: {validation_id}")
+        validation = rows[0]
+        requirement_uuid = validation[1]  # requirement_uuid
 
-        requirement_id = validation.requirement_id
-        project_id = validation.requirement.project_id
+        # 获取 project_uuid
+        project_uuid = None
+        req_result = conn.execute(GET_REQUIREMENT_BY_UUID, {"uuid": requirement_uuid})
+        req_rows = list(req_result)
+        if req_rows:
+            project_uuid = req_rows[0][1]
 
         # 删除验证节点
-        session.delete(validation)
+        conn.execute(DELETE_VALIDATION, {"uuid": validation_uuid})
 
         # 记录事件
-        log_event(
-            session,
-            project_id,
-            "ValidationDeleted",
-            validation_id,
-            {"requirement_id": requirement_id},
-        )
+        if project_uuid:
+            log_event(
+                conn,
+                project_uuid,
+                "ValidationDeleted",
+                validation_uuid,
+                {"requirement_uuid": requirement_uuid},
+            )
 
-        session.commit()
+        logger.info(f"验证节点删除成功: {validation_uuid}")
 
-        logger.info(f"验证节点删除成功: {validation_id}")
-
-        return {"validation_id": validation_id, "deleted": True}
+        return {"validation_id": validation_uuid, "deleted": True}

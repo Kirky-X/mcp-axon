@@ -7,26 +7,55 @@
 import logging
 from typing import Any, Dict, List, Optional, Set
 
-from sqlalchemy.orm import Session
-from sqlalchemy.orm.attributes import flag_modified
+import real_ladybug as lb
 
-from src.db.models import Requirement
+from src.db.graph_queries import (
+    CHECK_WOULD_CREATE_CYCLE,
+    CREATE_DEPENDS_ON,
+    DELETE_DEPENDS_ON,
+    DETECT_CYCLE_IN_PROJECT,
+    GET_DEPENDENCIES,
+    GET_DEPENDENTS,
+    GET_REQUIREMENT_BY_UUID,
+    GET_REQUIREMENTS_BY_PROJECT,
+)
+from src.utils.cache import CacheManager
 from src.utils.event_logger import log_event
 from src.utils.metrics import performance_monitor
 
 logger = logging.getLogger(__name__)
 
+# 尝试导入 NetworkX（用于无深度限制的循环检测）
+try:
+    import networkx as nx
+
+    NETWORKX_AVAILABLE = True
+except ImportError:
+    NETWORKX_AVAILABLE = False
+    logger.warning("NetworkX 未安装，将使用 Cypher 查询进行循环检测（有深度限制）")
+
 
 class DependencyService:
     """依赖关系管理服务"""
 
-    def __init__(self):
-        """初始化依赖服务"""
-        pass
+    def __init__(self, cache: CacheManager):
+        """初始化依赖服务
+
+        Args:
+            cache: 缓存管理器实例
+        """
+        self.cache = cache
+        self._use_networkx = NETWORKX_AVAILABLE
+        # 缓存项目依赖图，避免重复构建
+        self._graph_cache: Dict[str, Any] = {}
+        self._cache_project_uuid: Optional[str] = None
 
     @performance_monitor("transfer_dependencies")
     def transfer_dependencies(
-        self, session: Session, parent_id: str, dependency_mapping: Dict[str, List[str]]
+        self,
+        conn: lb.Connection,
+        parent_uuid: str,
+        dependency_mapping: Dict[str, List[str]],
     ) -> Dict[str, Any]:
         """
         应用依赖传递映射
@@ -38,317 +67,553 @@ class DependencyService:
         - 多子需求: 使用 dependency_mapping 指定每个子需求的依赖
 
         Args:
-            session: 数据库会话
-            parent_id: 父需求 ID
+            conn: 数据库连接
+            parent_uuid: 父需求 ID
             dependency_mapping: 依赖映射 {子需求ID: [依赖ID列表]}
 
         Returns:
             操作结果
         """
         # 获取父需求
-        parent = session.query(Requirement).filter_by(id=parent_id).first()
-        if not parent:
-            raise ValueError(f"父需求不存在: {parent_id}")
+        result = conn.execute(GET_REQUIREMENT_BY_UUID, {"uuid": parent_uuid})
+        rows = list(result)
+        if not rows:
+            raise ValueError(f"父需求不存在: {parent_uuid}")
 
-        project_id = parent.project_id
+        parent_row = rows[0]
+        project_uuid = parent_row[1]  # project_uuid
+        parent_deps = (
+            parent_row[12] if len(parent_row) > 12 and parent_row[12] else []
+        )  # dependencies
 
         # 获取所有子需求
-        children = session.query(Requirement).filter_by(parent_id=parent_id).all()
+        result = conn.execute(
+            GET_REQUIREMENTS_BY_PROJECT, {"project_uuid": project_uuid}
+        )
+        children = [row for row in result if row[2] == parent_uuid]  # parent_uuid
 
         if not children:
-            raise ValueError(f"父需求没有子需求: {parent_id}")
+            raise ValueError(f"父需求没有子需求: {parent_uuid}")
 
-        children_ids = [child.id for child in children]
+        children_uuids = [child[0] for child in children]
 
         # 检查映射的完整性
-        for child_id in dependency_mapping.keys():
-            if child_id not in children_ids:
-                raise ValueError(f"映射中的子需求不存在: {child_id}")
+        for child_uuid in dependency_mapping.keys():
+            if child_uuid not in children_uuids:
+                raise ValueError(f"映射中的子需求不存在: {child_uuid}")
 
         # 验证所有依赖 ID 存在
-        all_dep_ids = set()
-        for dep_ids in dependency_mapping.values():
-            all_dep_ids.update(dep_ids)
+        all_dep_uuids = set()
+        for dep_uuids in dependency_mapping.values():
+            all_dep_uuids.update(dep_uuids)
 
-        if all_dep_ids:
-            existing_deps = (
-                session.query(Requirement.id)
-                .filter(Requirement.id.in_(all_dep_ids))
-                .all()
+        if all_dep_uuids:
+            # 查询所有需求 ID
+            result = conn.execute(
+                GET_REQUIREMENTS_BY_PROJECT, {"project_uuid": project_uuid}
             )
-            existing_dep_ids = {dep[0] for dep in existing_deps}
-
-            missing_deps = all_dep_ids - existing_dep_ids
+            existing_uuids = {row[0] for row in result}
+            missing_deps = all_dep_uuids - existing_uuids
             if missing_deps:
                 raise ValueError(f"依赖需求不存在: {missing_deps}")
 
         # 应用依赖映射
         updated_children = []
         for child in children:
-            if child.id in dependency_mapping:
-                # 使用映射指定的依赖
-                child.dependencies = dependency_mapping[child.id]
-            elif len(children) == 1 and parent.dependencies:
-                # 单子需求：自动继承父需求的所有依赖
-                child.dependencies = parent.dependencies.copy()
+            child_uuid = child[0]
+            deps_to_add = []
 
-            flag_modified(child, "dependencies")
+            if child_uuid in dependency_mapping:
+                # 使用映射指定的依赖
+                deps_to_add = dependency_mapping[child_uuid]
+            elif len(children) == 1 and parent_deps:
+                # 单子需求：自动继承父需求的所有依赖
+                deps_to_add = list(parent_deps)
+
+            # 添加依赖边
+            for dep_uuid in deps_to_add:
+                try:
+                    conn.execute(
+                        CREATE_DEPENDS_ON,
+                        {"requirement_uuid": child_uuid, "dependency_uuid": dep_uuid},
+                    )
+                except Exception as e:
+                    if "already exists" not in str(e).lower():
+                        raise
 
             updated_children.append(
-                {"child_id": child.id, "dependencies": child.dependencies}
+                {"child_uuid": child_uuid, "dependencies": deps_to_add}
             )
+
+            # 刷新该子需求的缓存
+            self.cache.invalidate_requirement(child_uuid, project_uuid)
+
+        # 刷新项目缓存
+        self.cache.invalidate_project(project_uuid)
 
         # 记录事件
         log_event(
-            session,
-            project_id,
+            conn,
+            project_uuid,
             "DependenciesTransferred",
-            parent_id,
+            parent_uuid,
             {
-                "parent_id": parent_id,
+                "parent_uuid": parent_uuid,
                 "mapping": dependency_mapping,
                 "updated_children": updated_children,
             },
         )
 
-        session.commit()
-
-        logger.info(f"依赖传递完成: {parent_id}")
+        logger.info(f"依赖传递完成: {parent_uuid}")
 
         return {
-            "parent_id": parent_id,
+            "parent_id": parent_uuid,
             "updated_children": updated_children,
             "total_children": len(children),
         }
 
     @performance_monitor("add_dependency")
     def add_dependency(
-        self, session: Session, requirement_id: str, dependency_id: str
+        self, conn: lb.Connection, requirement_uuid: str, dependency_uuid: str
     ) -> Dict[str, Any]:
         """
         添加依赖关系
 
         Args:
-            session: 数据库会话
-            requirement_id: 需求 ID
-            dependency_id: 依赖的需求 ID
+            conn: 数据库连接
+            requirement_uuid: 需求 ID
+            dependency_uuid: 依赖的需求 ID
 
         Returns:
             操作结果
         """
         # 获取需求
-        requirement = session.query(Requirement).filter_by(id=requirement_id).first()
+        result = conn.execute(GET_REQUIREMENT_BY_UUID, {"uuid": requirement_uuid})
+        rows = list(result)
+        if not rows:
+            raise ValueError(f"需求不存在: {requirement_uuid}")
 
-        if not requirement:
-            raise ValueError(f"需求不存在: {requirement_id}")
+        requirement = rows[0]
+        project_uuid = requirement[1]
 
         # 获取依赖需求
-        dependency = session.query(Requirement).filter_by(id=dependency_id).first()
+        result = conn.execute(GET_REQUIREMENT_BY_UUID, {"uuid": dependency_uuid})
+        rows = list(result)
+        if not rows:
+            raise ValueError(f"依赖需求不存在: {dependency_uuid}")
 
-        if not dependency:
-            raise ValueError(f"依赖需求不存在: {dependency_id}")
+        dependency = rows[0]
+        dep_project_uuid = dependency[1]
 
         # 检查是否属于同一项目
-        if requirement.project_id != dependency.project_id:
+        if project_uuid != dep_project_uuid:
             raise ValueError("依赖需求必须属于同一项目")
 
         # 检查是否自依赖
-        if requirement_id == dependency_id:
+        if requirement_uuid == dependency_uuid:
             raise ValueError("不能添加自依赖")
 
         # 检查是否已存在
-        if dependency_id in requirement.dependencies:
+        result = conn.execute(GET_DEPENDENCIES, {"requirement_uuid": requirement_uuid})
+        existing_deps = [row[0] for row in result]
+        if dependency_uuid in existing_deps:
             raise ValueError("依赖关系已存在")
 
-        # 检查循环依赖
-        if self._would_create_cycle(session, requirement_id, dependency_id):
+        # 检查循环依赖（使用 Cypher 查询）
+        if self._would_create_cycle(conn, requirement_uuid, dependency_uuid):
             raise ValueError(
-                f"添加依赖会创建循环依赖: {requirement_id} -> {dependency_id}"
+                f"添加依赖会创建循环依赖: {requirement_uuid} -> {dependency_uuid}"
             )
 
-        # 添加依赖
-        requirement.dependencies.append(dependency_id)
-        flag_modified(requirement, "dependencies")
+        # 添加依赖边
+        conn.execute(
+            CREATE_DEPENDS_ON,
+            {"requirement_uuid": requirement_uuid, "dependency_uuid": dependency_uuid},
+        )
 
         # 记录事件
         log_event(
-            session,
-            requirement.project_id,
+            conn,
+            project_uuid,
             "DependencyAdded",
-            requirement_id,
-            {"requirement_id": requirement_id, "dependency_id": dependency_id},
+            requirement_uuid,
+            {"requirement_uuid": requirement_uuid, "dependency_uuid": dependency_uuid},
         )
 
-        session.commit()
+        logger.info(f"依赖添加成功: {requirement_uuid} -> {dependency_uuid}")
 
-        logger.info(f"依赖添加成功: {requirement_id} -> {dependency_id}")
+        # 获取更新后的依赖列表
+        result = conn.execute(GET_DEPENDENCIES, {"requirement_uuid": requirement_uuid})
+        dependencies = [row[0] for row in result]
 
         return {
-            "requirement_id": requirement_id,
-            "dependency_id": dependency_id,
-            "dependencies": requirement.dependencies,
+            "requirement_uuid": requirement_uuid,
+            "dependency_uuid": dependency_uuid,
+            "dependencies": dependencies,
         }
 
     def remove_dependency(
-        self, session: Session, requirement_id: str, dependency_id: str
+        self, conn: lb.Connection, requirement_uuid: str, dependency_uuid: str
     ) -> Dict[str, Any]:
         """
         移除依赖关系
 
         Args:
-            session: 数据库会话
-            requirement_id: 需求 ID
-            dependency_id: 依赖的需求 ID
+            conn: 数据库连接
+            requirement_uuid: 需求 ID
+            dependency_uuid: 依赖的需求 ID
 
         Returns:
             操作结果
         """
-        requirement = session.query(Requirement).filter_by(id=requirement_id).first()
+        # 获取需求
+        result = conn.execute(GET_REQUIREMENT_BY_UUID, {"uuid": requirement_uuid})
+        rows = list(result)
+        if not rows:
+            raise ValueError(f"需求不存在: {requirement_uuid}")
 
-        if not requirement:
-            raise ValueError(f"需求不存在: {requirement_id}")
+        project_uuid = rows[0][1]
 
-        if dependency_id not in requirement.dependencies:
+        # 检查依赖是否存在
+        result = conn.execute(GET_DEPENDENCIES, {"requirement_uuid": requirement_uuid})
+        existing_deps = [row[0] for row in result]
+        if dependency_uuid not in existing_deps:
             raise ValueError("依赖关系不存在")
 
-        # 移除依赖
-        requirement.dependencies.remove(dependency_id)
-        flag_modified(requirement, "dependencies")
+        # 移除依赖边
+        conn.execute(
+            DELETE_DEPENDS_ON,
+            {"requirement_uuid": requirement_uuid, "dependency_uuid": dependency_uuid},
+        )
 
         # 记录事件
         log_event(
-            session,
-            requirement.project_id,
+            conn,
+            project_uuid,
             "DependencyRemoved",
-            requirement_id,
-            {"requirement_id": requirement_id, "dependency_id": dependency_id},
+            requirement_uuid,
+            {"requirement_uuid": requirement_uuid, "dependency_uuid": dependency_uuid},
         )
 
-        session.commit()
+        logger.info(f"依赖移除成功: {requirement_uuid} -> {dependency_uuid}")
 
-        logger.info(f"依赖移除成功: {requirement_id} -> {dependency_id}")
+        # 获取更新后的依赖列表
+        result = conn.execute(GET_DEPENDENCIES, {"requirement_uuid": requirement_uuid})
+        dependencies = [row[0] for row in result]
 
         return {
-            "requirement_id": requirement_id,
-            "dependency_id": dependency_id,
-            "dependencies": requirement.dependencies,
+            "requirement_uuid": requirement_uuid,
+            "dependency_uuid": dependency_uuid,
+            "dependencies": dependencies,
         }
 
-    def detect_cycle(self, session: Session, project_id: str) -> Optional[List[str]]:
+    def detect_cycle(
+        self, conn: lb.Connection, project_uuid: str
+    ) -> Optional[List[str]]:
         """
         检测项目中的循环依赖
 
         Args:
-            session: 数据库会话
-            project_id: 项目 ID
+            conn: 数据库连接
+            project_uuid: 项目 ID
 
         Returns:
             循环路径，如果没有循环则返回 None
         """
-        # 获取所有需求
-        requirements = session.query(Requirement).filter_by(project_id=project_id).all()
+        result = conn.execute(DETECT_CYCLE_IN_PROJECT, {"project_uuid": project_uuid})
+        rows = list(result)
 
-        # 构建依赖图
-        graph: Dict[str, List[str]] = {}
-        for req in requirements:
-            graph[req.id] = req.dependencies
+        if rows:
+            cycle_start = rows[0][0]  # cycle_start 节点
+            if cycle_start:
+                return [cycle_start]
 
-        # 使用 DFS 检测环路
-        return self._detect_cycle_dfs(graph)
+        return None
 
     def _would_create_cycle(
-        self, session: Session, requirement_id: str, dependency_id: str
+        self, conn: lb.Connection, requirement_uuid: str, dependency_uuid: str
     ) -> bool:
         """
-        检查添加依赖是否会创建循环依赖（优化版本）
+        检查添加依赖是否会创建循环依赖（使用 Cypher 查询）
+
+        检查逻辑：从 dependency_uuid 是否能通过 DEPENDS_ON 边到达 requirement_uuid
+        如果能到达，说明添加依赖后会形成环
 
         Args:
-            session: 数据库会话
-            requirement_id: 需求 ID
-            dependency_id: 依赖的需求 ID
+            conn: 数据库连接
+            requirement_uuid: 需求 ID
+            dependency_uuid: 依赖的需求 ID
 
         Returns:
             是否会创建循环依赖
         """
         # 快速检查：如果两个ID相同，直接返回True
-        if requirement_id == dependency_id:
+        if requirement_uuid == dependency_uuid:
             return True
 
-        # 获取依赖需求对象
-        req_obj = session.query(Requirement).filter_by(id=dependency_id).first()
-        if not req_obj:
-            raise ValueError(f"依赖需求不存在: {dependency_id}")
-
-        project_id = req_obj.project_id
-
-        # 使用优化的查询只获取需要的字段，并添加行锁防止竞态条件
-        all_reqs = (
-            session.query(Requirement.id, Requirement.dependencies)
-            .filter_by(project_id=project_id)
-            .with_for_update()
-            .all()
+        # 使用 Cypher 查询检测：从 dependency_uuid 能否到达 requirement_uuid
+        result = conn.execute(
+            CHECK_WOULD_CREATE_CYCLE,
+            {"dependency_uuid": dependency_uuid, "requirement_uuid": requirement_uuid},
         )
+        rows = list(result)
 
-        # 构建内存中的依赖图
-        dependency_graph = {req.id: req.dependencies for req in all_reqs}
+        # 如果返回结果，说明存在路径，添加后会形成环
+        return len(rows) > 0
 
-        # 检查从 dependency_id 是否能到达 requirement_id
-        # 使用迭代DFS避免递归栈溢出
-        visited = set()
-        stack = [dependency_id]
-
-        while stack:
-            current = stack.pop()
-            if current == requirement_id:
-                return True
-
-            if current in visited:
-                continue
-            visited.add(current)
-
-            # 获取当前节点的依赖
-            dependencies = dependency_graph.get(current, [])
-            stack.extend(dependencies)
-
-        return False
-
-    def _detect_cycle_dfs(self, graph: Dict[str, List[str]]) -> Optional[List[str]]:
+    def get_dependencies(self, conn: lb.Connection, requirement_uuid: str) -> List[str]:
         """
-        使用 DFS 检测环路
+        获取需求的所有依赖
 
         Args:
-            graph: 依赖图 {node_id: [neighbor_ids]}
+            conn: 数据库连接
+            requirement_uuid: 需求 ID
 
         Returns:
-            环路路径 [node1, node2, ..., node1] 或 None
+            依赖 ID 列表
         """
-        visited: Set[str] = set()
-        rec_stack: Set[str] = set()
-        path: List[str] = []
+        result = conn.execute(GET_DEPENDENCIES, {"requirement_uuid": requirement_uuid})
+        return [row[0] for row in result]
 
-        def dfs(node: str) -> Optional[List[str]]:
-            visited.add(node)
-            rec_stack.add(node)
-            path.append(node)
+    def get_dependents(self, conn: lb.Connection, requirement_uuid: str) -> List[str]:
+        """
+        获取依赖于此需求的所有需求
 
-            for neighbor in graph.get(node, []):
-                if neighbor not in visited:
-                    result = dfs(neighbor)
-                    if result:
-                        return result
-                elif neighbor in rec_stack:
-                    # 找到环路
-                    cycle_start = path.index(neighbor)
-                    return path[cycle_start:] + [neighbor]
+        Args:
+            conn: 数据库连接
+            requirement_uuid: 需求 ID
 
-            rec_stack.remove(node)
-            path.pop()
+        Returns:
+            依赖者 ID 列表
+        """
+        result = conn.execute(GET_DEPENDENTS, {"requirement_uuid": requirement_uuid})
+        return [row[0] for row in result]
+
+    # ============ NetworkX 增强方法（无深度限制）============
+
+    def _build_dependency_graph_nx(self, conn: lb.Connection, project_uuid: str) -> Any:
+        """
+        使用 NetworkX 构建项目依赖图（无深度限制）
+
+        Args:
+            conn: 数据库连接
+            project_uuid: 项目 ID
+
+        Returns:
+            NetworkX DiGraph 对象
+        """
+        if not self._use_networkx:
             return None
 
-        for node in graph:
-            if node not in visited:
-                result = dfs(node)
-                if result:
-                    return result
+        # 检查缓存
+        if self._cache_project_uuid == project_uuid and self._graph_cache:
+            return self._graph_cache
 
-        return None
+        # 查询所有需求
+        result = conn.execute(
+            GET_REQUIREMENTS_BY_PROJECT, {"project_uuid": project_uuid}
+        )
+        requirements = list(result)
+
+        # 构建 NetworkX 图
+        G = nx.DiGraph()
+
+        # 添加所有节点
+        for req in requirements:
+            req_uuid = req[0]
+            G.add_node(req_uuid, content=req[3], status=req[5])
+
+        # 添加依赖边
+        for req in requirements:
+            req_uuid = req[0]
+            # 查询该需求的依赖
+            dep_result = conn.execute(GET_DEPENDENCIES, {"requirement_uuid": req_uuid})
+            for dep_row in dep_result:
+                dep_uuid = dep_row[0]
+                # 边方向：req_uuid -> dep_uuid（表示 req_uuid 依赖于 dep_uuid）
+                G.add_edge(req_uuid, dep_uuid)
+
+        # 更新缓存
+        self._graph_cache = G
+        self._cache_project_uuid = project_uuid
+
+        return G
+
+    def detect_cycle_with_networkx(
+        self, conn: lb.Connection, project_uuid: str
+    ) -> Optional[List[str]]:
+        """
+        使用 NetworkX 检测循环依赖（无深度限制）
+
+        相比 Cypher 查询的深度限制，NetworkX 使用图论算法检测所有循环。
+
+        Args:
+            conn: 数据库连接
+            project_uuid: 项目 ID
+
+        Returns:
+            循环路径列表，如果没有循环则返回 None
+        """
+        if not self._use_networkx:
+            # 回退到 Cypher 查询
+            return self.detect_cycle(conn, project_uuid)
+
+        G = self._build_dependency_graph_nx(conn, project_uuid)
+        if G is None or G.number_of_nodes() == 0:
+            return None
+
+        try:
+            # NetworkX 的 find_cycle 使用图论算法，无深度限制
+            cycle = nx.find_cycle(G, orientation="original")
+            # 转换为节点列表
+            cycle_nodes: List[str] = []
+            for edge in cycle:
+                if edge[0] not in cycle_nodes:
+                    cycle_nodes.append(edge[0])
+                if edge[1] not in cycle_nodes:
+                    cycle_nodes.append(edge[1])
+            # 闭环
+            if cycle_nodes and cycle_nodes[0] != cycle_nodes[-1]:
+                cycle_nodes.append(cycle_nodes[0])
+            return cycle_nodes
+        except nx.NetworkXNoCycle:
+            return None
+
+    def would_create_cycle_with_networkx(
+        self,
+        conn: lb.Connection,
+        requirement_uuid: str,
+        dependency_uuid: str,
+        project_uuid: str,
+    ) -> bool:
+        """
+        使用 NetworkX 检查添加依赖是否会创建循环（无深度限制）
+
+        Args:
+            conn: 数据库连接
+            requirement_uuid: 需求 ID
+            dependency_uuid: 依赖的需求 ID
+            project_uuid: 项目 ID
+
+        Returns:
+            是否会创建循环依赖
+        """
+        if not self._use_networkx:
+            # 回退到 Cypher 查询
+            return self._would_create_cycle(conn, requirement_uuid, dependency_uuid)
+
+        G = self._build_dependency_graph_nx(conn, project_uuid)
+        if G is None:
+            return self._would_create_cycle(conn, requirement_uuid, dependency_uuid)
+
+        # 检查添加 requirement_uuid -> dependency_uuid 边是否会创建循环
+        # 逻辑：如果从 dependency_uuid 能到达 requirement_uuid，则添加边后会形成环
+        try:
+            # 检查是否存在从 dependency_uuid 到 requirement_uuid 的路径
+            has_path = nx.has_path(G, dependency_uuid, requirement_uuid)
+            return has_path
+        except nx.NodeNotFound:
+            # 节点不存在于图中，不会有循环
+            return False
+
+    def get_dependency_chain(
+        self,
+        conn: lb.Connection,
+        requirement_uuid: str,
+        direction: str = "upstream",
+        max_depth: int = 10,
+    ) -> Dict[str, Any]:
+        """
+        获取需求的依赖链
+
+        Args:
+            conn: 数据库连接
+            requirement_uuid: 需求 ID
+            direction: 方向 - "upstream"(上游依赖), "downstream"(下游被依赖), "both"
+            max_depth: 最大遍历深度
+
+        Returns:
+            依赖链信息
+        """
+        result: Dict[str, Any] = {
+            "requirement_id": requirement_uuid,
+            "upstream": [],
+            "downstream": [],
+        }
+
+        visited: Set[str] = {requirement_uuid}
+
+        def get_upstream(uuid: str, depth: int) -> List[Dict[str, Any]]:
+            if depth > max_depth:
+                return []
+            deps = []
+            dep_result = conn.execute(GET_DEPENDENCIES, {"requirement_uuid": uuid})
+            for dep_row in dep_result:
+                dep_uuid = dep_row[0]
+                if dep_uuid not in visited:
+                    visited.add(dep_uuid)
+                    # 获取需求详情
+                    req_result = conn.execute(
+                        GET_REQUIREMENT_BY_UUID, {"uuid": dep_uuid}
+                    )
+                    req_rows = list(req_result)
+                    if req_rows:
+                        content = req_rows[0][3]
+                        deps.append(
+                            {
+                                "uuid": dep_uuid,
+                                "content": (
+                                    content[:50] + "..."
+                                    if len(content) > 50
+                                    else content
+                                ),
+                                "status": req_rows[0][5],
+                                "depth": depth,
+                                "upstream": get_upstream(dep_uuid, depth + 1),
+                            }
+                        )
+            return deps
+
+        def get_downstream(uuid: str, depth: int) -> List[Dict[str, Any]]:
+            if depth > max_depth:
+                return []
+            dependents = []
+            dep_result = conn.execute(GET_DEPENDENTS, {"requirement_uuid": uuid})
+            for dep_row in dep_result:
+                dep_uuid = dep_row[0]
+                if dep_uuid not in visited:
+                    visited.add(dep_uuid)
+                    # 获取需求详情
+                    req_result = conn.execute(
+                        GET_REQUIREMENT_BY_UUID, {"uuid": dep_uuid}
+                    )
+                    req_rows = list(req_result)
+                    if req_rows:
+                        content = req_rows[0][3]
+                        dependents.append(
+                            {
+                                "uuid": dep_uuid,
+                                "content": (
+                                    content[:50] + "..."
+                                    if len(content) > 50
+                                    else content
+                                ),
+                                "status": req_rows[0][5],
+                                "depth": depth,
+                                "downstream": get_downstream(dep_uuid, depth + 1),
+                            }
+                        )
+            return dependents
+
+        if direction in ["upstream", "both"]:
+            result["upstream"] = get_upstream(requirement_uuid, 1)
+
+        if direction in ["downstream", "both"]:
+            result["downstream"] = get_downstream(requirement_uuid, 1)
+
+        return result
+
+    def invalidate_cache(self):
+        """清除依赖图缓存"""
+        self._graph_cache = {}
+        self._cache_project_uuid = None

@@ -66,7 +66,7 @@ def test_load_from_merges_with_default():
 
     try:
         config = PerformanceConfig()
-        original_pool_size = config.config["database"]["pool_size"]
+        config.config["database"]["pool_size"]
 
         config.load_from_file(str(temp_path))
 

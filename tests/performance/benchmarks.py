@@ -21,7 +21,7 @@ def benchmark_crud_operations():
 
     # 查询所有需求
     start = time.perf_counter()
-    state = sdk.get_project_state(project_id)
+    sdk.get_project_state(project_id)
     query_time = time.perf_counter() - start
 
     # 更新需求

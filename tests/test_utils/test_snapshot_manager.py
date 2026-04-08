@@ -134,8 +134,8 @@ def test_create_snapshot_with_requirements(
     project_id = project["project_id"]
 
     # 创建需求
-    req1 = requirement_manager.add_requirement(graph_connection, project_id, "需求1")
-    req2 = requirement_manager.add_requirement(graph_connection, project_id, "需求2")
+    requirement_manager.add_requirement(graph_connection, project_id, "需求1")
+    requirement_manager.add_requirement(graph_connection, project_id, "需求2")
 
     # Act
     snapshot_id = snapshot_manager.create_snapshot(
@@ -319,7 +319,7 @@ def test_restore_snapshot_delete_new_requirements(
 
     # 创建需求
     req1 = requirement_manager.add_requirement(graph_connection, project_id, "需求1")
-    req1_id = req1["requirement_id"]
+    req1["requirement_id"]
 
     # 创建快照
     snapshot_id = snapshot_manager.create_snapshot(

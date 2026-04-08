@@ -63,13 +63,13 @@ from src.core.sdk import RequirementSDK
 
 def main():
     sdk = RequirementSDK()
-    
+
     # 创建测试项目
     project = sdk.create_project(
         name="测试项目",
         description="验证安装是否成功"
     )
-    
+
     print(f"✅ MCP-Axon 安装成功!")
     print(f"项目 ID: {project['id']}")
 
@@ -169,37 +169,37 @@ from src.core.sdk import RequirementSDK
 def main():
     # 初始化 SDK
     sdk = RequirementSDK()
-    
+
     # 创建项目
     project = sdk.create_project(
         name="电商平台",
         description="电商系统的需求管理"
     )
     project_id = project["id"]
-    
+
     # 添加根需求
     user_mgmt = sdk.add_requirement(
         project_id=project_id,
         content="用户管理模块"
     )
-    
+
     # 添加子需求
     auth = sdk.add_requirement(
         project_id=project_id,
         content="用户认证功能",
         parent_id=user_mgmt["requirement_id"]
     )
-    
+
     profile = sdk.add_requirement(
         project_id=project_id,
         content="用户资料管理",
         parent_id=user_mgmt["requirement_id"]
     )
-    
+
     # 标记为叶子节点
     sdk.mark_as_leaf(auth["requirement_id"])
     sdk.mark_as_leaf(profile["requirement_id"])
-    
+
     # 添加验证
     sdk.add_validation(
         requirement_id=auth["requirement_id"],
@@ -210,10 +210,10 @@ def main():
         }],
         acceptance_criteria="用户能够成功登录系统"
     )
-    
+
     # 触发链化
     chain_result = sdk.trigger_chaining(project_id)
-    
+
     # 获取下一个需求
     next_req = sdk.get_next_requirement(project_id)
     print(f"下一个待执行需求: {next_req}")

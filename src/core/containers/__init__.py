@@ -6,15 +6,35 @@
 
 import logging
 import os
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 import real_ladybug as lb
 from dependency_injector import containers, providers
 
-from src.core.containers.config import AppConfig, CacheConfig, create_config_from_env
+if TYPE_CHECKING:
+    from src.services.chain_builder import ChainBuilder
+    from src.services.chain_orchestrator import ChainOrchestrator
+    from src.services.complexity_evaluator import ComplexityEvaluator
+    from src.services.decomposition_advisor import DecompositionAdvisor
+    from src.services.dependency_service import DependencyService
+    from src.services.project_manager import ProjectManager
+    from src.services.requirement_manager import RequirementManager
+    from src.services.validation_service import ValidationService
+    from src.utils.cache import CacheManager
+    from src.utils.graph import GraphAlgorithms
+    from src.utils.lock_manager import ProjectLockManager
+    from src.utils.metrics import MetricsCollector
+    from src.utils.rate_limiter import RateLimiter
+    from src.utils.snapshot_manager import SnapshotManager
+
+from src.core.containers.config import (
+    AppConfig,
+    CacheConfig as CacheConfig,
+    create_config_from_env,
+)
 from src.core.containers.database import DatabaseConnectionManager
-from src.core.containers.services import ServicesContainer
-from src.core.containers.utils import UtilsContainer
+from src.core.containers.services import ServicesContainer as ServicesContainer
+from src.core.containers.utils import UtilsContainer as UtilsContainer
 
 logger = logging.getLogger(__name__)
 

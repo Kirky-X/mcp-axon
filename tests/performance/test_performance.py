@@ -433,6 +433,7 @@ def test_uat016_large_scale_performance():
 
 def test_benchmark_concurrent_operations():
     """基准测试: 并发操作性能"""
+    import os
     import tempfile
     import threading
     from pathlib import Path

@@ -19,9 +19,7 @@ def test_tc022_transaction_rollback():
 
     # 创建父需求和子需求
     parent = sdk.add_requirement(project_id, "父需求")
-    child = sdk.add_requirement(
-        project_id, "子需求", parent_id=parent["requirement_id"]
-    )
+    sdk.add_requirement(project_id, "子需求", parent_id=parent["requirement_id"])
 
     # 尝试为非叶子节点（父需求）添加验证（应失败）
     with pytest.raises(ValueError, match="只能为叶子节点添加验证"):

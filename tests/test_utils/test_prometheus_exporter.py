@@ -426,7 +426,7 @@ def test_histogram_bucket_calculation():
 
     # 验证桶行
     lines = output.split("\n")
-    bucket_lines = [l for l in lines if "_bucket{" in l]
+    bucket_lines = [line for line in lines if "_bucket{" in line]
 
     # 0.150 <= 0.5, 所以 0.5 桶值为 1
     assert any('le="0.5"}' in line and " 1" in line for line in bucket_lines)

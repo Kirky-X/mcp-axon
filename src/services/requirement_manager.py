@@ -292,7 +292,7 @@ class RequirementManager:
             old_status = current_status
             # 验证状态值是否是有效的需求状态
             try:
-                valid_status = RequirementStatus(update_data.status)
+                RequirementStatus(update_data.status)
             except ValueError:
                 valid_statuses = [s.value for s in RequirementStatus]
                 raise ValueError(

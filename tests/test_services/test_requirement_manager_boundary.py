@@ -69,7 +69,7 @@ def test_decompose_hints_generation(graph_connection, project_manager):
     """测试分解提示生成"""
 
     project = project_manager.create_project(graph_connection, "提示测试项目")
-    project_id = project["project_id"]
+    project["project_id"]
 
     # Test Case 1: 包含"模块"关键词
     hints_module = DecompositionAdvisor().generate_hints("实现用户模块", level=0)

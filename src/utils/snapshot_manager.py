@@ -55,7 +55,7 @@ class SnapshotManager:
         chain_state = self._parse_chain_state(list(result))
 
         # 构建快照数据
-        snapshot_data = {
+        snapshot_data: Dict[str, Any] = {
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "requirements": {},
             "chain_state": {},  # 空对象而非 None

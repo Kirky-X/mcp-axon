@@ -349,7 +349,7 @@ def _get_metrics_collector() -> MetricsCollector:
 
 
 # 全局单例（用于容器未初始化时）
-_standalone_metrics_collector = None
+_standalone_metrics_collector: Optional["MetricsCollector"] = None
 
 
 def monitored_function(operation_name: str):

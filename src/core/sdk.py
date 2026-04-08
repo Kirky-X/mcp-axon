@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 class RequirementSDK:
     """需求链化 SDK - 主入口"""
 
-    def __init__(self, db_path: str = None):
+    def __init__(self, db_path: Optional[str] = None):
         """
         初始化 SDK
 

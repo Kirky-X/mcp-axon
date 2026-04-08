@@ -146,4 +146,4 @@ def get_rate_limiter(max_requests: int = 100, window_seconds: int = 60) -> RateL
 
 
 # 全局单例（用于容器未初始化时）
-_standalone_rate_limiter = None
+_standalone_rate_limiter: Optional["RateLimiter"] = None

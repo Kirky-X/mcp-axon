@@ -97,7 +97,7 @@ MCP-Axon 采用分层架构设计，基于 Model Context Protocol (MCP) 标准�
 ```python
 class RequirementSDK:
     """需求链化 SDK - 主入口"""
-    
+
     def __init__(self, db_path: str = "requirements.db"):
         self.db_path = db_path
         self.project_manager = ProjectManager()
@@ -117,13 +117,13 @@ class RequirementSDK:
 ```python
 class ProjectManager:
     """项目管理器"""
-    
+
     def create_project(self, name: str, description: str) -> Dict[str, Any]:
         """创建项目"""
-        
+
     def get_project(self, project_id: str) -> Optional[Project]:
         """获取项目"""
-        
+
     def update_project(self, project_id: str, **kwargs) -> Project:
         """更新项目"""
 ```
@@ -135,14 +135,14 @@ class ProjectManager:
 ```python
 class RequirementManager:
     """需求管理器"""
-    
-    def add_requirement(self, project_id: str, content: str, 
+
+    def add_requirement(self, project_id: str, content: str,
                        parent_id: Optional[str] = None) -> Dict[str, Any]:
         """添加需求"""
-        
+
     def mark_as_leaf(self, requirement_id: str) -> Requirement:
         """标记为叶子节点"""
-        
+
     def evaluate_complexity(self, content: str, level: int) -> float:
         """评估需求复杂度"""
 ```
@@ -154,13 +154,13 @@ class RequirementManager:
 ```python
 class DependencyService:
     """依赖服务"""
-    
+
     def add_dependency(self, requirement_id: str, dependency_id: str) -> None:
         """添加依赖"""
-        
+
     def detect_cycle(self, project_id: str) -> Optional[List[str]]:
         """检测循环依赖"""
-        
+
     def transfer_dependencies(self, parent_id: str, mapping: Dict[str, List[str]]):
         """依赖传递"""
 ```
@@ -172,13 +172,13 @@ class DependencyService:
 ```python
 class ChainBuilder:
     """链化构建器"""
-    
+
     def build_chain(self, project_id: str) -> List[Dict[str, Any]]:
         """构建执行链"""
-        
+
     def topological_sort(self, project_id: str) -> List[str]:
         """拓扑排序 (Kahn 算法)"""
-        
+
     def identify_parallel_nodes(self, sorted_ids: List[str]) -> List[List[str]]:
         """识别并行节点"""
 ```
@@ -190,10 +190,10 @@ class ChainBuilder:
 ```python
 class ChainOrchestrator:
     """链化编排器"""
-    
+
     def orchestrate(self, project_id: str) -> Dict[str, Any]:
         """执行链化编排"""
-        
+
     def resolve_parallel_order(self, project_id: str, sorted_order: List[str]):
         """解决并行顺序"""
 ```

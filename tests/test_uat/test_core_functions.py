@@ -81,12 +81,9 @@ def test_uat004_dependency_management():
         parent["requirement_id"], {child["requirement_id"]: [dep1["requirement_id"]]}
     )
 
-    # 验证依赖传递成功
-    with sdk._get_session() as session:
-        from src.db.models import Requirement
-
-        saved_child = session.get(Requirement, child["requirement_id"])
-        assert dep1["requirement_id"] in saved_child.dependencies
+    # 验证依赖传递成功 - 通过 SDK API
+    req_info = sdk.get_requirement(child["requirement_id"])
+    assert dep1["requirement_id"] in req_info.get("dependencies", [])
 
 
 def test_uat006_validation_configuration():

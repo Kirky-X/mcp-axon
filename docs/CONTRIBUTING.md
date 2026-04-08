@@ -133,10 +133,10 @@ git checkout -b fix/issue-123
 # 添加您的实现
 def new_feature() -> Dict[str, Any]:
     """功能描述
-    
+
     Args:
         param_name: 参数描述
-    
+
     Returns:
         返回值描述
     """
@@ -153,12 +153,12 @@ from src.core.sdk import RequirementSDK
 
 class TestExample:
     """测试类"""
-    
+
     @pytest.fixture
     def sdk(self):
         """测试 fixture"""
         return RequirementSDK()
-    
+
     def test_new_feature(self, sdk):
         """测试新功能"""
         result = sdk.create_project(name="测试项目", description="测试")
@@ -208,11 +208,11 @@ uv run pytest tests/performance/ -v
 ```python
 def create_project(name: str, description: str = "") -> Dict[str, Any]:
     """创建新的需求链项目
-    
+
     Args:
         name: 项目名称
         description: 项目描述（可选）
-    
+
     Returns:
         包含项目 ID 和创建信息的字典
     """

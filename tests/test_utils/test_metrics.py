@@ -15,6 +15,14 @@ from src.utils.metrics import (
 )
 
 
+@pytest.fixture(autouse=True)
+def reset_metrics():
+    """每个测试前清空指标"""
+    metrics_collector.clear_metrics()
+    yield
+    metrics_collector.clear_metrics()
+
+
 def test_performance_monitor_context_manager_success():
     """测试性能监控上下文管理器 - 成功场景"""
 

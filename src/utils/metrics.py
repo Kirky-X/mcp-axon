@@ -283,10 +283,6 @@ class MetricsCollector:
         self.error_counts.clear()
 
 
-# 全局指标收集器
-metrics_collector = MetricsCollector()
-
-
 @contextmanager
 def performance_monitor(
     operation_name: str, additional_data: Optional[Dict[str, Any]] = None
@@ -314,7 +310,7 @@ def performance_monitor(
             trace_id=trace_id,
         )
 
-        metrics_collector.record_metric(metric)
+        _get_metrics_collector().record_metric(metric)
 
     except Exception as e:
         # 操作失败
@@ -334,8 +330,26 @@ def performance_monitor(
             trace_id=trace_id,
         )
 
-        metrics_collector.record_metric(metric)
+        _get_metrics_collector().record_metric(metric)
         raise
+
+
+def _get_metrics_collector() -> MetricsCollector:
+    """获取指标收集器实例（从容器或全局单例）"""
+    try:
+        from src.core.containers import get_container
+
+        return get_container().metrics_collector()
+    except RuntimeError:
+        # 容器未初始化时返回全局单例
+        global _standalone_metrics_collector
+        if _standalone_metrics_collector is None:
+            _standalone_metrics_collector = MetricsCollector()
+        return _standalone_metrics_collector
+
+
+# 全局单例（用于容器未初始化时）
+_standalone_metrics_collector: Optional["MetricsCollector"] = None
 
 
 def monitored_function(operation_name: str):
@@ -384,7 +398,21 @@ def db_query_monitor(query_type: str, table_name: str):
             success=True,
         )
 
-        metrics_collector.record_db_metric(metric)
+        _get_metrics_collector().record_db_metric(metric)
+
+
+# 全局指标收集器访问器
+class _MetricsCollectorProxy:
+    """代理类，确保始终返回正确的 MetricsCollector 实例"""
+
+    def __getattr__(self, name):
+        return getattr(_get_metrics_collector(), name)
+
+    def __repr__(self):
+        return repr(_get_metrics_collector())
+
+
+metrics_collector = _MetricsCollectorProxy()
 
 
 # 使用示例

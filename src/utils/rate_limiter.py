@@ -121,18 +121,29 @@ class RateLimiter:
             logger.debug(f"清理了 {len(expired_identifiers)} 个过期的限流记录")
 
 
-# 全局限流器实例
-_global_rate_limiter: Optional[RateLimiter] = None
+def get_rate_limiter(max_requests: int = 100, window_seconds: int = 60) -> RateLimiter:
+    """获取限流器实例（从容器获取单例）
 
-
-def get_rate_limiter() -> RateLimiter:
-    """
-    获取全局限流器实例
+    Args:
+        max_requests: 时间窗口内最大请求数
+        window_seconds: 时间窗口（秒）
 
     Returns:
-        限流器实例
+        RateLimiter 实例
     """
-    global _global_rate_limiter
-    if _global_rate_limiter is None:
-        _global_rate_limiter = RateLimiter(max_requests=100, window_seconds=60)
-    return _global_rate_limiter
+    try:
+        from src.core.containers import get_container
+
+        return get_container().rate_limiter()
+    except RuntimeError:
+        # 容器未初始化时返回全局单例
+        global _standalone_rate_limiter
+        if _standalone_rate_limiter is None:
+            _standalone_rate_limiter = RateLimiter(
+                max_requests=max_requests, window_seconds=window_seconds
+            )
+        return _standalone_rate_limiter
+
+
+# 全局单例（用于容器未初始化时）
+_standalone_rate_limiter: Optional["RateLimiter"] = None

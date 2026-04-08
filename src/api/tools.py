@@ -56,9 +56,18 @@ TOOL_DEFINITIONS = [
             "type": "object",
             "properties": {
                 "project_id": {"type": "string", "description": "项目 ID（必填）"},
-                "status": {"type": "string", "description": "按状态过滤（可选）：DRAFT, DECOMPOSING, LEAF, VALIDATED, CHAINED, COMPLETED"},
-                "is_leaf": {"type": "boolean", "description": "是否只返回叶子节点（可选）"},
-                "parent_id": {"type": "string", "description": "父需求 ID（可选，只返回该需求的直接子需求）"},
+                "status": {
+                    "type": "string",
+                    "description": "按状态过滤（可选）：DRAFT, DECOMPOSING, LEAF, VALIDATED, CHAINED, COMPLETED",
+                },
+                "is_leaf": {
+                    "type": "boolean",
+                    "description": "是否只返回叶子节点（可选）",
+                },
+                "parent_id": {
+                    "type": "string",
+                    "description": "父需求 ID（可选，只返回该需求的直接子需求）",
+                },
             },
             "required": ["project_id"],
         },
@@ -325,6 +334,17 @@ TOOL_DEFINITIONS = [
                 "project_id": {"type": "string", "description": "项目 ID（必填）"}
             },
             "required": ["project_id"],
+        },
+    ),
+    Tool(
+        name="mark_as_leaf",
+        description="将需求标记为叶子节点。新需求默认为叶子节点，此方法用于将已存在的需求标记为叶子。",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "requirement_id": {"type": "string", "description": "需求 ID（必填）"}
+            },
+            "required": ["requirement_id"],
         },
     ),
 ]

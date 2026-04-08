@@ -5,33 +5,59 @@
 """链化编排器服务"""
 
 import logging
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Tuple, Type
 
-from sqlalchemy.orm import Session
+import real_ladybug as lb
+from tenacity import (
+    retry,
+    stop_after_attempt,
+    wait_exponential,
+    retry_if_exception_type,
+    before_sleep_log,
+)
 
-from src.db.models import (
-    ChainState,
-    ChainStatus,
-    Event,
-    Project,
-    ProjectStatus,
-    Requirement,
+from src.constants import Chain
+from src.db.graph_models import ChainStatus, ProjectStatus, RequirementStatus, now_utc
+from src.db.graph_queries import (
+    GET_CHAIN_STATE_BY_PROJECT,
+    GET_NEXT_IN_CHAIN,
+    GET_PROJECT_BY_UUID,
+    GET_REQUIREMENT_BY_UUID,
+    GET_REQUIREMENTS_BY_PROJECT,
+    GET_REQUIREMENTS_BY_STATUS,
+    UPDATE_CHAIN_STATE_PROGRESS,
+    UPDATE_PROJECT_STATUS,
 )
 from src.services.chain_builder import ChainBuilder
+from src.utils.event_logger import log_event
 from src.utils.snapshot_manager import SnapshotManager
 
 logger = logging.getLogger(__name__)
 
 
+# 可重试的异常类型
+RETRYABLE_EXCEPTIONS: Tuple[Type[Exception], ...] = (
+    ConnectionError,
+    TimeoutError,
+    OSError,
+)
+
+
 class ChainOrchestrator:
     """链化编排器"""
 
-    def __init__(self):
-        """初始化链化编排器"""
-        self.chain_builder = ChainBuilder()
-        self.snapshot_manager = SnapshotManager()
+    def __init__(self, chain_builder: ChainBuilder, snapshot_manager: SnapshotManager):
+        """
+        初始化链化编排器
 
-    def should_trigger_chaining(self, session: Session, project_id: str) -> bool:
+        Args:
+            chain_builder: 链化构建器实例
+            snapshot_manager: 快照管理器实例
+        """
+        self.chain_builder = chain_builder
+        self.snapshot_manager = snapshot_manager
+
+    def should_trigger_chaining(self, conn: lb.Connection, project_uuid: str) -> bool:
         """
         检查是否应该触发链化
 
@@ -40,133 +66,128 @@ class ChainOrchestrator:
         2. 所有叶子节点（没有子节点的需求）都已添加验证
 
         Args:
-            session: 数据库会话
-            project_id: 项目 ID
+            conn: 数据库连接
+            project_uuid: 项目 ID
 
         Returns:
             是否应该触发链化
         """
         # 获取项目
-        project = session.query(Project).filter_by(id=project_id).first()
-        if not project:
-            raise ValueError(f"项目不存在: {project_id}")
+        result = conn.execute(GET_PROJECT_BY_UUID, {"uuid": project_uuid})
+        project_rows = list(result)
+        if not project_rows:
+            raise ValueError(f"项目不存在: {project_uuid}")
+
+        project = project_rows[0]
+        project_status = project[3]  # status
 
         # 检查项目状态
-        if project.status != ProjectStatus.DECOMPOSING.value:
+        if project_status != ProjectStatus.DECOMPOSING.value:
             return False
 
         # 获取所有需求
-        all_requirements = (
-            session.query(Requirement).filter_by(project_id=project_id).all()
+        result = conn.execute(
+            GET_REQUIREMENTS_BY_PROJECT, {"project_uuid": project_uuid}
         )
+        all_requirements = list(result)
 
         if not all_requirements:
             return False
 
-        # 找出所有叶子节点（没有子节点的需求）
-        # 使用单一查询统计所有父需求，避免 N+1 问题
-        from sqlalchemy import func
-
-        parent_counts = (
-            session.query(Requirement.parent_id, func.count(Requirement.id))
-            .filter(
-                Requirement.project_id == project_id, Requirement.parent_id.isnot(None)
-            )
-            .group_by(Requirement.parent_id)
-            .all()
+        # 获取已验证的需求数量
+        result = conn.execute(
+            GET_REQUIREMENTS_BY_STATUS,
+            {"project_uuid": project_uuid, "status": RequirementStatus.VALIDATED.value},
         )
-        parent_count_dict = {pid: count for pid, count in parent_counts}
+        validated_requirements = list(result)
 
-        leaf_requirements = [
-            req for req in all_requirements if req.id not in parent_count_dict
-        ]
-
-        if not leaf_requirements:
-            return False
-
-        # 检查是否有叶子节点已添加验证（放宽条件）
-        from src.db.models import ValidationNode
-
-        for leaf in leaf_requirements:
-            validation = (
-                session.query(ValidationNode).filter_by(requirement_id=leaf.id).first()
-            )
-
-            if validation:
-                return True  # 至少有一个叶子节点已验证
-
-        return False
+        # 至少有一个已验证的需求
+        return len(validated_requirements) > 0
 
     def trigger_chaining(
-        self, session: Session, project_id: str, session_id: str
+        self, conn: lb.Connection, project_uuid: str, session_id: str
     ) -> Dict[str, Any]:
         """
         触发链化
 
         Args:
-            session: 数据库会话
-            project_id: 项目 ID
+            conn: 数据库连接
+            project_uuid: 项目 ID
             session_id: 会话 ID（用于权限验证）
 
         Returns:
             链化结果
         """
-        logger.info(f"触发链化: {project_id}")
+        logger.info(f"触发链化: {project_uuid}")
 
         # 检查是否应该触发链化
-        if not self.should_trigger_chaining(session, project_id):
+        if not self.should_trigger_chaining(conn, project_uuid):
             return {"status": "not_ready", "message": "项目未准备好链化"}
 
         # 更新项目状态
-        project = session.query(Project).filter_by(id=project_id).first()
-        if project is None:
-            raise ValueError(f"项目不存在: {project_id}")
-        project.status = ProjectStatus.CHAINING.value
+        conn.execute(
+            UPDATE_PROJECT_STATUS,
+            {
+                "uuid": project_uuid,
+                "status": ProjectStatus.CHAINING.value,
+                "updated_at": now_utc(),
+            },
+        )
 
         # 创建快照（用于回滚）
         snapshot_id = self.snapshot_manager.create_snapshot(
-            session, project_id, session_id
+            conn, project_uuid, session_id
         )
 
         try:
             # 构建链
-            result = self.chain_builder.build_chain(session, project_id)
+            result = self.chain_builder.build_chain(conn, project_uuid)
 
             # 如果链化完成，更新项目状态
             if result["status"] == "completed":
-                project.status = ProjectStatus.READY.value
+                conn.execute(
+                    UPDATE_PROJECT_STATUS,
+                    {
+                        "uuid": project_uuid,
+                        "status": ProjectStatus.READY.value,
+                        "updated_at": now_utc(),
+                    },
+                )
 
             # 记录事件
-            self._log_event(
-                session,
-                project_id,
+            log_event(
+                conn,
+                project_uuid,
                 "ChainingTriggered",
-                project_id,
+                project_uuid,
                 {"snapshot_id": snapshot_id, "result": result},
             )
 
-            session.commit()
-
-            logger.info(f"链化触发成功: {project_id}")
+            logger.info(f"链化触发成功: {project_uuid}")
 
             return result
 
         except Exception as e:
             # 链化失败，回滚到快照
             logger.error(f"链化失败，回滚到快照: {e}")
-            self.snapshot_manager.restore_snapshot(session, snapshot_id, session_id)
+            self.snapshot_manager.restore_snapshot(conn, snapshot_id, session_id)
 
             # 更新项目状态
-            project.status = ProjectStatus.DECOMPOSING.value
-
-            session.commit()
+            conn.execute(
+                UPDATE_PROJECT_STATUS,
+                {
+                    "uuid": project_uuid,
+                    "status": ProjectStatus.DECOMPOSING.value,
+                    "updated_at": now_utc(),
+                },
+            )
 
             raise
 
     def resolve_parallel_order(
         self,
-        session: Session,
-        project_id: str,
+        conn: lb.Connection,
+        project_uuid: str,
         parallel_nodes: list,
         sorted_order: list,
     ) -> Dict[str, Any]:
@@ -174,15 +195,15 @@ class ChainOrchestrator:
         应用并行节点排序
 
         Args:
-            session: 数据库会话
-            project_id: 项目 ID
+            conn: 数据库连接
+            project_uuid: 项目 ID
             parallel_nodes: 并行节点列表
             sorted_order: 排序后的节点列表
 
         Returns:
             链化结果
         """
-        logger.info(f"应用并行节点排序: {project_id}")
+        logger.info(f"应用并行节点排序: {project_uuid}")
 
         # 验证排序一致性
         if set(parallel_nodes) != set(sorted_order):
@@ -190,59 +211,63 @@ class ChainOrchestrator:
 
         # 使用指定顺序构建链
         result = self.chain_builder.build_chain_with_order(
-            session, project_id, sorted_order
+            conn, project_uuid, sorted_order
         )
 
         # 如果链化完成，更新项目状态
         if result["status"] == "completed":
-            project = session.query(Project).filter_by(id=project_id).first()
-            if project is not None:
-                project.status = ProjectStatus.READY.value
+            conn.execute(
+                UPDATE_PROJECT_STATUS,
+                {
+                    "uuid": project_uuid,
+                    "status": ProjectStatus.READY.value,
+                    "updated_at": now_utc(),
+                },
+            )
 
         # 记录事件
-        self._log_event(
-            session,
-            project_id,
+        log_event(
+            conn,
+            project_uuid,
             "ParallelOrderResolved",
-            project_id,
+            project_uuid,
             {"parallel_nodes": parallel_nodes, "sorted_order": sorted_order},
         )
 
-        session.commit()
-
-        logger.info(f"并行节点排序应用成功: {project_id}")
+        logger.info(f"并行节点排序应用成功: {project_uuid}")
 
         return result
 
     def get_next_requirement(
-        self, session: Session, project_id: str, session_id: str
+        self, conn: lb.Connection, project_uuid: str, session_id: str
     ) -> Dict[str, Any]:
         """
         获取下一个需求
 
         Args:
-            session: 数据库会话
-            project_id: 项目 ID
+            conn: 数据库连接
+            project_uuid: 项目 ID
             session_id: 会话 ID（用于权限验证）
 
         Returns:
             下一个需求信息
         """
         # 获取链化状态
-        chain_state = session.query(ChainState).filter_by(project_id=project_id).first()
+        result = conn.execute(
+            GET_CHAIN_STATE_BY_PROJECT, {"project_uuid": project_uuid}
+        )
+        chain_state_rows = list(result)
 
-        if chain_state is None:
+        if not chain_state_rows:
             # 链化状态未初始化，尝试触发链化
-            if self.should_trigger_chaining(session, project_id):
-                chain_result = self.trigger_chaining(session, project_id, session_id)
-                # 如果链化完成，重新获取链化状态
+            if self.should_trigger_chaining(conn, project_uuid):
+                chain_result = self.trigger_chaining(conn, project_uuid, session_id)
                 if chain_result.get("status") == "completed":
-                    chain_state = (
-                        session.query(ChainState)
-                        .filter_by(project_id=project_id)
-                        .first()
+                    result = conn.execute(
+                        GET_CHAIN_STATE_BY_PROJECT, {"project_uuid": project_uuid}
                     )
-                    if chain_state is None:
+                    chain_state_rows = list(result)
+                    if not chain_state_rows:
                         raise ValueError("链化状态获取失败")
                 else:
                     return chain_result
@@ -251,14 +276,20 @@ class ChainOrchestrator:
                     "项目未准备好链化。请确保至少有一个叶子节点已添加验证。"
                 )
 
+        chain_state = chain_state_rows[0]
+        chain_status = chain_state[2]  # status
+
         # 检查链化是否完成
-        if chain_state.status == ChainStatus.IDLE.value:
+        if chain_status == ChainStatus.IDLE.value:
             # 链化未开始，尝试触发链化
-            if self.should_trigger_chaining(session, project_id):
-                chain_result = self.trigger_chaining(session, project_id, session_id)
+            if self.should_trigger_chaining(conn, project_uuid):
+                chain_result = self.trigger_chaining(conn, project_uuid, session_id)
                 if chain_result.get("status") == "completed":
-                    # 重新获取链化状态
-                    session.refresh(chain_state)
+                    result = conn.execute(
+                        GET_CHAIN_STATE_BY_PROJECT, {"project_uuid": project_uuid}
+                    )
+                    chain_state_rows = list(result)
+                    chain_state = chain_state_rows[0]
                 else:
                     return chain_result
             else:
@@ -266,13 +297,13 @@ class ChainOrchestrator:
                     "项目未准备好链化。请确保至少有一个叶子节点已添加验证。"
                 )
 
-        if chain_state.status != ChainStatus.COMPLETED.value:
-            raise ValueError(f"链化未完成: {chain_state.status}")
+        if chain_state[2] != ChainStatus.COMPLETED.value:
+            raise ValueError(f"链化未完成: {chain_state[2]}")
 
         # 获取当前节点
-        current_node_id = chain_state.current_node_id
+        current_node_uuid = chain_state[4]  # current_node_uuid
 
-        if not current_node_id:
+        if not current_node_uuid:
             # 链已完成
             return {
                 "requirement_id": None,
@@ -285,183 +316,328 @@ class ChainOrchestrator:
             }
 
         # 获取当前需求
-        current_req = session.query(Requirement).filter_by(id=current_node_id).first()
+        result = conn.execute(GET_REQUIREMENT_BY_UUID, {"uuid": current_node_uuid})
+        req_rows = list(result)
+        if not req_rows:
+            raise ValueError(f"当前需求不存在: {current_node_uuid}")
 
-        if not current_req:
-            raise ValueError(f"当前需求不存在: {current_node_id}")
-
-        # 获取项目
-        project = session.query(Project).filter_by(id=project_id).first()
+        current_req = req_rows[0]
 
         # 更新项目状态为 EXECUTING
-        if project is not None and project.status == ProjectStatus.READY.value:
-            project.status = ProjectStatus.EXECUTING.value
+        result = conn.execute(GET_PROJECT_BY_UUID, {"uuid": project_uuid})
+        project_rows = list(result)
+        if project_rows and project_rows[0][3] == ProjectStatus.READY.value:
+            conn.execute(
+                UPDATE_PROJECT_STATUS,
+                {
+                    "uuid": project_uuid,
+                    "status": ProjectStatus.EXECUTING.value,
+                    "updated_at": now_utc(),
+                },
+            )
 
         # 计算进度
-        progress = (
-            int((chain_state.completed_nodes / chain_state.total_nodes) * 100)
-            if chain_state.total_nodes > 0
-            else 0
-        )
+        total_nodes = chain_state[6]  # total_nodes
+        completed_nodes = chain_state[7]  # completed_nodes
+        progress = int((completed_nodes / total_nodes) * 100) if total_nodes > 0 else 0
 
-        # 检查是否为最后一个节点
-        is_last = current_req.next_requirement_id is None
+        # 获取下一个节点（通过 NEXT_IN_CHAIN 边）
+        next_result = conn.execute(GET_NEXT_IN_CHAIN, {"uuid": current_node_uuid})
+        next_rows = list(next_result)
+        is_last = len(next_rows) == 0
 
-        result = {
-            "requirement_id": current_req.id,
-            "content": current_req.content,
-            "status": current_req.status,
-            "chain_order": current_req.chain_order,
+        result_data = {
+            "requirement_id": current_req[0],
+            "content": current_req[3],
+            "status": current_req[5],
+            "chain_order": current_req[8],
             "is_last": is_last,
             "progress_percentage": progress,
             "message": None,
         }
 
         # 记录事件
-        self._log_event(
-            session,
-            project_id,
+        log_event(
+            conn,
+            project_uuid,
             "NextRequirementRetrieved",
-            project_id,
+            project_uuid,
             {
-                "requirement_id": current_node_id,
-                "chain_order": current_req.chain_order,
+                "requirement_id": current_node_uuid,
+                "chain_order": current_req[8],
                 "is_last": is_last,
             },
         )
 
-        session.commit()
-
-        return result
+        return result_data
 
     def mark_requirement_completed(
-        self, session: Session, project_id: str, requirement_id: str
+        self, conn: lb.Connection, project_uuid: str, requirement_uuid: str
     ) -> Dict[str, Any]:
         """
         标记需求为已完成
 
         Args:
-            session: 数据库会话
-            project_id: 项目 ID
-            requirement_id: 需求 ID
+            conn: 数据库连接
+            project_uuid: 项目 ID
+            requirement_uuid: 需求 ID
 
         Returns:
             操作结果
         """
         # 获取需求
-        requirement = (
-            session.query(Requirement)
-            .filter_by(id=requirement_id, project_id=project_id)
-            .first()
-        )
+        result = conn.execute(GET_REQUIREMENT_BY_UUID, {"uuid": requirement_uuid})
+        req_rows = list(result)
+        if not req_rows:
+            raise ValueError(f"需求不存在: {requirement_uuid}")
 
-        if not requirement:
-            raise ValueError(f"需求不存在: {requirement_id}")
+        requirement = req_rows[0]
+        req_project_uuid = requirement[1]  # project_uuid
+        if req_project_uuid != project_uuid:
+            raise ValueError(f"需求不属于该项目: {requirement_uuid}")
 
         # 获取链化状态
-        chain_state = session.query(ChainState).filter_by(project_id=project_id).first()
+        result = conn.execute(
+            GET_CHAIN_STATE_BY_PROJECT, {"project_uuid": project_uuid}
+        )
+        chain_state_rows = list(result)
+        if not chain_state_rows:
+            raise ValueError(f"项目未链化: {project_uuid}")
 
-        if not chain_state:
-            raise ValueError(f"项目未链化: {project_id}")
+        chain_state = chain_state_rows[0]
+        chain_state_uuid = chain_state[0]  # uuid
+        total_nodes = chain_state[6]  # total_nodes
+        completed_nodes = chain_state[7]  # completed_nodes
 
-        # 获取下一个需求 ID
-        next_req_id = requirement.next_requirement_id
+        # 获取下一个需求 ID（通过 NEXT_IN_CHAIN 边）
+        next_result = conn.execute(GET_NEXT_IN_CHAIN, {"uuid": requirement_uuid})
+        next_rows = list(next_result)
+        next_req_uuid = next_rows[0][0] if next_rows else None
 
-        # 更新链化状态
-        chain_state.current_node_id = next_req_id
-        chain_state.completed_nodes += 1
-        chain_state.progress_percentage = (
-            int((chain_state.completed_nodes / chain_state.total_nodes) * 100)
-            if chain_state.total_nodes > 0
-            else 100
+        # 计算新的进度
+        new_completed = completed_nodes + 1
+        new_progress = (
+            int((new_completed / total_nodes) * 100) if total_nodes > 0 else 100
         )
 
-        # 检查是否所有需求都已完成
-        if next_req_id is None:
-            # 所有需求完成
-            project = session.query(Project).filter_by(id=project_id).first()
-            if project is not None:
-                project.status = ProjectStatus.COMPLETED.value
-
-                # 记录事件
-                self._log_event(
-                    session,
-                    project_id,
-                    "ProjectCompleted",
-                    project_id,
-                    {
-                        "total_nodes": chain_state.total_nodes,
-                        "completed_nodes": chain_state.completed_nodes,
-                    },
-                )
-
-            message = "项目已完成"
-        else:
-            message = f"需求已完成，下一个需求: {next_req_id}"
-
-        # 记录事件
-        self._log_event(
-            session,
-            project_id,
-            "RequirementCompleted",
-            requirement_id,
+        # 更新链化状态
+        conn.execute(
+            UPDATE_CHAIN_STATE_PROGRESS,
             {
-                "requirement_id": requirement_id,
-                "next_requirement_id": next_req_id,
-                "completed_nodes": chain_state.completed_nodes,
-                "total_nodes": chain_state.total_nodes,
+                "uuid": chain_state_uuid,
+                "current_node_uuid": next_req_uuid or "",
+                "progress_percentage": new_progress,
+                "updated_at": now_utc(),
             },
         )
 
-        session.commit()
+        # 检查是否所有需求都已完成
+        if next_req_uuid is None:
+            # 所有需求完成
+            conn.execute(
+                UPDATE_PROJECT_STATUS,
+                {
+                    "uuid": project_uuid,
+                    "status": ProjectStatus.COMPLETED.value,
+                    "updated_at": now_utc(),
+                },
+            )
 
-        logger.info(f"需求完成: {requirement_id}, 下一个: {next_req_id}")
+            # 记录事件
+            log_event(
+                conn,
+                project_uuid,
+                "ProjectCompleted",
+                project_uuid,
+                {
+                    "total_nodes": total_nodes,
+                    "completed_nodes": new_completed,
+                },
+            )
+
+            message = "项目已完成"
+        else:
+            message = f"需求已完成，下一个需求: {next_req_uuid}"
+
+        # 记录事件
+        log_event(
+            conn,
+            project_uuid,
+            "RequirementCompleted",
+            requirement_uuid,
+            {
+                "requirement_id": requirement_uuid,
+                "next_requirement_id": next_req_uuid,
+                "completed_nodes": new_completed,
+                "total_nodes": total_nodes,
+            },
+        )
+
+        logger.info(f"需求完成: {requirement_uuid}, 下一个: {next_req_uuid}")
 
         return {
-            "requirement_id": requirement_id,
-            "next_requirement_id": next_req_id,
-            "completed_nodes": chain_state.completed_nodes,
-            "total_nodes": chain_state.total_nodes,
-            "progress_percentage": chain_state.progress_percentage,
+            "requirement_id": requirement_uuid,
+            "next_requirement_id": next_req_uuid,
+            "completed_nodes": new_completed,
+            "total_nodes": total_nodes,
+            "progress_percentage": new_progress,
             "message": message,
         }
 
-    def _log_event(
+    # ============ 重试机制（使用 tenacity）============
+
+    def mark_requirement_failed(
         self,
-        session: Session,
-        project_id: str,
-        event_type: str,
-        aggregate_id: str,
-        payload: Dict[str, Any],
-        metadata: Optional[Dict[str, Any]] = None,
-    ):
+        conn: lb.Connection,
+        project_uuid: str,
+        requirement_uuid: str,
+        reason: str,
+        retry_count: int = 0,
+    ) -> Dict[str, Any]:
         """
-        记录事件
+        标记需求执行失败
 
         Args:
-            session: 数据库会话
-            project_id: 项目 ID
-            event_type: 事件类型
-            aggregate_id: 聚合根 ID
-            payload: 事件负载
-            metadata: 元数据
+            conn: 数据库连接
+            project_uuid: 项目 ID
+            requirement_uuid: 需求 ID
+            reason: 失败原因
+            retry_count: 重试次数
+
+        Returns:
+            操作结果
         """
-        # 获取当前序列号
-        last_event = (
-            session.query(Event)
-            .filter_by(project_id=project_id)
-            .order_by(Event.sequence.desc())
-            .first()
+        # 获取需求
+        result = conn.execute(GET_REQUIREMENT_BY_UUID, {"uuid": requirement_uuid})
+        req_rows = list(result)
+        if not req_rows:
+            raise ValueError(f"需求不存在: {requirement_uuid}")
+
+        # 记录失败事件
+        log_event(
+            conn,
+            project_uuid,
+            "RequirementFailed",
+            requirement_uuid,
+            {
+                "reason": reason,
+                "retry_count": retry_count,
+                "max_retries": Chain.MAX_RETRIES,
+            },
         )
 
-        sequence = (last_event.sequence + 1) if last_event else 1
-
-        event = Event(
-            project_id=project_id,
-            event_type=event_type,
-            aggregate_id=aggregate_id,
-            payload=payload,
-            event_metadata=metadata,
-            sequence=sequence,
+        logger.warning(
+            f"需求执行失败: {requirement_uuid}, 原因: {reason}, 重试次数: {retry_count}/{Chain.MAX_RETRIES}"
         )
-        session.add(event)
+
+        return {
+            "requirement_id": requirement_uuid,
+            "status": "FAILED",
+            "reason": reason,
+            "retry_count": retry_count,
+            "can_retry": retry_count < Chain.MAX_RETRIES,
+        }
+
+    @retry(
+        stop=stop_after_attempt(Chain.MAX_RETRIES),
+        wait=wait_exponential(multiplier=1, min=2, max=10),
+        retry=retry_if_exception_type(RETRYABLE_EXCEPTIONS),
+        before_sleep=before_sleep_log(logger, logging.WARNING),
+        reraise=True,
+    )
+    def execute_with_retry(
+        self,
+        conn: lb.Connection,
+        project_uuid: str,
+        requirement_uuid: str,
+        execute_func: Any,
+    ) -> Dict[str, Any]:
+        """
+        带重试的需求执行
+
+        使用 tenacity 装饰器实现：
+        - 最多重试 3 次
+        - 指数退避（2-10秒）
+        - 仅对可重试异常重试
+
+        Args:
+            conn: 数据库连接
+            project_uuid: 项目 ID
+            requirement_uuid: 需求 ID
+            execute_func: 执行函数
+
+        Returns:
+            执行结果
+
+        Raises:
+            RetryError: 重试耗尽后抛出
+        """
+        try:
+            result = execute_func(conn, requirement_uuid)
+            self.mark_requirement_completed(conn, project_uuid, requirement_uuid)
+            return result
+        except RETRYABLE_EXCEPTIONS as e:
+            # 记录失败并重试
+            logger.warning(f"需求执行失败（将重试）: {requirement_uuid}, 错误: {e}")
+            raise
+        except Exception as e:
+            # 非可重试异常，直接失败
+            logger.error(f"需求执行失败（不可重试）: {requirement_uuid}, 错误: {e}")
+            self.mark_requirement_failed(
+                conn,
+                project_uuid,
+                requirement_uuid,
+                str(e),
+                retry_count=Chain.MAX_RETRIES,
+            )
+            raise
+
+    def get_retry_stats(
+        self, conn: lb.Connection, project_uuid: str, requirement_uuid: str
+    ) -> Dict[str, Any]:
+        """
+        获取需求的重试统计信息
+
+        Args:
+            conn: 数据库连接
+            project_uuid: 项目 ID
+            requirement_uuid: 需求 ID
+
+        Returns:
+            重试统计信息
+        """
+        # 从事件日志查询重试记录
+        from src.db.graph_queries import GET_EVENTS_BY_PROJECT_AND_TYPE
+
+        result = conn.execute(
+            GET_EVENTS_BY_PROJECT_AND_TYPE,
+            {
+                "project_uuid": project_uuid,
+                "aggregate_uuid": requirement_uuid,
+                "event_type": "RequirementFailed",
+            },
+        )
+
+        retry_events = list(result)
+        retry_count = len(retry_events)
+
+        last_error = None
+        if retry_events:
+            # 获取最近的失败原因
+            last_event = retry_events[-1]
+            if len(last_event) > 4 and last_event[4]:
+                import json
+
+                try:
+                    payload = json.loads(last_event[4])
+                    last_error = payload.get("reason")
+                except (json.JSONDecodeError, TypeError):
+                    pass
+
+        return {
+            "requirement_id": requirement_uuid,
+            "retry_count": retry_count,
+            "max_retries": Chain.MAX_RETRIES,
+            "can_retry": retry_count < Chain.MAX_RETRIES,
+            "last_error": last_error,
+        }

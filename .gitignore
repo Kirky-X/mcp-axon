@@ -137,3 +137,10 @@ docs/task.md
 docs/test.md
 docs/tdd.md
 docs/uat.md
+
+# Local development and testing
+.opencode/
+openspec/
+temp/
+coverage.json
+run_http_server.py

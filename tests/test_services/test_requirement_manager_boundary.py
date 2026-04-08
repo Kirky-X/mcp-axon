@@ -6,27 +6,29 @@
 
 import pytest
 
-from src.db.models import Project, Requirement
 from src.services.complexity_evaluator import ComplexityEvaluator
 from src.services.decomposition_advisor import DecompositionAdvisor
-from src.services.requirement_manager import RequirementManager
 
 
-def test_complexity_evaluation_boundary_cases(sync_session):
+def test_complexity_evaluation_boundary_cases(
+    graph_connection, project_manager, requirement_manager
+):
     """测试复杂度评估边界情况"""
 
-    manager = RequirementManager()
-    project = Project(name="边界测试项目")
-    sync_session.add(project)
-    sync_session.commit()
+    project = project_manager.create_project(graph_connection, "边界测试项目")
+    project_id = project["project_id"]
 
     # Test Case 1: 空内容（应该失败）
     with pytest.raises(ValueError, match="需求内容不能为空"):
-        manager.add_requirement(sync_session, project_id=project.id, content="")
+        requirement_manager.add_requirement(
+            graph_connection, project_uuid=project_id, content=""
+        )
 
     # Test Case 2: 只有空格的内容（应该失败）
     with pytest.raises(ValueError, match="需求内容不能为空"):
-        manager.add_requirement(sync_session, project_id=project.id, content="   ")
+        requirement_manager.add_requirement(
+            graph_connection, project_uuid=project_id, content="   "
+        )
 
     # Test Case 3: 边界值 - 刚好 50 字符
     boundary_50 = "a" * 50
@@ -63,13 +65,11 @@ def test_complexity_evaluation_boundary_cases(sync_session):
     assert score_high >= 0.99  # 应该接近 1.0
 
 
-def test_decompose_hints_generation(sync_session):
+def test_decompose_hints_generation(graph_connection, project_manager):
     """测试分解提示生成"""
 
-    _ = RequirementManager()
-    project = Project(name="提示测试项目")
-    sync_session.add(project)
-    sync_session.commit()
+    project = project_manager.create_project(graph_connection, "提示测试项目")
+    project["project_id"]
 
     # Test Case 1: 包含"模块"关键词
     hints_module = DecompositionAdvisor().generate_hints("实现用户模块", level=0)
@@ -112,78 +112,76 @@ def test_decompose_hints_generation(sync_session):
     assert "孙需求建议分解为具体的验收标准" in hints_generic
 
 
-def test_validation_node_uniqueness(sync_session):
+def test_validation_node_uniqueness(
+    graph_connection, project_manager, requirement_manager, validation_service
+):
     """测试验证节点唯一性约束"""
 
-    from src.services.validation_service import ValidationService
-
-    manager = RequirementManager()
-    validation_service = ValidationService()
-    project = Project(name="唯一性测试项目")
-    sync_session.add(project)
-    sync_session.commit()
+    project = project_manager.create_project(graph_connection, "唯一性测试项目")
+    project_id = project["project_id"]
 
     # 创建需求
-    req = manager.add_requirement(sync_session, project.id, "叶子需求")
-    sync_session.flush()
+    req = requirement_manager.add_requirement(graph_connection, project_id, "叶子需求")
 
     validation_service.add_validation(
-        sync_session, req["requirement_id"], [{"name": "测试1"}], "验收标准1"
+        graph_connection, req["requirement_id"], [{"name": "测试1"}], "验收标准1"
     )
 
     # 尝试添加第二个验证节点（应该失败）
     with pytest.raises(ValueError, match="已有验证节点"):
         validation_service.add_validation(
-            sync_session, req["requirement_id"], [{"name": "测试2"}], "验收标准2"
+            graph_connection, req["requirement_id"], [{"name": "测试2"}], "验收标准2"
         )
 
 
-def test_requirement_status_validation(sync_session):
+def test_requirement_status_validation(
+    graph_connection, project_manager, requirement_manager
+):
     """测试需求状态验证"""
 
-    manager = RequirementManager()
-    project = Project(name="状态验证测试项目")
-    sync_session.add(project)
-    sync_session.commit()
+    project = project_manager.create_project(graph_connection, "状态验证测试项目")
+    project_id = project["project_id"]
 
     # 创建需求
-    req = manager.add_requirement(sync_session, project.id, "测试需求")
-    sync_session.flush()
+    req = requirement_manager.add_requirement(graph_connection, project_id, "测试需求")
 
-    # Test Case 1: 更新为无效状态 - Pydantic 会验证
-    # 由于 Pydantic 会自动验证，这里我们测试有效状态
+    # Test Case 1: 更新为有效状态
     valid_statuses = ["DRAFT", "DECOMPOSING", "LEAF", "CHAINED", "VALIDATED"]
     for status in valid_statuses:
-        # 直接更新数据库状态
-        requirement = (
-            sync_session.query(Requirement).filter_by(id=req["requirement_id"]).first()
+        from src.db.graph_queries import UPDATE_REQUIREMENT_STATUS
+        from src.db.graph_models import now_utc
+
+        graph_connection.execute(
+            UPDATE_REQUIREMENT_STATUS,
+            {
+                "uuid": req["requirement_id"],
+                "status": status,
+                "updated_at": now_utc(),
+            },
         )
-        requirement.status = status
-        sync_session.commit()
 
         # 清除缓存并重新查询
-        manager.cache.invalidate_project(project.id)
-        updated_req = manager.get_requirement(sync_session, req["requirement_id"])
+        requirement_manager.cache.invalidate_project(project_id)
+        updated_req = requirement_manager.get_requirement(
+            graph_connection, req["requirement_id"]
+        )
         assert updated_req["status"] == status
 
 
-def test_max_depth_exceeded(sync_session):
+def test_max_depth_exceeded(graph_connection, project_manager, requirement_manager):
     """测试最大深度限制"""
 
-    manager = RequirementManager()
-    project = Project(name="深度测试项目")
-    sync_session.add(project)
-    sync_session.commit()
+    project = project_manager.create_project(graph_connection, "深度测试项目")
+    project_id = project["project_id"]
 
     # 创建深度嵌套的需求
     parent_id = None
     for level in range(20):  # 创建 20 层
-        req = manager.add_requirement(
-            sync_session, project.id, f"第{level}层需求", parent_id=parent_id
+        req = requirement_manager.add_requirement(
+            graph_connection, project_id, f"第{level}层需求", parent_uuid=parent_id
         )
         parent_id = req["requirement_id"]
-        sync_session.flush()
 
     # 验证最后一层的需求深度
-    final_req = manager.get_requirement(sync_session, parent_id)
+    final_req = requirement_manager.get_requirement(graph_connection, parent_id)
     assert final_req["level"] == 19

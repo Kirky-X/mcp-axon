@@ -436,10 +436,12 @@ def test_benchmark_concurrent_operations():
     import os
     import tempfile
     import threading
+    from pathlib import Path
 
     # 使用临时文件数据库以支持并发操作
     fd, db_path = tempfile.mkstemp(suffix=".db")
     os.close(fd)
+    db_path_obj = Path(db_path)
 
     try:
         sdk = RequirementSDK(db_path=db_path)
@@ -478,5 +480,5 @@ def test_benchmark_concurrent_operations():
 
     finally:
         # 清理临时数据库文件
-        if os.path.exists(db_path):
-            os.remove(db_path)
+        if db_path_obj.exists():
+            db_path_obj.unlink()

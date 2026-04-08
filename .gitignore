@@ -144,3 +144,9 @@ openspec/
 temp/
 coverage.json
 run_http_server.py
+.gitnexus
+
+# AI Assistant configuration files
+AGENTS.md
+CLAUDE.md
+.claude/

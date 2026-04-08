@@ -228,16 +228,3 @@ class PriorityScheduler:
         for req in requirements:
             self.push(req)
         return len(requirements)
-
-
-def sort_by_priority(requirements: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-    """便捷函数：按优先级排序需求列表
-
-    Args:
-        requirements: 需求列表
-
-    Returns:
-        排序后的需求列表
-    """
-    scheduler = PriorityScheduler()
-    return scheduler.reorder_layer(requirements)

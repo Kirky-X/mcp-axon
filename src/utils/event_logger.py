@@ -4,7 +4,6 @@
 
 """通用事件记录服务（增强审计日志）"""
 
-import functools
 import json
 import logging
 import uuid
@@ -21,47 +20,6 @@ from src.db.graph_queries import (
 )
 
 logger = logging.getLogger(__name__)
-
-
-def log_event_decorator(event_type: str):
-    """事件记录装饰器
-
-    Args:
-        event_type: 事件类型
-
-    Returns:
-        装饰器函数
-    """
-
-    def decorator(func):
-        @functools.wraps(func)
-        def wrapper(self, conn: lb.Connection, *args, **kwargs):
-            # 执行原函数
-            result = func(self, conn, *args, **kwargs)
-
-            # 从结果中提取必要信息
-            if isinstance(result, dict) and "project_id" in result:
-                project_uuid = result["project_id"]
-                aggregate_uuid = (
-                    result.get("id")
-                    or result.get("requirement_id")
-                    or result.get("project_id")
-                )
-
-                # 记录事件
-                log_event(
-                    conn=conn,
-                    project_uuid=project_uuid,
-                    event_type=event_type,
-                    aggregate_uuid=aggregate_uuid,
-                    payload=result,
-                )
-
-            return result
-
-        return wrapper
-
-    return decorator
 
 
 def log_event(

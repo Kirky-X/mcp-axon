@@ -61,7 +61,7 @@ class ComplexityScoring:
     CONTENT_LENGTH_SCORE = 0.3
     KEYWORD_SCORE = 0.15
     ROOT_LEVEL_SCORE = 0.2
-    DECOMPOSE_THRESHOLD = 0.7
+    DECOMPOSE_THRESHOLD = 0.5  # 降低阈值，从 0.7 改为 0.5，更容易触发分解
 
 
 class Chain:

@@ -50,32 +50,3 @@ def handle_errors(func):
             )
 
     return wrapper
-
-
-def safe_execute(func):
-    """安全执行装饰器，捕获所有异常并返回错误字典"""
-
-    @functools.wraps(func)
-    def wrapper(*args, **kwargs):
-        try:
-            result = func(*args, **kwargs)
-            return {"success": True, "data": result}
-        except MCPAxonError as e:
-            logger.warning(f"业务异常: {e.error_code} - {e.message}")
-            return {
-                "success": False,
-                "error": e.message,
-                "error_code": e.error_code,
-            }
-        except Exception as e:
-            logger.error(
-                f"未预期的错误: {type(e).__name__} - {str(e)}\n"
-                f"堆栈跟踪: {traceback.format_exc()}"
-            )
-            return {
-                "success": False,
-                "error": "内部服务器错误",
-                "error_code": "INTERNAL_ERROR",
-            }
-
-    return wrapper

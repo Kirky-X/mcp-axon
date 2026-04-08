@@ -29,17 +29,19 @@ def test_uat002_requirement_complexity_evaluation():
     sdk = RequirementSDK(db_path=":memory:")
     project = sdk.create_project("测试项目")
 
-    # 复杂需求
+    # 复杂需求（根据优化后的算法，应该触发分解）
     complex_req = sdk.add_requirement(
         project["project_id"],
         "实现完整的用户管理系统，包括用户注册、登录、权限控制、角色管理等功能",
     )
-    assert complex_req["needs_decomposition"] is False
+    assert complex_req["needs_decomposition"] is True  # 复杂度 >= 0.5，需要分解
     assert complex_req["complexity_score"] >= 0.5
+    assert complex_req["status"] == "DECOMPOSING"  # 状态应该是 DECOMPOSING
 
     # 简单需求
     simple_req = sdk.add_requirement(project["project_id"], "修改用户头像")
     assert simple_req["needs_decomposition"] is False
+    assert simple_req["status"] == "LEAF"  # 低复杂度应该是 LEAF
 
 
 def test_uat003_requirement_decomposition():

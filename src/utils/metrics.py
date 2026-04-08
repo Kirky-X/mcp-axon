@@ -372,35 +372,6 @@ def monitored_function(operation_name: str):
     return decorator
 
 
-@contextmanager
-def db_query_monitor(query_type: str, table_name: str):
-    """数据库查询监控上下文管理器"""
-    start_time = time.time()
-    start_dt = datetime.now(timezone.utc)
-    rows_affected = 0
-
-    try:
-        yield
-        rows_affected = 1  # 默认值，实际应该从查询结果中获取
-    except Exception:
-        rows_affected = 0
-        raise
-    finally:
-        end_time = time.time()
-        duration = end_time - start_time
-
-        metric = DatabaseMetrics(
-            query_type=query_type,
-            table_name=table_name,
-            duration=duration,
-            rows_affected=rows_affected,
-            timestamp=start_dt,
-            success=True,
-        )
-
-        _get_metrics_collector().record_db_metric(metric)
-
-
 # 全局指标收集器访问器
 class _MetricsCollectorProxy:
     """代理类，确保始终返回正确的 MetricsCollector 实例"""

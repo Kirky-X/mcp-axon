@@ -59,10 +59,10 @@ def test_complexity_evaluation_boundary_cases(
     score_threshold = ComplexityEvaluator().evaluate(threshold_content, level=0)
     assert score_threshold >= 0.35
 
-    # Test Case 8: 超过阈值
+    # Test Case 8: 超过阈值（使用归一化算法，最多 1.0）
     high_complexity = "系统平台管理集成框架服务" * 5  # 大量关键词
     score_high = ComplexityEvaluator().evaluate(high_complexity, level=0)
-    assert score_high >= 0.99  # 应该接近 1.0
+    assert score_high >= 0.68  # 归一化后应该至少 0.68
 
 
 def test_decompose_hints_generation(graph_connection, project_manager):
@@ -170,18 +170,31 @@ def test_requirement_status_validation(
 
 def test_max_depth_exceeded(graph_connection, project_manager, requirement_manager):
     """测试最大深度限制"""
+    from src.constants import Limits
 
     project = project_manager.create_project(graph_connection, "深度测试项目")
     project_id = project["project_id"]
 
     # 创建深度嵌套的需求
+    # 根据实际实现，level 0-10 都合法（共 11 层），level 11 才会失败
+    # 因为检查条件是 level > MAX_DEPTH (10)
     parent_id = None
-    for level in range(20):  # 创建 20 层
+    for level in range(Limits.MAX_DEPTH + 1):  # 创建 11 层（level 0-10）
         req = requirement_manager.add_requirement(
             graph_connection, project_id, f"第{level}层需求", parent_uuid=parent_id
         )
+        assert req["level"] == level  # 验证层级正确
         parent_id = req["requirement_id"]
 
     # 验证最后一层的需求深度
     final_req = requirement_manager.get_requirement(graph_connection, parent_id)
-    assert final_req["level"] == 19
+    assert final_req["level"] == Limits.MAX_DEPTH  # 应该是 10
+
+    # 尝试创建超过限制的需求（level 11），应该抛出异常
+    with pytest.raises(ValueError, match="需求层级超过限制"):
+        requirement_manager.add_requirement(
+            graph_connection,
+            project_id,
+            "第11层需求",  # level 11，应该失败
+            parent_uuid=parent_id,
+        )

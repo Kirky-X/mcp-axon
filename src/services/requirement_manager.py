@@ -10,7 +10,7 @@ from typing import Any, Dict, List, Optional
 
 import real_ladybug as lb
 
-from src.constants import Chain
+from src.constants import Chain, Limits, ComplexityScoring
 from src.db.graph_models import (
     ProjectStatus,
     RequirementStatus,
@@ -114,6 +114,13 @@ class RequirementManager:
                 raise ValueError("父需求不属于该项目")
             level = parent[6] + 1  # level
 
+            # 检查深度限制
+            if level > Limits.MAX_DEPTH:
+                raise ValueError(
+                    f"需求层级超过限制（当前: {level}, 最大: {Limits.MAX_DEPTH}）。"
+                    f"无法继续分解，请考虑重新组织需求结构。"
+                )
+
             # 如果父节点是叶子节点，取消其叶子状态
             parent_status = parent[5]  # status
             if parent_status == RequirementStatus.LEAF.value:
@@ -144,7 +151,7 @@ class RequirementManager:
                     },
                 )
 
-        # 创建需求节点
+        # 创建需求节点（初始状态为 DRAFT，符合状态机约定）
         requirement_uuid = str(uuid.uuid4())
         created_at = now_utc()
 
@@ -156,7 +163,7 @@ class RequirementManager:
                 "parent_uuid": parent_uuid or "",
                 "content": content,
                 "decompose_reason": "",
-                "status": RequirementStatus.LEAF.value,
+                "status": RequirementStatus.DRAFT.value,  # 初始状态为 DRAFT
                 "level": level,
                 "order_in_parent": order_in_parent,
                 "chain_order": -1,  # NULL
@@ -199,10 +206,36 @@ class RequirementManager:
         complexity_score = self._evaluate_complexity(content, level)
         decompose_hints = []
         needs_decomposition = False
+        current_status = RequirementStatus.DRAFT.value
 
-        if complexity_score > 0.7:
+        if complexity_score > ComplexityScoring.DECOMPOSE_THRESHOLD:
             needs_decomposition = True
             decompose_hints = self._generate_decompose_hints(content, level)
+            # 触发分解状态转换
+            current_status = RequirementStatus.DECOMPOSING.value
+            conn.execute(
+                UPDATE_REQUIREMENT_STATUS,
+                {
+                    "uuid": requirement_uuid,
+                    "status": RequirementStatus.DECOMPOSING.value,
+                    "updated_at": now_utc(),
+                },
+            )
+            logger.info(
+                f"需求复杂度 {complexity_score:.2f} 超过阈值 {ComplexityScoring.DECOMPOSE_THRESHOLD}，"
+                f"自动触发分解流程: {requirement_uuid}"
+            )
+        else:
+            # 低复杂度需求直接标记为叶子节点
+            current_status = RequirementStatus.LEAF.value
+            conn.execute(
+                UPDATE_REQUIREMENT_STATUS,
+                {
+                    "uuid": requirement_uuid,
+                    "status": RequirementStatus.LEAF.value,
+                    "updated_at": now_utc(),
+                },
+            )
 
         # 记录事件
         log_event(
@@ -215,6 +248,7 @@ class RequirementManager:
                 "parent_uuid": parent_uuid,
                 "level": level,
                 "complexity_score": complexity_score,
+                "initial_status": current_status,
             },
         )
 
@@ -224,7 +258,7 @@ class RequirementManager:
             "project_id": project_uuid,
             "parent_id": parent_uuid,
             "content": content,
-            "status": RequirementStatus.LEAF.value,
+            "status": current_status,
             "level": level,
             "complexity_score": complexity_score,
             "needs_decomposition": needs_decomposition,
@@ -598,6 +632,13 @@ class RequirementManager:
                 raise ValueError("父需求不属于当前项目")
             parent_level = parent_rows[0][6] + 1  # level + 1
 
+            # 检查深度限制
+            if parent_level > Limits.MAX_DEPTH:
+                raise ValueError(
+                    f"需求层级超过限制（当前: {parent_level}, 最大: {Limits.MAX_DEPTH}）。"
+                    f"无法继续分解。"
+                )
+
         # 批量创建需求
         for i, req_data in enumerate(requirements[:batch_size]):
             try:
@@ -611,7 +652,17 @@ class RequirementManager:
                 # 评估复杂度
                 complexity_score = self._evaluate_complexity(content, level)
 
-                # 创建需求
+                # 根据复杂度决定初始状态
+                needs_decomp = self.complexity_evaluator.should_decompose(
+                    complexity_score
+                )
+                initial_status = (
+                    RequirementStatus.DECOMPOSING.value
+                    if needs_decomp
+                    else RequirementStatus.LEAF.value
+                )
+
+                # 创建需求（初始状态为 DRAFT 或 DECOMPOSING）
                 req_uuid = str(uuid.uuid4())
                 created_at = now_utc()
 
@@ -623,7 +674,7 @@ class RequirementManager:
                         "parent_uuid": parent_uuid or "",
                         "content": content,
                         "decompose_reason": "",
-                        "status": RequirementStatus.LEAF.value,
+                        "status": initial_status,
                         "level": level,
                         "order_in_parent": order,
                         "chain_order": -1,

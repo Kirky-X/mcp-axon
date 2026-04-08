@@ -27,15 +27,16 @@ class ComplexityEvaluator:
         """
         score = 0.0
 
-        # 内容长度评分
-        if len(content) > ComplexityScoring.CONTENT_LENGTH_THRESHOLD:
-            score += ComplexityScoring.CONTENT_LENGTH_SCORE
+        # 内容长度评分（归一化，避免过长内容得分过高）
+        length_ratio = min(len(content) / 500.0, 1.0)
+        score += length_ratio * ComplexityScoring.CONTENT_LENGTH_SCORE
 
-        # 关键词评分
+        # 关键词评分（使用计数而非累加，避免关键词过多导致分数爆炸）
         keywords = ["模块", "系统", "平台", "管理", "集成", "框架", "服务"]
-        for keyword in keywords:
-            if keyword in content:
-                score += ComplexityScoring.KEYWORD_SCORE
+        keyword_count = sum(1 for keyword in keywords if keyword in content)
+        # 归一化：3个关键词即得满分
+        keyword_ratio = min(keyword_count / 3.0, 1.0)
+        score += keyword_ratio * (ComplexityScoring.KEYWORD_SCORE * 3)
 
         # 根节点评分
         if level == 0:

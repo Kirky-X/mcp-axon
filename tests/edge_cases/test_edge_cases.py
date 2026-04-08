@@ -125,21 +125,29 @@ def test_tc028_long_content_requirement():
 
 def test_max_depth_exceeded():
     """测试超过最大深度"""
+    from src.constants import Limits
+    import pytest
+
     # Arrange
     sdk = RequirementSDK(db_path=":memory:")
     project = sdk.create_project("超深项目")
 
-    # 创建 20 层深度（超过推荐的最大深度）
+    # 创建需求直到达到最大深度限制
+    # level 0-10 合法（共 11 层），level 11 应该失败
     parent_id = None
-    for i in range(20):
+    for i in range(Limits.MAX_DEPTH + 1):  # 0-10
         req = sdk.add_requirement(
             project["project_id"], f"需求层级{i}", parent_id=parent_id
         )
         parent_id = req["requirement_id"]
 
-    # Assert
+    # 验证最后创建的需求层级
     leaf = sdk.get_requirement(parent_id)
-    assert leaf["level"] == 19
+    assert leaf["level"] == Limits.MAX_DEPTH  # 应该是 10
+
+    # 尝试创建超过限制的需求，应该抛出异常
+    with pytest.raises(ValueError, match="需求层级超过限制"):
+        sdk.add_requirement(project["project_id"], "需求层级11", parent_id=parent_id)
 
 
 def test_empty_content():

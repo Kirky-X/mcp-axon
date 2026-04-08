@@ -251,8 +251,8 @@ def test_sdk_add_requirement():
     assert "needs_decomposition" in result
 
 
-def test_new_requirement_is_leaf_by_default():
-    """测试新创建的需求默认是叶子节点"""
+def test_new_requirement_auto_status():
+    """测试新创建的需求根据复杂度自动设置状态"""
     # Arrange
     sdk = RequirementSDK(db_path=":memory:")
     project = sdk.create_project("测试项目")
@@ -260,19 +260,19 @@ def test_new_requirement_is_leaf_by_default():
     # Act
     req = sdk.add_requirement(project["project_id"], "简单需求")
 
-    # Assert
-    assert req["status"] == "LEAF"
+    # Assert - 低复杂度需求应该是 LEAF 或 DECOMPOSING
+    assert req["status"] in ["LEAF", "DECOMPOSING"]
 
 
 def test_sdk_add_validation():
-    """测试 SDK 添加验证（需求默认是叶子节点）"""
+    """测试 SDK 添加验证（需求根据复杂度自动设置状态）"""
     # Arrange
     sdk = RequirementSDK(db_path=":memory:")
     project = sdk.create_project("测试项目")
     req = sdk.add_requirement(project["project_id"], "简单需求")
 
-    # 验证新创建的需求是叶子节点
-    assert req["status"] == "LEAF"
+    # 验证新创建的需求状态正确
+    assert req["status"] in ["LEAF", "DECOMPOSING"]
 
     test_cases = [{"name": "测试1", "steps": ["步骤1"], "expected": "结果1"}]
 

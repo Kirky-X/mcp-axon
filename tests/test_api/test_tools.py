@@ -11,7 +11,7 @@ def test_tool_definitions_not_empty():
     """测试工具定义列表不为空"""
     # Arrange & Act & Assert
     assert len(TOOL_DEFINITIONS) > 0
-    assert len(TOOL_DEFINITIONS) == 22
+    assert len(TOOL_DEFINITIONS) == 23
 
 
 def test_tool_definitions_structure():

@@ -6,19 +6,15 @@
 
 import pytest
 
-from src.db.models import ChainState, Project, ProjectStatus
-from src.services.project_manager import ProjectManager
+from src.db.graph_models import ProjectStatus
 
 
-def test_tc006_project_manager_create(sync_session):
+def test_tc006_project_manager_create(graph_connection, project_manager):
     """TC-006: 测试项目管理器创建项目"""
 
-    # Arrange
-    manager = ProjectManager()
-
     # Act
-    result = manager.create_project(
-        sync_session, name="测试项目", description="这是一个测试项目"
+    result = project_manager.create_project(
+        graph_connection, name="测试项目", description="这是一个测试项目"
     )
 
     # Assert
@@ -28,29 +24,20 @@ def test_tc006_project_manager_create(sync_session):
     assert result["description"] == "这是一个测试项目"
     assert "created_at" in result
 
-    # 验证数据库
-    project = sync_session.get(Project, result["project_id"])
+    # 验证可以获取项目
+    project = project_manager.get_project(graph_connection, result["project_id"])
     assert project is not None
-    assert project.name == "测试项目"
-    assert project.status == ProjectStatus.CREATED.value
-
-    # 验证链化状态已创建
-    chain_state = (
-        sync_session.query(ChainState)
-        .filter_by(project_id=result["project_id"])
-        .first()
-    )
-    assert chain_state is not None
+    assert project["name"] == "测试项目"
+    assert project["status"] == ProjectStatus.CREATED.value
 
 
-def test_project_manager_get_project(sync_session):
+def test_project_manager_get_project(graph_connection, project_manager):
     """测试获取项目信息"""
     # Arrange
-    manager = ProjectManager()
-    project = manager.create_project(sync_session, "测试项目", "描述")
+    project = project_manager.create_project(graph_connection, "测试项目", "描述")
 
     # Act
-    result = manager.get_project(sync_session, project["project_id"])
+    result = project_manager.get_project(graph_connection, project["project_id"])
 
     # Assert
     assert result["project_id"] == project["project_id"]
@@ -59,17 +46,16 @@ def test_project_manager_get_project(sync_session):
     assert result["description"] == "描述"
 
 
-def test_project_manager_update_project(sync_session):
+def test_project_manager_update_project(graph_connection, project_manager):
     """测试更新项目信息"""
     # Arrange
-    manager = ProjectManager()
-    project = manager.create_project(sync_session, "原名称", "原描述")
+    project = project_manager.create_project(graph_connection, "原名称", "原描述")
 
     from src.schemas import ProjectUpdate
 
     # Act
-    result = manager.update_project(
-        sync_session,
+    result = project_manager.update_project(
+        graph_connection,
         project["project_id"],
         ProjectUpdate(name="新名称", description="新描述"),
     )
@@ -79,14 +65,13 @@ def test_project_manager_update_project(sync_session):
     assert result["description"] == "新描述"
 
 
-def test_project_manager_get_project_state(sync_session):
+def test_project_manager_get_project_state(graph_connection, project_manager):
     """测试获取项目状态"""
     # Arrange
-    manager = ProjectManager()
-    project = manager.create_project(sync_session, "测试项目")
+    project = project_manager.create_project(graph_connection, "测试项目")
 
     # Act
-    result = manager.get_project_state(sync_session, project["project_id"])
+    result = project_manager.get_project_state(graph_connection, project["project_id"])
 
     # Assert
     assert result["project_id"] == project["project_id"]
@@ -97,27 +82,25 @@ def test_project_manager_get_project_state(sync_session):
     assert result["chained_requirements"] == 0
 
 
-def test_project_manager_update_status(sync_session):
+def test_project_manager_update_status(graph_connection, project_manager):
     """测试更新项目状态"""
     # Arrange
-    manager = ProjectManager()
-    project = manager.create_project(sync_session, "测试项目")
+    project = project_manager.create_project(graph_connection, "测试项目")
 
     # Act
-    manager.update_project_status(
-        sync_session, project["project_id"], ProjectStatus.DECOMPOSING
+    project_manager.update_project_status(
+        graph_connection, project["project_id"], ProjectStatus.DECOMPOSING
     )
 
     # Assert
-    updated_project = sync_session.get(Project, project["project_id"])
-    assert updated_project.status == ProjectStatus.DECOMPOSING.value
+    updated_project = project_manager.get_project(
+        graph_connection, project["project_id"]
+    )
+    assert updated_project["status"] == ProjectStatus.DECOMPOSING.value
 
 
-def test_project_manager_nonexistent_project(sync_session):
+def test_project_manager_nonexistent_project(graph_connection, project_manager):
     """测试获取不存在的项目"""
-    # Arrange
-    manager = ProjectManager()
-
     # Act & Assert
     with pytest.raises(ValueError, match="项目不存在"):
-        manager.get_project(sync_session, "nonexistent-id")
+        project_manager.get_project(graph_connection, "nonexistent-id")

@@ -9,7 +9,6 @@ import pathlib
 import sys
 import tempfile
 
-import pytest
 
 # 禁用字节码缓存生成
 os.environ["PYTHONDONTWRITEBYTECODE"] = "1"
@@ -20,27 +19,6 @@ os.environ["PYTEST_BENCHMARK_DISABLE"] = "1"
 # 设置缓存目录到系统临时目录
 cache_dir = pathlib.Path(tempfile.gettempdir()) / "pytest_cache_mcp_axon"
 cache_dir.mkdir(parents=True, exist_ok=True)
-
-
-@pytest.fixture(scope="session", autouse=True)
-def setup_test_database():
-    """为所有测试设置测试数据库"""
-    from src.db.database import init_sync_db
-
-    # 创建临时数据库文件
-    test_db_fd, test_db_path = tempfile.mkstemp(suffix=".db")
-    os.close(test_db_fd)  # 关闭文件描述符，让 SQLAlchemy 自己打开
-
-    try:
-        # 初始化测试数据库
-        init_sync_db(test_db_path, echo=False)
-        yield test_db_path
-    finally:
-        # 清理测试数据库文件
-        try:
-            os.unlink(test_db_path)
-        except FileNotFoundError:
-            pass
 
 
 # 配置 pytest

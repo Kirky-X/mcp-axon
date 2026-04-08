@@ -9,34 +9,31 @@ def benchmark_crud_operations():
     """CRUD 操作性能基准"""
     sdk = RequirementSDK(db_path=":memory:")
     project = sdk.create_project("基准测试")
+    project_id = project["project_id"]
 
     # 创建 1000 个需求
     start = time.perf_counter()
+    req_ids = []
     for i in range(1000):
-        sdk.add_requirement(project["project_id"], f"需求{i}")
+        req = sdk.add_requirement(project_id, f"需求{i}")
+        req_ids.append(req["requirement_id"])
     create_time = time.perf_counter() - start
 
     # 查询所有需求
     start = time.perf_counter()
-    requirements = []
-    from src.db.database import get_sync_session
-
-    with get_sync_session() as session:
-        from src.db.models import Requirement
-
-        requirements = session.query(Requirement).all()
+    state = sdk.get_project_state(project_id)
     query_time = time.perf_counter() - start
 
     # 更新需求
     start = time.perf_counter()
-    for req in requirements[:100]:
-        sdk.update_requirement(req.id, content=f"更新后的需求{req.id}")
+    for req_id in req_ids[:100]:
+        sdk.update_requirement(req_id, content=f"更新后的需求{req_id}")
     update_time = time.perf_counter() - start
 
     # 删除需求
     start = time.perf_counter()
-    for req in requirements[:100]:
-        sdk.delete_requirement(req.id)
+    for req_id in req_ids[:100]:
+        sdk.delete_requirement(req_id)
     delete_time = time.perf_counter() - start
 
     print("\n=== CRUD 操作基准测试 (1000 条记录) ===")
@@ -92,6 +89,7 @@ def benchmark_chaining():
     """链化操作性能基准"""
     sdk = RequirementSDK(db_path=":memory:")
     project = sdk.create_project("链化基准测试")
+    project_id = project["project_id"]
 
     # 测试不同规模
     sizes = [100, 500, 1000]
@@ -102,21 +100,21 @@ def benchmark_chaining():
         # 清空数据库
         sdk = RequirementSDK(db_path=":memory:")
         project = sdk.create_project(f"链化测试{size}")
+        project_id = project["project_id"]
 
         # 创建叶子节点
         for i in range(size):
-            req = sdk.add_requirement(project["project_id"], f"需求{i}")
-            # 需求默认是叶子节点(req["requirement_id"])
+            req = sdk.add_requirement(project_id, f"需求{i}")
             sdk.add_validation(req["requirement_id"], [{"name": f"测试{i}"}])
 
         # 测试链化性能
         start = time.perf_counter()
-        sdk.trigger_chaining(project["project_id"], session_id="benchmark")
+        sdk.trigger_chaining(project_id, session_id="benchmark")
         chain_time = time.perf_counter() - start
 
         # 测试获取下一个需求
         start = time.perf_counter()
-        sdk.get_next_requirement(project["project_id"], session_id="benchmark")
+        sdk.get_next_requirement(project_id, session_id="benchmark")
         get_next_time = time.perf_counter() - start
 
         results[size] = {

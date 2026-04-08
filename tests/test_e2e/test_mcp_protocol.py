@@ -4,8 +4,6 @@
 
 """MCP 协议端到端测试"""
 
-import pytest
-
 from src.api.mcp_server import execute_tool, list_tools
 
 
@@ -50,5 +48,3 @@ async def test_mcp_tool_call_add_requirement():
     # Assert
     assert result is not None
     assert "requirement_id" in result
-
-

@@ -75,12 +75,8 @@ def test_tc026_deep_nested_requirements():
     assert req["status"] == "LEAF"
 
     # Assert
-    from src.db.database import get_session
-    from src.db.models import Requirement
-
-    with get_session() as session:
-        leaf = session.get(Requirement, parent_id)
-        assert leaf.level == 9
+    leaf = sdk.get_requirement(parent_id)
+    assert leaf["level"] == 9
 
 
 def test_tc027_many_parallel_nodes():
@@ -123,12 +119,8 @@ def test_tc028_long_content_requirement():
     # Assert
     assert req["requirement_id"] is not None
 
-    from src.db.database import get_session
-    from src.db.models import Requirement
-
-    with get_session() as session:
-        saved_req = session.get(Requirement, req["requirement_id"])
-        assert len(saved_req.content) == 2500
+    saved_req = sdk.get_requirement(req["requirement_id"])
+    assert len(saved_req["content"]) == 2500
 
 
 def test_max_depth_exceeded():
@@ -146,12 +138,8 @@ def test_max_depth_exceeded():
         parent_id = req["requirement_id"]
 
     # Assert
-    from src.db.database import get_session
-    from src.db.models import Requirement
-
-    with get_session() as session:
-        leaf = session.get(Requirement, parent_id)
-        assert leaf.level == 19
+    leaf = sdk.get_requirement(parent_id)
+    assert leaf["level"] == 19
 
 
 def test_empty_content():

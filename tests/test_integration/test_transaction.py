@@ -15,42 +15,23 @@ def test_tc022_transaction_rollback():
     # Arrange
     sdk = RequirementSDK(db_path=":memory:")
     project = sdk.create_project("测试项目")
+    project_id = project["project_id"]
 
-    # Act: 尝试为非叶子节点添加验证（应失败）
-    req = sdk.add_requirement(project["project_id"], "非叶子需求")
-
-    # 现在需求默认是叶子节点，所以这个测试需要修改
-    # 创建父需求和子需求，父需求不再是叶子节点
-    parent = sdk.add_requirement(project["project_id"], "父需求")
-    child = sdk.add_requirement(project["project_id"], "子需求", parent_id=parent["requirement_id"])
+    # 创建父需求和子需求
+    parent = sdk.add_requirement(project_id, "父需求")
+    child = sdk.add_requirement(
+        project_id, "子需求", parent_id=parent["requirement_id"]
+    )
 
     # 尝试为非叶子节点（父需求）添加验证（应失败）
     with pytest.raises(ValueError, match="只能为叶子节点添加验证"):
         sdk.add_validation(parent["requirement_id"], [{"name": "测试"}])
 
-    # Assert: 验证节点未创建
-    from src.db.database import get_session
-
-    with get_session() as session:
-        from src.db.models import ValidationNode
-
-        validation = (
-            session.query(ValidationNode)
-            .filter_by(requirement_id=parent["requirement_id"])
-            .first()
-        )
-        assert validation is None
-    from src.db.database import get_session
-
-    with get_session() as session:
-        from src.db.models import ValidationNode
-
-        validation = (
-            session.query(ValidationNode)
-            .filter_by(requirement_id=req["requirement_id"])
-            .first()
-        )
-        assert validation is None
+    # Assert: 验证节点未创建（使用 SDK 内置的 validation_service）
+    validation = sdk.validation_service.get_validation_by_requirement(
+        sdk._get_conn(), parent["requirement_id"]
+    )
+    assert validation is None
 
 
 def test_transaction_success():
@@ -58,27 +39,21 @@ def test_transaction_success():
     # Arrange
     sdk = RequirementSDK(db_path=":memory:")
     project = sdk.create_project("测试项目")
+    project_id = project["project_id"]
 
     # Act
-    req = sdk.add_requirement(project["project_id"], "需求")
-    # 需求默认是叶子节点(req["requirement_id"])
+    req = sdk.add_requirement(project_id, "需求")
     validation = sdk.add_validation(req["requirement_id"], [{"name": "测试"}])
 
     # Assert: 所有操作都成功
     assert validation["validation_id"] is not None
 
-    with sdk._get_session() as session:
-        from src.db.models import Requirement, ValidationNode
+    # 验证通过 SDK 内置的 validation_service
+    saved_validation = sdk.validation_service.get_validation_by_requirement(
+        sdk._get_conn(), req["requirement_id"]
+    )
 
-        saved_req = session.get(Requirement, req["requirement_id"])
-        saved_validation = (
-            session.query(ValidationNode)
-            .filter_by(requirement_id=req["requirement_id"])
-            .first()
-        )
-
-        assert saved_req is not None
-        assert saved_validation is not None
+    assert saved_validation is not None
 
 
 def test_transaction_partial_failure():
@@ -86,16 +61,15 @@ def test_transaction_partial_failure():
     # Arrange
     sdk = RequirementSDK(db_path=":memory:")
     project = sdk.create_project("测试项目")
+    project_id = project["project_id"]
 
     # Act: 创建需求后尝试删除不存在的需求
-    req = sdk.add_requirement(project["project_id"], "需求")
+    req = sdk.add_requirement(project_id, "需求")
 
     with pytest.raises(ValueError, match="需求不存在"):
         sdk.delete_requirement("nonexistent-id")
 
     # Assert: 原始需求应该仍然存在
-    with sdk._get_session() as session:
-        from src.db.models import Requirement
-
-        saved_req = session.get(Requirement, req["requirement_id"])
-        assert saved_req is not None
+    saved_req = sdk.get_requirement(req["requirement_id"])
+    assert saved_req is not None
+    assert saved_req["requirement_id"] == req["requirement_id"]

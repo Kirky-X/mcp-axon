@@ -5,18 +5,18 @@
 """需求链化 SDK - 核心类"""
 
 import logging
+import os
 from typing import Any, Dict, List, Optional
 
-from src.db.database import get_session
-from src.db.models import Requirement
-from src.services.chain_builder import ChainBuilder
-from src.services.chain_orchestrator import ChainOrchestrator
-from src.services.dependency_service import DependencyService
-from src.services.project_manager import ProjectManager
-from src.services.requirement_manager import RequirementManager
-from src.services.validation_service import ValidationService
-from src.utils.lock_manager import ProjectLockManager
-from src.utils.snapshot_manager import SnapshotManager
+import real_ladybug as lb
+
+from src.core.containers import (
+    get_container,
+    get_connection,
+    init_container,
+    init_database,
+)
+from src.db.graph_queries import GET_REQUIREMENT_BY_UUID
 
 logger = logging.getLogger(__name__)
 
@@ -32,42 +32,43 @@ class RequirementSDK:
             db_path: 数据库文件路径 (默认从环境变量 MCP_AXON_DB_PATH 获取)
         """
         # 优先使用环境变量，其次使用参数，最后使用默认值
-        import os
-        self.db_path = os.getenv("MCP_AXON_DB_PATH", db_path or "requirements.db")
+        self.db_path = os.getenv("MCP_AXON_DB_PATH", db_path or "mcp_axon.lbug")
 
         try:
-            # 初始化数据库
-            from src.db.database import init_sync_db
-
-            init_sync_db(self.db_path, echo=False)
+            # 初始化容器和数据库
+            init_container(db_path=self.db_path)
+            init_database()
         except Exception as e:
-            logger.error(f"数据库初始化失败: {e}")
-            raise RuntimeError(f"无法初始化数据库: {e}")
+            logger.error(f"图数据库初始化失败: {e}")
+            raise RuntimeError(f"无法初始化图数据库: {e}")
 
         try:
-            # 初始化服务
-            self.project_manager = ProjectManager()
-            self.requirement_manager = RequirementManager()
-            self.dependency_service = DependencyService()
-            self.validation_service = ValidationService()
-            self.chain_builder = ChainBuilder()
-            self.chain_orchestrator = ChainOrchestrator()
-            self.lock_manager = ProjectLockManager()
-            self.snapshot_manager = SnapshotManager()
+            # 从容器获取服务
+            container = get_container()
+            self._container = container
 
-            logger.info(f"SDK 初始化完成: {db_path}")
+            self.project_manager = container.project_manager()
+            self.requirement_manager = container.requirement_manager()
+            self.dependency_service = container.dependency_service()
+            self.validation_service = container.validation_service()
+            self.chain_builder = container.chain_builder()
+            self.chain_orchestrator = container.chain_orchestrator()
+            self.lock_manager = container.lock_manager()
+            self.snapshot_manager = container.snapshot_manager()
+
+            logger.info(f"SDK 初始化完成: {self.db_path}")
         except Exception as e:
             logger.error(f"服务初始化失败: {e}")
             raise RuntimeError(f"无法初始化服务: {e}")
 
-    def _get_session(self):
+    def _get_conn(self) -> lb.Connection:
         """
-        获取数据库会话（内部方法，供测试使用）
+        获取数据库连接（内部方法）
 
         Returns:
-            数据库会话上下文管理器
+            数据库连接
         """
-        return get_session()
+        return get_connection()
 
     def create_project(self, name: str, description: str = "") -> Dict[str, Any]:
         """
@@ -80,12 +81,10 @@ class RequirementSDK:
         Returns:
             项目信息
         """
-        with get_session() as session:
-            result = self.project_manager.create_project(session, name, description)
-
-            result["next_action"] = "add_root_requirement"
-
-            return result
+        conn = self._get_conn()
+        result = self.project_manager.create_project(conn, name, description)
+        result["next_action"] = "add_root_requirement"
+        return result
 
     def update_project(
         self,
@@ -106,10 +105,9 @@ class RequirementSDK:
         """
         from src.schemas import ProjectUpdate
 
-        with get_session() as session:
-            update_data = ProjectUpdate(name=name, description=description)
-
-            return self.project_manager.update_project(session, project_id, update_data)
+        conn = self._get_conn()
+        update_data = ProjectUpdate(name=name, description=description)
+        return self.project_manager.update_project(conn, project_id, update_data)
 
     def get_project(self, project_id: str) -> Dict[str, Any]:
         """
@@ -121,8 +119,8 @@ class RequirementSDK:
         Returns:
             项目信息
         """
-        with get_session() as session:
-            return self.project_manager.get_project(session, project_id)
+        conn = self._get_conn()
+        return self.project_manager.get_project(conn, project_id)
 
     def add_requirement(
         self,
@@ -143,20 +141,20 @@ class RequirementSDK:
         Returns:
             需求信息
         """
-        with get_session() as session:
-            result = self.requirement_manager.add_requirement(
-                session, project_id, content, parent_id, order_in_parent
-            )
+        conn = self._get_conn()
+        result = self.requirement_manager.add_requirement(
+            conn, project_id, content, parent_id, order_in_parent
+        )
 
-            # 添加下一步操作提示
-            if result["needs_decomposition"]:
-                result["next_action"] = "decompose_requirement"
-            elif result["level"] == 0:
-                result["next_action"] = "add_child_requirement"
-            else:
-                result["next_action"] = "add_validation"
+        # 添加下一步操作提示
+        if result["needs_decomposition"]:
+            result["next_action"] = "decompose_requirement"
+        elif result["level"] == 0:
+            result["next_action"] = "add_child_requirement"
+        else:
+            result["next_action"] = "add_validation"
 
-            return result
+        return result
 
     def update_requirement(
         self,
@@ -177,12 +175,11 @@ class RequirementSDK:
         """
         from src.schemas import RequirementUpdate
 
-        with get_session() as session:
-            update_data = RequirementUpdate(content=content, status=status)
-
-            return self.requirement_manager.update_requirement(
-                session, requirement_id, update_data
-            )
+        conn = self._get_conn()
+        update_data = RequirementUpdate(content=content, status=status)
+        return self.requirement_manager.update_requirement(
+            conn, requirement_id, update_data
+        )
 
     def delete_requirement(self, requirement_id: str) -> Dict[str, Any]:
         """
@@ -194,8 +191,8 @@ class RequirementSDK:
         Returns:
             删除结果
         """
-        with get_session() as session:
-            return self.requirement_manager.delete_requirement(session, requirement_id)
+        conn = self._get_conn()
+        return self.requirement_manager.delete_requirement(conn, requirement_id)
 
     def list_requirements(
         self,
@@ -216,10 +213,23 @@ class RequirementSDK:
         Returns:
             需求列表
         """
-        with get_session() as session:
-            return self.requirement_manager.list_requirements(
-                session, project_id, status, is_leaf, parent_id
-            )
+        conn = self._get_conn()
+        return self.requirement_manager.list_requirements(
+            conn, project_id, status, is_leaf, parent_id
+        )
+
+    def get_requirement(self, requirement_id: str) -> Dict[str, Any]:
+        """
+        获取单个需求
+
+        Args:
+            requirement_id: 需求 ID
+
+        Returns:
+            需求信息
+        """
+        conn = self._get_conn()
+        return self.requirement_manager.get_requirement(conn, requirement_id)
 
     def add_validation(
         self,
@@ -238,22 +248,22 @@ class RequirementSDK:
         Returns:
             验证节点信息
         """
-        with get_session() as session:
-            result = self.validation_service.add_validation(
-                session, requirement_id, test_cases, acceptance_criteria
-            )
+        conn = self._get_conn()
+        result = self.validation_service.add_validation(
+            conn, requirement_id, test_cases, acceptance_criteria
+        )
 
-            # 检查是否应该触发链化
-            req = session.query(Requirement).filter_by(id=requirement_id).first()
-
-            if req and self.chain_orchestrator.should_trigger_chaining(
-                session, req.project_id
-            ):
+        # 获取项目 ID 并检查是否应该触发链化
+        req_result = conn.execute(GET_REQUIREMENT_BY_UUID, {"uuid": requirement_id})
+        req_rows = list(req_result)
+        if req_rows:
+            project_id = req_rows[0][1]
+            if self.chain_orchestrator.should_trigger_chaining(conn, project_id):
                 result["next_action"] = "trigger_chaining"
             else:
                 result["next_action"] = "continue_decomposition"
 
-            return result
+        return result
 
     def transfer_dependencies(
         self, parent_id: str, dependency_mapping: Dict[str, List[str]]
@@ -268,10 +278,10 @@ class RequirementSDK:
         Returns:
             操作结果
         """
-        with get_session() as session:
-            return self.dependency_service.transfer_dependencies(
-                session, parent_id, dependency_mapping
-            )
+        conn = self._get_conn()
+        return self.dependency_service.transfer_dependencies(
+            conn, parent_id, dependency_mapping
+        )
 
     def add_dependency(self, requirement_id: str, dependency_id: str) -> Dict[str, Any]:
         """
@@ -284,10 +294,10 @@ class RequirementSDK:
         Returns:
             操作结果
         """
-        with get_session() as session:
-            return self.dependency_service.add_dependency(
-                session, requirement_id, dependency_id
-            )
+        conn = self._get_conn()
+        return self.dependency_service.add_dependency(
+            conn, requirement_id, dependency_id
+        )
 
     def resolve_parallel_order(
         self, project_id: str, parallel_nodes: List[str], sorted_order: List[str]
@@ -303,10 +313,10 @@ class RequirementSDK:
         Returns:
             链化结果
         """
-        with get_session() as session:
-            return self.chain_orchestrator.resolve_parallel_order(
-                session, project_id, parallel_nodes, sorted_order
-            )
+        conn = self._get_conn()
+        return self.chain_orchestrator.resolve_parallel_order(
+            conn, project_id, parallel_nodes, sorted_order
+        )
 
     def get_next_requirement(self, project_id: str, session_id: str) -> Dict[str, Any]:
         """
@@ -319,10 +329,10 @@ class RequirementSDK:
         Returns:
             下一个需求信息
         """
-        with get_session() as session:
-            return self.chain_orchestrator.get_next_requirement(
-                session, project_id, session_id
-            )
+        conn = self._get_conn()
+        return self.chain_orchestrator.get_next_requirement(
+            conn, project_id, session_id
+        )
 
     def mark_requirement_completed(
         self, project_id: str, requirement_id: str
@@ -337,10 +347,10 @@ class RequirementSDK:
         Returns:
             操作结果
         """
-        with get_session() as session:
-            return self.chain_orchestrator.mark_requirement_completed(
-                session, project_id, requirement_id
-            )
+        conn = self._get_conn()
+        return self.chain_orchestrator.mark_requirement_completed(
+            conn, project_id, requirement_id
+        )
 
     def get_project_state(self, project_id: str) -> Dict[str, Any]:
         """
@@ -352,8 +362,8 @@ class RequirementSDK:
         Returns:
             项目状态信息
         """
-        with get_session() as session:
-            return self.project_manager.get_project_state(session, project_id)
+        conn = self._get_conn()
+        return self.project_manager.get_project_state(conn, project_id)
 
     def trigger_chaining(self, project_id: str, session_id: str) -> Dict[str, Any]:
         """
@@ -366,10 +376,8 @@ class RequirementSDK:
         Returns:
             链化结果
         """
-        with get_session() as session:
-            return self.chain_orchestrator.trigger_chaining(
-                session, project_id, session_id
-            )
+        conn = self._get_conn()
+        return self.chain_orchestrator.trigger_chaining(conn, project_id, session_id)
 
     def create_snapshot(self, project_id: str, session_id: str) -> str:
         """
@@ -382,10 +390,8 @@ class RequirementSDK:
         Returns:
             快照 ID
         """
-        with get_session() as session:
-            return self.snapshot_manager.create_snapshot(
-                session, project_id, session_id
-            )
+        conn = self._get_conn()
+        return self.snapshot_manager.create_snapshot(conn, project_id, session_id)
 
     def restore_snapshot(self, snapshot_id: str, session_id: str) -> Dict[str, Any]:
         """
@@ -398,10 +404,8 @@ class RequirementSDK:
         Returns:
             恢复结果
         """
-        with get_session() as session:
-            return self.snapshot_manager.restore_snapshot(
-                session, snapshot_id, session_id
-            )
+        conn = self._get_conn()
+        return self.snapshot_manager.restore_snapshot(conn, snapshot_id, session_id)
 
     def list_snapshots(self, project_id: str, limit: int = 10) -> List[Dict[str, Any]]:
         """
@@ -414,8 +418,8 @@ class RequirementSDK:
         Returns:
             快照列表
         """
-        with get_session() as session:
-            return self.snapshot_manager.list_snapshots(session, project_id, limit)
+        conn = self._get_conn()
+        return self.snapshot_manager.list_snapshots(conn, project_id, limit)
 
     def acquire_lock(self, project_id: str, session_id: str) -> bool:
         """
@@ -428,8 +432,8 @@ class RequirementSDK:
         Returns:
             是否获取成功
         """
-        with get_session() as session:
-            return self.lock_manager.acquire_lock(session, project_id, session_id)
+        conn = self._get_conn()
+        return self.lock_manager.acquire_lock(conn, project_id, session_id)
 
     def release_lock(self, project_id: str, session_id: str) -> bool:
         """
@@ -442,8 +446,8 @@ class RequirementSDK:
         Returns:
             是否释放成功
         """
-        with get_session() as session:
-            return self.lock_manager.release_lock(session, project_id, session_id)
+        conn = self._get_conn()
+        return self.lock_manager.release_lock(conn, project_id, session_id)
 
     def is_locked(self, project_id: str) -> bool:
         """
@@ -455,8 +459,8 @@ class RequirementSDK:
         Returns:
             是否被锁定
         """
-        with get_session() as session:
-            return self.lock_manager.is_locked(session, project_id)
+        conn = self._get_conn()
+        return self.lock_manager.is_locked(conn, project_id)
 
     def get_lock_info(self, project_id: str) -> Optional[Dict[str, Any]]:
         """
@@ -468,5 +472,18 @@ class RequirementSDK:
         Returns:
             锁信息
         """
-        with get_session() as session:
-            return self.lock_manager.get_lock_info(session, project_id)
+        conn = self._get_conn()
+        return self.lock_manager.get_lock_info(conn, project_id)
+
+    def mark_as_leaf(self, requirement_id: str) -> Dict[str, Any]:
+        """
+        将需求标记为叶子节点
+
+        Args:
+            requirement_id: 需求 ID
+
+        Returns:
+            操作结果，包含 requirement_id、status、next_action
+        """
+        conn = self._get_conn()
+        return self.requirement_manager.mark_as_leaf(conn, requirement_id)

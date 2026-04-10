@@ -11,7 +11,7 @@ def test_tool_definitions_not_empty():
     """测试工具定义列表不为空"""
     # Arrange & Act & Assert
     assert len(TOOL_DEFINITIONS) > 0
-    assert len(TOOL_DEFINITIONS) == 23
+    assert len(TOOL_DEFINITIONS) == 21
 
 
 def test_tool_definitions_structure():
@@ -76,32 +76,33 @@ def test_tool_required_fields_are_valid():
             )
 
 
-def test_create_project_tool_schema():
-    """测试 create_project 工具的 schema"""
+def test_manage_project_tool_schema():
+    """测试 manage_project 工具的 schema"""
     # Arrange
-    tool = next(t for t in TOOL_DEFINITIONS if t.name == "create_project")
+    tool = next(t for t in TOOL_DEFINITIONS if t.name == "manage_project")
 
     # Assert
-    assert tool.name == "create_project"
-    assert "name" in tool.inputSchema["required"]
-    assert "description" not in tool.inputSchema["required"]
+    assert tool.name == "manage_project"
+    assert tool.inputSchema.get("required", []) == []
     assert "name" in tool.inputSchema["properties"]
     assert "description" in tool.inputSchema["properties"]
     assert tool.inputSchema["properties"]["name"]["type"] == "string"
     assert tool.inputSchema["properties"]["description"]["type"] == "string"
 
 
-def test_add_requirement_tool_schema():
-    """测试 add_requirement 工具的 schema"""
+def test_manage_requirement_tool_schema():
+    """测试 manage_requirement 工具的 schema"""
     # Arrange
-    tool = next(t for t in TOOL_DEFINITIONS if t.name == "add_requirement")
+    tool = next(t for t in TOOL_DEFINITIONS if t.name == "manage_requirement")
 
     # Assert
-    assert tool.name == "add_requirement"
-    assert "project_id" in tool.inputSchema["required"]
-    assert "content" in tool.inputSchema["required"]
-    assert "parent_id" not in tool.inputSchema["required"]
-    assert "order_in_parent" not in tool.inputSchema["required"]
+    assert tool.name == "manage_requirement"
+    # requirement_id and project_id are both optional
+    assert tool.inputSchema.get("required", []) == []
+    assert "content" in tool.inputSchema["properties"]
+    assert "parent_id" in tool.inputSchema["properties"]
+    assert "order_in_parent" in tool.inputSchema["properties"]
+    assert "status" in tool.inputSchema["properties"]
 
 
 def test_add_validation_tool_schema():
@@ -217,8 +218,8 @@ def test_all_core_tools_exist():
     """测试所有核心工具都已定义"""
     # Arrange
     core_tools = [
-        "create_project",
-        "add_requirement",
+        "manage_project",
+        "manage_requirement",
         "add_validation",
         "get_next_requirement",
         "mark_requirement_completed",

@@ -4,6 +4,14 @@
 
 """系统常量定义"""
 
+import re
+
+# UUID 验证正则（全局共享，避免各模块重复定义）
+UUID_PATTERN = re.compile(
+    r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+    re.IGNORECASE,
+)
+
 
 class Limits:
     """系统限制常量"""
@@ -84,3 +92,39 @@ class APIVersion:
     VERSION_HISTORY = {
         "1.0.0": "初始版本，支持所有核心功能",
     }
+
+
+class EventType:
+    """事件类型常量"""
+
+    PROJECT_CREATED = "ProjectCreated"
+    PROJECT_UPDATED = "ProjectUpdated"
+    PROJECT_DELETED = "ProjectDeleted"
+    PROJECT_STATUS_CHANGED = "ProjectStatusChanged"
+    REQUIREMENT_ADDED = "RequirementAdded"
+    REQUIREMENT_UPDATED = "RequirementUpdated"
+    REQUIREMENT_DELETED = "RequirementDeleted"
+    REQUIREMENT_STATUS_CHANGED = "RequirementStatusChanged"
+    VALIDATION_ADDED = "ValidationAdded"
+    VALIDATION_UPDATED = "ValidationUpdated"
+    CHAINING_TRIGGERED = "ChainingTriggered"
+    CHAINING_COMPLETED = "ChainingCompleted"
+    SNAPSHOT_CREATED = "SnapshotCreated"
+    SNAPSHOT_RESTORED = "SnapshotRestored"
+    LOCK_ACQUIRED = "ProjectLockAcquired"
+    LOCK_RELEASED = "ProjectLockReleased"
+    DEPENDENCY_ADDED = "DependencyAdded"
+    DEPENDENCY_REMOVED = "DependencyRemoved"
+    REQUIREMENT_COMPLETED = "RequirementCompleted"
+
+
+class Messages:
+    """用户可见的中文消息常量"""
+
+    LOCK_ACQUIRED = "锁获取成功"
+    LOCK_IN_USE = "锁已被占用"
+    LOCK_RELEASED = "锁释放成功"
+    LOCK_NOT_OWNER = "锁不属于该会话"
+    PROJECT_LOCKED = "项目已锁定"
+    PROJECT_NOT_LOCKED = "项目未锁定"
+    SNAPSHOT_CREATED = "快照创建成功"

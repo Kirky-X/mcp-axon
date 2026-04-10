@@ -13,25 +13,35 @@ def test_tc034_ecommerce_scenario():
     sdk = RequirementSDK(db_path=":memory:")
 
     # 1. 创建项目
-    project = sdk.create_project("电商系统")
+    project = sdk.manage_project(name="电商系统")
 
     # 2. 添加根需求
-    root = sdk.add_requirement(project["project_id"], "电商系统开发")
+    root = sdk.manage_requirement(
+        project_id=project["project_id"], content="电商系统开发"
+    )
 
     # 3. 分解为模块
-    user_module = sdk.add_requirement(
-        project["project_id"], "用户模块", parent_id=root["requirement_id"]
+    user_module = sdk.manage_requirement(
+        project_id=project["project_id"],
+        content="用户模块",
+        parent_id=root["requirement_id"],
     )
-    sdk.add_requirement(
-        project["project_id"], "订单模块", parent_id=root["requirement_id"]
+    sdk.manage_requirement(
+        project_id=project["project_id"],
+        content="订单模块",
+        parent_id=root["requirement_id"],
     )
 
     # 4. 用户模块进一步分解
-    register = sdk.add_requirement(
-        project["project_id"], "用户注册", parent_id=user_module["requirement_id"]
+    register = sdk.manage_requirement(
+        project_id=project["project_id"],
+        content="用户注册",
+        parent_id=user_module["requirement_id"],
     )
-    login = sdk.add_requirement(
-        project["project_id"], "用户登录", parent_id=user_module["requirement_id"]
+    login = sdk.manage_requirement(
+        project_id=project["project_id"],
+        content="用户登录",
+        parent_id=user_module["requirement_id"],
     )
 
     # 5. 标记叶子并添加验证
@@ -60,19 +70,23 @@ def test_data_pipeline_scenario():
     sdk = RequirementSDK(db_path=":memory:")
 
     # 创建项目
-    project = sdk.create_project("数据分析系统")
+    project = sdk.manage_project(name="数据分析系统")
 
     # 创建线性依赖链
-    collect = sdk.add_requirement(project["project_id"], "数据采集")
+    collect = sdk.manage_requirement(
+        project_id=project["project_id"], content="数据采集"
+    )
     # 需求默认是叶子节点(collect["requirement_id"])
     sdk.add_validation(collect["requirement_id"], [{"name": "测试采集"}])
 
-    clean = sdk.add_requirement(project["project_id"], "数据清洗")
+    clean = sdk.manage_requirement(project_id=project["project_id"], content="数据清洗")
     # 需求默认是叶子节点(clean["requirement_id"])
     sdk.add_validation(clean["requirement_id"], [{"name": "测试清洗"}])
     sdk.add_dependency(clean["requirement_id"], collect["requirement_id"])
 
-    analyze = sdk.add_requirement(project["project_id"], "数据分析")
+    analyze = sdk.manage_requirement(
+        project_id=project["project_id"], content="数据分析"
+    )
     # 需求默认是叶子节点(analyze["requirement_id"])
     sdk.add_validation(analyze["requirement_id"], [{"name": "测试分析"}])
     sdk.add_dependency(analyze["requirement_id"], clean["requirement_id"])

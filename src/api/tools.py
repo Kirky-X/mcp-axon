@@ -14,28 +14,21 @@ API_VERSION = APIVersion.CURRENT_VERSION
 # 工具定义列表
 TOOL_DEFINITIONS = [
     Tool(
-        name="create_project",
-        description="创建新的需求链项目。创建后可以开始添加需求节点。",
+        name="manage_project",
+        description="创建或更新项目。不提供 project_id 则创建新项目，提供则更新。",
         inputSchema={
             "type": "object",
             "properties": {
-                "name": {"type": "string", "description": "项目名称（必填）"},
-                "description": {"type": "string", "description": "项目描述（可选）"},
+                "project_id": {
+                    "type": "string",
+                    "description": "项目 ID（提供则更新，不提供则创建）",
+                },
+                "name": {
+                    "type": "string",
+                    "description": "项目名称（创建时必填，更新时可选）",
+                },
+                "description": {"type": "string", "description": "项目描述"},
             },
-            "required": ["name"],
-        },
-    ),
-    Tool(
-        name="update_project",
-        description="更新项目信息（名称或描述）。",
-        inputSchema={
-            "type": "object",
-            "properties": {
-                "project_id": {"type": "string", "description": "项目 ID（必填）"},
-                "name": {"type": "string", "description": "新项目名称（可选）"},
-                "description": {"type": "string", "description": "新项目描述（可选）"},
-            },
-            "required": ["project_id"],
         },
     ),
     Tool(
@@ -73,36 +66,33 @@ TOOL_DEFINITIONS = [
         },
     ),
     Tool(
-        name="add_requirement",
-        description="添加需求节点。系统会自动评估需求复杂度，如果复杂度较高会建议分解。返回结果包含是否需要分解的提示。",
+        name="manage_requirement",
+        description="创建或更新需求节点。不提供 requirement_id 则创建新需求，提供则更新。创建时系统会评估复杂度并给出分解建议。",
         inputSchema={
             "type": "object",
             "properties": {
-                "project_id": {"type": "string", "description": "项目 ID（必填）"},
-                "content": {"type": "string", "description": "需求内容（必填）"},
+                "requirement_id": {
+                    "type": "string",
+                    "description": "需求 ID（提供则更新，不提供则创建）",
+                },
+                "project_id": {
+                    "type": "string",
+                    "description": "项目 ID（创建时必填）",
+                },
+                "content": {
+                    "type": "string",
+                    "description": "需求内容（创建时必填，更新时可选）",
+                },
                 "parent_id": {
                     "type": "string",
-                    "description": "父需求 ID（可选，用于创建子需求）",
+                    "description": "父需求 ID（创建时可选）",
                 },
                 "order_in_parent": {
                     "type": "integer",
-                    "description": "在父需求中的顺序（默认为 0）",
+                    "description": "在父需求中的顺序（创建时）",
                 },
+                "status": {"type": "string", "description": "新状态（更新时可选）"},
             },
-            "required": ["project_id", "content"],
-        },
-    ),
-    Tool(
-        name="update_requirement",
-        description="更新需求内容或状态。",
-        inputSchema={
-            "type": "object",
-            "properties": {
-                "requirement_id": {"type": "string", "description": "需求 ID（必填）"},
-                "content": {"type": "string", "description": "新需求内容（可选）"},
-                "status": {"type": "string", "description": "新状态（可选）"},
-            },
-            "required": ["requirement_id"],
         },
     ),
     Tool(

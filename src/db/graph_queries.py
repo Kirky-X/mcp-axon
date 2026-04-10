@@ -501,9 +501,71 @@ GET_REQUIREMENT_CHAIN_INFO = """
 MATCH (r:Requirement {uuid: $requirement_uuid})
 OPTIONAL MATCH (prev:Requirement)-[:NEXT_IN_CHAIN]->(r)
 OPTIONAL MATCH (r)-[:NEXT_IN_CHAIN]->(next:Requirement)
-RETURN r.chain_order as chain_order, 
+RETURN r.chain_order as chain_order,
        prev.uuid as prev_uuid,
        next.uuid as next_uuid,
        prev.content as prev_content,
        next.content as next_content
+"""
+
+# ============ 快照相关查询 ============
+
+SNAPSHOT_LIST_QUERY = """
+MATCH (e:Event {project_uuid: $project_uuid, event_type: $event_type})
+RETURN e.uuid, e.created_at, e.sequence
+ORDER BY e.created_at DESC
+LIMIT $limit
+"""
+
+SNAPSHOT_DELETE_REQUIREMENT = """
+MATCH (r:Requirement {uuid: $uuid}) DETACH DELETE r
+"""
+
+SNAPSHOT_CHECK_REQUIREMENT_EXISTS = """
+MATCH (r:Requirement {uuid: $uuid}) RETURN r.uuid
+"""
+
+SNAPSHOT_UPDATE_REQUIREMENT = """
+MATCH (r:Requirement {uuid: $uuid})
+SET r.status = $status,
+    r.chain_order = $chain_order,
+    r.updated_at = $updated_at
+"""
+
+SNAPSHOT_CLEAR_DEPENDENCIES = """
+MATCH (r:Requirement {uuid: $uuid})-[e:DEPENDS_ON]->() DELETE e
+"""
+
+SNAPSHOT_ADD_DEPENDENCY = """
+MATCH (r1:Requirement {uuid: $req_uuid})
+MATCH (r2:Requirement {uuid: $dep_uuid})
+CREATE (r1)-[:DEPENDS_ON]->(r2)
+"""
+
+SNAPSHOT_CLEAR_NEXT_IN_CHAIN = """
+MATCH (r:Requirement {uuid: $uuid})-[e:NEXT_IN_CHAIN]->() DELETE e
+"""
+
+SNAPSHOT_SET_NEXT_IN_CHAIN = """
+MATCH (r1:Requirement {uuid: $from_uuid})
+MATCH (r2:Requirement {uuid: $to_uuid})
+CREATE (r1)-[:NEXT_IN_CHAIN]->(r2)
+"""
+
+SNAPSHOT_UPDATE_CHAIN_STATE = """
+MATCH (cs:ChainState {project_uuid: $project_uuid})
+SET cs.status = $status,
+    cs.chain_head_uuid = $chain_head_uuid,
+    cs.current_node_uuid = $current_node_uuid,
+    cs.total_nodes = $total_nodes,
+    cs.completed_nodes = $completed_nodes,
+    cs.progress_percentage = $progress_percentage,
+    cs.chain_version = cs.chain_version + 1,
+    cs.updated_at = $updated_at
+"""
+
+SNAPSHOT_CREATE_HAS_EVENT = """
+MATCH (p:Project {uuid: $project_uuid})
+MATCH (e:Event {uuid: $event_uuid})
+CREATE (p)-[:HAS_EVENT]->(e)
 """

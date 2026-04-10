@@ -8,14 +8,14 @@ from src.core.sdk import RequirementSDK
 def benchmark_crud_operations():
     """CRUD 操作性能基准"""
     sdk = RequirementSDK(db_path=":memory:")
-    project = sdk.create_project("基准测试")
+    project = sdk.manage_project(name="基准测试")
     project_id = project["project_id"]
 
     # 创建 1000 个需求
     start = time.perf_counter()
     req_ids = []
     for i in range(1000):
-        req = sdk.add_requirement(project_id, f"需求{i}")
+        req = sdk.manage_requirement(project_id=f"需求{i}")
         req_ids.append(req["requirement_id"])
     create_time = time.perf_counter() - start
 
@@ -27,7 +27,7 @@ def benchmark_crud_operations():
     # 更新需求
     start = time.perf_counter()
     for req_id in req_ids[:100]:
-        sdk.update_requirement(req_id, content=f"更新后的需求{req_id}")
+        sdk.manage_requirement(req_id, content=f"更新后的需求{req_id}")
     update_time = time.perf_counter() - start
 
     # 删除需求
@@ -88,7 +88,7 @@ def benchmark_topological_sort():
 def benchmark_chaining():
     """链化操作性能基准"""
     sdk = RequirementSDK(db_path=":memory:")
-    project = sdk.create_project("链化基准测试")
+    project = sdk.manage_project(name="链化基准测试")
     project_id = project["project_id"]
 
     # 测试不同规模
@@ -99,12 +99,12 @@ def benchmark_chaining():
     for size in sizes:
         # 清空数据库
         sdk = RequirementSDK(db_path=":memory:")
-        project = sdk.create_project(f"链化测试{size}")
+        project = sdk.manage_project(f"链化测试{size}")
         project_id = project["project_id"]
 
         # 创建叶子节点
         for i in range(size):
-            req = sdk.add_requirement(project_id, f"需求{i}")
+            req = sdk.manage_requirement(project_id=f"需求{i}")
             sdk.add_validation(req["requirement_id"], [{"name": f"测试{i}"}])
 
         # 测试链化性能

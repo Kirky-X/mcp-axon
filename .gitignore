@@ -124,6 +124,7 @@ IFLOW.md
 openspec/
 temp/
 coverage.json  # 测试生成的临时文件
+mcp_axon.lbug  # 数据库文件
 .gitnexus
 
 # Documentation files (managed separately)

@@ -119,32 +119,19 @@ requirements.db
 config.yaml
 IFLOW.md
 
-# Development scripts (one-time use)
-add_copyright_headers.py
-clean_duplicate_copyright.py
-update_remaining_copyright.py
-update_to_simple_copyright.py
-
-# Documentation (optional, uncomment if needed)
-# CODE_AUDIT_REPORT.md
-# CODE_FIX_SUMMARY.md
-# FILE_STRUCTURE_ANALYSIS.md
-# FINAL_AUDIT_REPORT.md
-# OPTIMIZATION_SUMMARY.md
-# TEST_COVERAGE_PLAN.md
-docs/prd.md
-docs/task.md
-docs/test.md
-docs/tdd.md
-docs/uat.md
-
 # Local development and testing
 .opencode/
 openspec/
 temp/
-coverage.json
-run_http_server.py
+coverage.json  # 测试生成的临时文件
 .gitnexus
+
+# Documentation files (managed separately)
+docs/prd.md
+docs/task.md
+docs/tdd.md
+docs/test.md
+docs/uat.md
 
 # AI Assistant configuration files
 AGENTS.md

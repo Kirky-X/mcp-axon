@@ -123,8 +123,8 @@ IFLOW.md
 .opencode/
 openspec/
 temp/
-coverage.json  # 测试生成的临时文件
-mcp_axon.lbug  # 数据库文件
+coverage.json
+mcp_axon.lbug
 .gitnexus
 
 # Documentation files (managed separately)

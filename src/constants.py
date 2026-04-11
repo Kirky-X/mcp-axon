@@ -31,37 +31,6 @@ class Limits:
     MAX_CONCURRENT_PROJECTS = 5
 
 
-class CacheSizes:
-    """缓存容量常量"""
-
-    PROJECT_CACHE_SIZE = 50
-    REQUIREMENT_CACHE_SIZE = 200
-    CHAIN_CACHE_SIZE = 50
-
-
-class Timeouts:
-    """超时常量"""
-
-    LOCK_TIMEOUT_MINUTES = 30
-    RATE_LIMIT_WINDOW_SECONDS = 60
-
-
-class Database:
-    """数据库配置常量"""
-
-    DEFAULT_POOL_SIZE = 5
-    DEFAULT_MAX_OVERFLOW = 10
-    POOL_RECYCLE_SECONDS = 3600
-
-
-class PerformanceThresholds:
-    """性能阈值常量"""
-
-    SLOW_OPERATION_SECONDS = 1.0
-    SLOW_DB_QUERY_SECONDS = 0.5
-    SLOW_API_CALL_SECONDS = 0.5
-
-
 class ComplexityScoring:
     """复杂度评分常量"""
 
@@ -92,30 +61,6 @@ class APIVersion:
     VERSION_HISTORY = {
         "1.0.0": "初始版本，支持所有核心功能",
     }
-
-
-class EventType:
-    """事件类型常量"""
-
-    PROJECT_CREATED = "ProjectCreated"
-    PROJECT_UPDATED = "ProjectUpdated"
-    PROJECT_DELETED = "ProjectDeleted"
-    PROJECT_STATUS_CHANGED = "ProjectStatusChanged"
-    REQUIREMENT_ADDED = "RequirementAdded"
-    REQUIREMENT_UPDATED = "RequirementUpdated"
-    REQUIREMENT_DELETED = "RequirementDeleted"
-    REQUIREMENT_STATUS_CHANGED = "RequirementStatusChanged"
-    VALIDATION_ADDED = "ValidationAdded"
-    VALIDATION_UPDATED = "ValidationUpdated"
-    CHAINING_TRIGGERED = "ChainingTriggered"
-    CHAINING_COMPLETED = "ChainingCompleted"
-    SNAPSHOT_CREATED = "SnapshotCreated"
-    SNAPSHOT_RESTORED = "SnapshotRestored"
-    LOCK_ACQUIRED = "ProjectLockAcquired"
-    LOCK_RELEASED = "ProjectLockReleased"
-    DEPENDENCY_ADDED = "DependencyAdded"
-    DEPENDENCY_REMOVED = "DependencyRemoved"
-    REQUIREMENT_COMPLETED = "RequirementCompleted"
 
 
 class Messages:

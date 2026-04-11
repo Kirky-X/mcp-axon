@@ -178,24 +178,21 @@ TOOL_DEFINITIONS = [
         },
     ),
     Tool(
-        name="resolve_parallel_order",
-        description="指定并行节点的执行顺序。当链化检测到并行节点时，使用此工具指定它们的执行顺序。",
+        name="run_validation",
+        description="执行验证逻辑。LLM 完成任务后调用此接口执行验证，系统会根据测试用例和验收标准判断任务是否通过。",
         inputSchema={
             "type": "object",
             "properties": {
-                "project_id": {"type": "string", "description": "项目 ID（必填）"},
-                "parallel_nodes": {
-                    "type": "array",
-                    "description": "并行节点 ID 列表（必填）",
-                    "items": {"type": "string"},
+                "requirement_id": {
+                    "type": "string",
+                    "description": "需求 ID（必填）",
                 },
-                "sorted_order": {
-                    "type": "array",
-                    "description": "排序后的节点 ID 列表（必填，必须包含所有并行节点）",
-                    "items": {"type": "string"},
+                "execution_result": {
+                    "type": "string",
+                    "description": "任务执行结果（必填），LLM 完成任务后的输出",
                 },
             },
-            "required": ["project_id", "parallel_nodes", "sorted_order"],
+            "required": ["requirement_id", "execution_result"],
         },
     ),
     Tool(

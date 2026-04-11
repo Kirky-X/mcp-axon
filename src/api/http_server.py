@@ -8,7 +8,7 @@ import json
 import logging
 import threading
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from typing import Any, Dict, Optional
 
@@ -37,7 +37,7 @@ class PerformanceMetricsCollector:
         with self._lock:
             self._requests.append(
                 {
-                    "timestamp": datetime.utcnow().isoformat(),
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
                     "endpoint": endpoint,
                     "method": method,
                     "status_code": status_code,
@@ -129,7 +129,7 @@ class HTTPRequestHandler(BaseHTTPRequestHandler):
             sdk_ok = self._sdk_check_fn() if self._sdk_check_fn else True
             data = {
                 "status": "healthy",
-                "timestamp": datetime.utcnow().isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
                 "response_time_ms": round(duration_ms, 2),
                 "database": "connected",
                 "sdk_initialized": sdk_ok,
@@ -140,7 +140,7 @@ class HTTPRequestHandler(BaseHTTPRequestHandler):
             logger.error(f"健康检查失败: {e}")
             data = {
                 "status": "unhealthy",
-                "timestamp": datetime.utcnow().isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
                 "response_time_ms": round(duration_ms, 2),
             }
             self.send_json_response(503, data)
@@ -152,7 +152,7 @@ class HTTPRequestHandler(BaseHTTPRequestHandler):
         summary = http_metrics.get_summary()
 
         data = {
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "metrics": summary,
             "response_time_ms": round(duration_ms, 2),
         }
@@ -216,9 +216,9 @@ class HTTPRequestHandler(BaseHTTPRequestHandler):
 class HTTPServerThread(threading.Thread):
     """HTTP 服务器线程"""
 
-    def __init__(  # noqa: B104
+    def __init__(
         self,
-        host: str = "0.0.0.0",
+        host: str = "127.0.0.1",
         port: int = 8080,
         health_check_fn=None,
         sdk_check_fn=None,
@@ -266,11 +266,11 @@ _http_server: Optional[HTTPServerThread] = None
 
 
 def start_http_server(
-    host: str = "0.0.0.0",
+    host: str = "127.0.0.1",
     port: int = 8080,
     health_check_fn=None,
     sdk_check_fn=None,
-) -> HTTPServerThread:  # noqa: B104
+) -> HTTPServerThread:
     """启动 HTTP 服务器"""
     global _http_server
     _http_server = HTTPServerThread(

@@ -91,10 +91,9 @@ class ToolRouter:
                 requirement_id=args["requirement_id"],
                 dependency_id=args["dependency_id"],
             ),
-            "resolve_parallel_order": lambda args: sdk().resolve_parallel_order(
-                project_id=args["project_id"],
-                parallel_nodes=args["parallel_nodes"],
-                sorted_order=args["sorted_order"],
+            "run_validation": lambda args: sdk().run_validation(
+                requirement_id=args["requirement_id"],
+                execution_result=args["execution_result"],
             ),
             "get_next_requirement": lambda args: sdk().get_next_requirement(
                 project_id=args["project_id"],
@@ -208,7 +207,6 @@ class ToolRouter:
             "release_lock",
             "is_locked",
             "get_lock_info",
-            "resolve_parallel_order",
             "get_next_requirement",
             "mark_requirement_completed",
         }
@@ -303,19 +301,10 @@ class ToolRouter:
                 if not isinstance(test_case, dict):
                     raise ValueError(f"test_cases[{i}] 必须是字典格式")
 
-        # 并行节点排序验证
-        if name == "resolve_parallel_order":
-            parallel_nodes = arguments.get("parallel_nodes", [])
-            sorted_order = arguments.get("sorted_order", [])
-            if not isinstance(parallel_nodes, list) or not isinstance(
-                sorted_order, list
-            ):
-                raise ValueError("parallel_nodes 和 sorted_order 必须是数组格式")
-            if len(parallel_nodes) != len(sorted_order):
-                raise ValueError("parallel_nodes 和 sorted_order 长度必须相同")
-            if set(parallel_nodes) != set(sorted_order):
-                raise ValueError("sorted_order 必须包含所有 parallel_nodes 中的节点")
-            all_nodes = parallel_nodes + sorted_order
-            for node in all_nodes:
-                if not isinstance(node, str) or not self._uuid_pattern.match(node):
-                    raise ValueError(f"节点ID格式不正确: {node}")
+        # 验证执行结果验证
+        if name == "run_validation":
+            execution_result = arguments.get("execution_result")
+            if not execution_result or not isinstance(execution_result, str):
+                raise ValueError("execution_result 参数必填且必须是字符串")
+            if len(execution_result) > 10000:
+                raise ValueError("execution_result 不能超过 10000 字符")

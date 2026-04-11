@@ -16,8 +16,6 @@ from src.db.graph_models import (
     deserialize_json,
     generate_uuid,
     now_utc,
-    parse_project_from_row,
-    parse_requirement_from_row,
     serialize_json,
 )
 
@@ -37,6 +35,4 @@ __all__ = [
     "now_utc",
     "serialize_json",
     "deserialize_json",
-    "parse_project_from_row",
-    "parse_requirement_from_row",
 ]

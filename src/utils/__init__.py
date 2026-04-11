@@ -15,6 +15,7 @@ from .metrics import (
 )
 from .rate_limiter import RateLimiter
 from .snapshot_manager import SnapshotManager
+from .time_utils import parse_datetime
 
 __all__ = [
     "GraphAlgorithms",
@@ -26,4 +27,5 @@ __all__ = [
     "log_event",
     "InputValidator",
     "RateLimiter",
+    "parse_datetime",
 ]

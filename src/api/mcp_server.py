@@ -19,6 +19,7 @@ from src.api.http_server import start_http_server, stop_http_server
 from src.api.tool_router import ToolRouter
 from src.core.sdk import RequirementSDK
 from src.core.containers import init_container
+from src.utils.rate_limiter import get_rate_limiter
 
 # 配置日志
 logging.basicConfig(
@@ -80,18 +81,6 @@ session_context = SessionContext()
 server = Server("requirement-chain")
 
 
-def _get_rate_limiter():
-    """获取限流器实例"""
-    try:
-        from src.core.containers import get_container
-
-        return get_container().rate_limiter()
-    except RuntimeError:
-        from src.utils.rate_limiter import RateLimiter
-
-        return RateLimiter()
-
-
 rate_limiter = None
 
 
@@ -107,7 +96,7 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
     """调用工具"""
     global rate_limiter
     if rate_limiter is None:
-        rate_limiter = _get_rate_limiter()
+        rate_limiter = get_rate_limiter()
 
     # 限流检查
     if not rate_limiter.is_allowed(session_context.session_id):

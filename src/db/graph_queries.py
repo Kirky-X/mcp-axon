@@ -81,7 +81,7 @@ MATCH (r:Requirement {uuid: $uuid})
 OPTIONAL MATCH (r)-[:DEPENDS_ON]->(dep:Requirement)
 OPTIONAL MATCH (r)-[:NEXT_IN_CHAIN]->(next:Requirement)
 RETURN r.uuid, r.project_uuid, r.parent_uuid, r.content, r.decompose_reason,
-       r.status, r.level, r.order_in_parent, r.chain_order,
+       r.status, r.level, r.order_in_parent, r.chain_order, r.parallel_group,
        r.created_at, r.updated_at, r.version,
        collect(dep.uuid) as dependencies,
        next.uuid as next_requirement_uuid
@@ -141,9 +141,22 @@ MATCH (r:Requirement {uuid: $uuid})
 SET r.status = $status, r.updated_at = $updated_at
 """
 
+UPDATE_REQUIREMENT_STATUS_COMPLETED = """
+MATCH (r:Requirement {uuid: $uuid})
+SET r.status = $status, r.updated_at = $updated_at
+"""
+
+GET_REQUIREMENT_PARALLEL_GROUP = """
+MATCH (r:Requirement {uuid: $uuid})
+RETURN r.parallel_group
+"""
+
 UPDATE_REQUIREMENT_CHAIN_ORDER = """
 MATCH (r:Requirement {uuid: $uuid})
-SET r.chain_order = $chain_order, r.status = $status, r.updated_at = $updated_at
+SET r.chain_order = $chain_order,
+    r.parallel_group = $parallel_group,
+    r.status = $status,
+    r.updated_at = $updated_at
 """
 
 DELETE_REQUIREMENT = """
@@ -456,7 +469,10 @@ ORDER BY node.chain_order ASC
 # 批量重置链化状态
 RESET_ALL_CHAIN_ORDERS = """
 MATCH (r:Requirement {project_uuid: $project_uuid})
-SET r.chain_order = NULL, r.status = 'VALIDATED', r.updated_at = $updated_at
+SET r.chain_order = NULL,
+    r.parallel_group = NULL,
+    r.status = 'VALIDATED',
+    r.updated_at = $updated_at
 """
 
 # ============ 统计查询 ============

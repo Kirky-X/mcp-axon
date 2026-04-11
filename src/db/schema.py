@@ -60,6 +60,7 @@ def _create_node_tables(conn: lb.Connection) -> None:
             level INT64 DEFAULT 0,
             order_in_parent INT64 DEFAULT 0,
             chain_order INT64,
+            parallel_group INT64,
             created_at STRING,
             updated_at STRING,
             version INT64 DEFAULT 1
@@ -180,8 +181,8 @@ def drop_schema(conn: lb.Connection) -> None:
     for stmt in rel_tables:
         try:
             conn.execute(stmt)
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug(f"删除关系表失败（可能已不存在）: {stmt}: {e}")
 
     # 删除节点表
     node_tables = [
@@ -195,8 +196,8 @@ def drop_schema(conn: lb.Connection) -> None:
     for stmt in node_tables:
         try:
             conn.execute(stmt)
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug(f"删除节点表失败（可能已不存在）: {stmt}: {e}")
 
     logger.info("图数据库 Schema 删除完成")
 
@@ -221,14 +222,14 @@ def get_schema_info(conn: lb.Connection) -> dict:
     try:
         result = conn.execute("CALL SHOW_TABLES() WHERE type = 'NODE' RETURN name")
         info["node_tables"] = [row[0] for row in result]
-    except Exception:
-        pass
+    except Exception as e:
+        logger.debug(f"查询节点表失败: {e}")
 
     # 查询关系表
     try:
         result = conn.execute("CALL SHOW_TABLES() WHERE type = 'REL' RETURN name")
         info["rel_tables"] = [row[0] for row in result]
-    except Exception:
-        pass
+    except Exception as e:
+        logger.debug(f"查询关系表失败: {e}")
 
     return info

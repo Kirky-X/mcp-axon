@@ -137,22 +137,19 @@ def test_transfer_dependencies_tool_schema():
     assert dependency_mapping_schema["type"] == "object"
 
 
-def test_resolve_parallel_order_tool_schema():
-    """测试 resolve_parallel_order 工具的 schema"""
+def test_run_validation_tool_schema():
+    """测试 run_validation 工具的 schema"""
     # Arrange
-    tool = next(t for t in TOOL_DEFINITIONS if t.name == "resolve_parallel_order")
+    tool = next(t for t in TOOL_DEFINITIONS if t.name == "run_validation")
 
     # Assert
-    assert tool.name == "resolve_parallel_order"
-    assert "project_id" in tool.inputSchema["required"]
-    assert "parallel_nodes" in tool.inputSchema["required"]
-    assert "sorted_order" in tool.inputSchema["required"]
+    assert tool.name == "run_validation"
+    assert "requirement_id" in tool.inputSchema["required"]
+    assert "execution_result" in tool.inputSchema["required"]
 
-    # 验证 parallel_nodes 和 sorted_order 都是数组类型
-    parallel_nodes_schema = tool.inputSchema["properties"]["parallel_nodes"]
-    sorted_order_schema = tool.inputSchema["properties"]["sorted_order"]
-    assert parallel_nodes_schema["type"] == "array"
-    assert sorted_order_schema["type"] == "array"
+    # 验证参数类型
+    assert tool.inputSchema["properties"]["requirement_id"]["type"] == "string"
+    assert tool.inputSchema["properties"]["execution_result"]["type"] == "string"
 
 
 def test_lock_related_tools_schema():

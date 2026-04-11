@@ -105,7 +105,9 @@ def test_dependency_transfer_performance():
     children = []
     for i in range(100):
         child = sdk.manage_requirement(
-            project["project_id"], f"子需求{i}", parent_id=parent["requirement_id"]
+            project_id=project["project_id"],
+            content=f"子需求{i}",
+            parent_id=parent["requirement_id"],
         )
         children.append(child)
 
@@ -277,7 +279,9 @@ def test_benchmark_nested_requirements():
             for i in range(10):
                 start = time.perf_counter()
                 req = sdk.manage_requirement(
-                    project["project_id"], f"层级{level}-需求{i}", parent_id=parent_id
+                    project_id=project["project_id"],
+                    content=f"层级{level}-需求{i}",
+                    parent_id=parent_id,
                 )
                 elapsed = (time.perf_counter() - start) * 1000
                 times.append(elapsed)
@@ -356,9 +360,15 @@ def test_benchmark_snapshot_operations():
 
 def test_benchmark_complexity_evaluation():
     """基准测试: 复杂度评估性能"""
+    from src.services.complexity_evaluator import ComplexityEvaluator
+    from src.services.decomposition_advisor import DecompositionAdvisor
     from src.services.requirement_manager import RequirementManager
+    from src.utils.cache import CacheManager
 
-    manager = RequirementManager()
+    cache = CacheManager()
+    complexity_evaluator = ComplexityEvaluator()
+    decomposition_advisor = DecompositionAdvisor()
+    manager = RequirementManager(cache, complexity_evaluator, decomposition_advisor)
 
     # 测试不同长度内容的复杂度评估性能
     test_cases = [

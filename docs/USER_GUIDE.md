@@ -64,23 +64,14 @@ export MCP_AXON_DB_PATH="my_requirements.lbug"
 
 ### 验证安装
 
-```python
-from src.core.sdk import RequirementSDK
+使用 CLI 验证安装:
 
-def main():
-    sdk = RequirementSDK()
+```bash
+# 显示版本信息
+axon version
 
-    # 创建测试项目
-    project = sdk.create_project(
-        name="测试项目",
-        description="验证安装是否成功"
-    )
-
-    print(f"✅ MCP-Axon 安装成功!")
-    print(f"项目 ID: {project['id']}")
-
-if __name__ == "__main__":
-    main()
+# 创建测试项目
+axon project create --name "测试项目" --desc "验证安装是否成功"
 ```
 
 ---
@@ -91,55 +82,62 @@ if __name__ == "__main__":
 
 将复杂需求按照依赖关系分解为可执行的线性链式结构。
 
-```python
-sdk = RequirementSDK()
+**CLI 方式:**
 
-# 添加需求并建立依赖关系
-auth_req = sdk.add_requirement(project_id, "用户认证")
-db_req = sdk.add_requirement(project_id, "数据库设计")
-ui_req = sdk.add_requirement(project_id, "界面设计")
+```bash
+# 添加需求
+axon requirement create --project <project_id> --content "用户认证"
+axon requirement create --project <project_id> --content "数据库设计"
+axon requirement create --project <project_id> --content "界面设计"
 
-# 添加依赖关系（A 依赖 B 和 C）
-sdk.add_dependency(ui_req["requirement_id"], auth_req["requirement_id"])
-sdk.add_dependency(ui_req["requirement_id"], db_req["requirement_id"])
+# 添加依赖关系
+axon dependency add <ui_req_id> <auth_req_id>
+axon dependency add <ui_req_id> <db_req_id>
 
 # 触发链化
-chain_result = sdk.trigger_chaining(project_id)
+axon execution trigger --project <project_id>
 ```
+
+**MCP 方式:**
+
+通过 MCP 工具 `manage_requirement` 和 `manage_dependency` 实现相同功能。
 
 ### 叶子节点
 
 不需要进一步分解的终端需求节点，可以直接添加验证和执行。
 
-```python
-req_id = sdk.add_requirement(project_id, "实现登录功能")
+**CLI 方式:**
+
+```bash
+# 创建需求
+req_id=$(axon requirement create --project <project_id> --content "实现登录功能")
 
 # 标记为叶子节点
-sdk.mark_as_leaf(req_id["requirement_id"])
+axon requirement mark-leaf <req_id>
 
 # 添加验证
-sdk.add_validation(
-    requirement_id=req_id["requirement_id"],
-    test_cases=[{
-        "name": "登录测试",
-        "steps": ["输入用户名密码", "点击登录"],
-        "expected_result": "登录成功"
-    }],
-    acceptance_criteria="用户能够成功登录系统"
-)
+axon validation add <req_id> --tests '[{"name": "登录测试", "steps": ["输入用户名密码", "点击登录"], "expected_result": "登录成功"}]'
 ```
+
+**MCP 方式:**
+
+通过 `manage_requirement` (mark_leaf) 和 `manage_validation` 工具实现。
 
 ### 并行处理
 
 系统自动识别可以并行执行的需求节点。
 
-```python
-# 并行节点识别
-parallel_nodes = sdk.get_parallel_requirements(project_id)
+**CLI 方式:**
 
-# 指定执行顺序
-sdk.resolve_parallel_order(project_id, ["req1", "req2"])
+```bash
+# 触发链化后查看执行顺序
+axon execution trigger --project <project_id>
+axon execution next --project <project_id>
 ```
+
+**MCP 方式:**
+
+通过 `manage_execution` 工具的 `trigger` 和 `next` 动作实现。
 
 ---
 
@@ -147,96 +145,75 @@ sdk.resolve_parallel_order(project_id, ["req1", "req2"])
 
 ### 初始化
 
-```python
-from src.core.sdk import RequirementSDK
+配置数据库路径 (可选):
 
-# 简单初始化
-sdk = RequirementSDK()
-
-# 指定数据库路径
-sdk = RequirementSDK(db_path="my_requirements.db")
+```bash
+# 通过环境变量设置
+export MCP_AXON_DB_PATH="my_requirements.lbug"
 ```
 
 ### CRUD 操作
 
-| 操作 | 代码示例 |
-|-----|---------|
-| 创建项目 | `sdk.manage_project(name="项目名", description="描述")` |
-| 查询项目 | `sdk.manage_project(action="get", project_id="id")` |
-| 更新项目 | `sdk.manage_project(action="update", project_id="id", name="新名称")` |
-| 创建需求 | `sdk.manage_requirement(project_id="id", content="内容")` |
-| 更新需求 | `sdk.manage_requirement(action="update", requirement_id="id", content="新内容")` |
-| 删除需求 | `sdk.manage_requirement(action="delete", requirement_id="id")` |
-| 标记叶子 | `sdk.manage_requirement(action="mark_leaf", requirement_id="id")` |
-| 列出需求 | `sdk.manage_requirement(action="list", project_id="id")` |
-| 查询需求 | `sdk.manage_requirement(action="get", requirement_id="id")` |
+#### CLI 方式
+
+| 操作 | 命令 |
+|-----|------|
+| 创建项目 | `axon project create --name "项目名" --desc "描述"` |
+| 查询项目 | `axon project get <project_id>` |
+| 更新项目 | `axon project update <project_id> --name "新名称"` |
+| 创建需求 | `axon requirement create --project <id> --content "内容"` |
+| 查询需求 | `axon requirement get <requirement_id>` |
+| 更新需求 | `axon requirement update <requirement_id> --content "新内容"` |
+| 删除需求 | `axon requirement delete <requirement_id>` |
+| 标记叶子 | `axon requirement mark-leaf <requirement_id>` |
+| 列出需求 | `axon requirement list --project <project_id>` |
+
+#### MCP 方式
+
+| 操作 | 工具 |
+|-----|------|
+| 项目管理 | `manage_project` (action: create/get/update) |
+| 需求管理 | `manage_requirement` (action: create/get/update/delete/mark_leaf/list) |
+| 依赖管理 | `manage_dependency` |
+| 验证管理 | `manage_validation` |
+| 执行流程 | `manage_execution` (action: next/complete/state/trigger) |
+| 快照管理 | `manage_snapshot` (action: create/restore/list) |
+| 锁管理 | `manage_lock` (action: acquire/release/check/info) |
 
 ### 完整示例
 
-```python
-from src.core.sdk import RequirementSDK
+#### CLI 完整流程
 
-def main():
-    # 初始化 SDK
-    sdk = RequirementSDK()
+```bash
+# 1. 创建项目
+axon project create --name "电商平台" --desc "电商系统的需求管理"
+# 记录返回的 project_id
 
-    # 创建项目
-    project = sdk.manage_project(
-        name="电商平台",
-        description="电商系统的需求管理"
-    )
-    project_id = project["project_id"]
+# 2. 添加根需求
+axon requirement create --project <project_id> --content "用户管理模块"
+# 记录返回的 requirement_id
 
-    # 添加根需求
-    user_mgmt = sdk.manage_requirement(
-        project_id=project_id,
-        content="用户管理模块"
-    )
+# 3. 添加子需求
+axon requirement create --project <project_id> --content "用户认证功能" --parent <user_mgmt_id>
+axon requirement create --project <project_id> --content "用户资料管理" --parent <user_mgmt_id>
 
-    # 添加子需求
-    auth = sdk.manage_requirement(
-        project_id=project_id,
-        content="用户认证功能",
-        parent_id=user_mgmt["requirement_id"]
-    )
+# 4. 标记为叶子节点
+axon requirement mark-leaf <auth_id>
+axon requirement mark-leaf <profile_id>
 
-    profile = sdk.manage_requirement(
-        project_id=project_id,
-        content="用户资料管理",
-        parent_id=user_mgmt["requirement_id"]
-    )
+# 5. 添加验证
+axon validation add <auth_id> --tests '[{"name": "登录测试", "steps": ["输入用户名密码", "点击登录"], "expected_result": "登录成功"}]'
 
-    # 标记为叶子节点
-    sdk.manage_requirement(
-        action="mark_leaf",
-        requirement_id=auth["requirement_id"]
-    )
-    sdk.manage_requirement(
-        action="mark_leaf",
-        requirement_id=profile["requirement_id"]
-    )
+# 6. 触发链化
+axon execution trigger --project <project_id>
 
-    # 添加验证
-    sdk.add_validation(
-        requirement_id=auth["requirement_id"],
-        test_cases=[{
-            "name": "登录测试",
-            "steps": ["输入用户名密码", "点击登录"],
-            "expected_result": "登录成功"
-        }],
-        acceptance_criteria="用户能够成功登录系统"
-    )
-
-    # 触发链化
-    chain_result = sdk.trigger_chaining(project_id, session_id="session_123")
-
-    # 获取下一个需求
-    next_req = sdk.get_next_requirement(project_id, session_id="session_123")
-    print(f"下一个待执行需求: {next_req}")
-
-if __name__ == "__main__":
-    main()
+# 7. 获取下一个需求
+axon execution next --project <project_id>
 ```
+
+#### MCP 完整流程
+
+通过 MCP 客户端调用相应的工具，参考 [API 参考](API_REFERENCE.md)。
 
 ---
 
@@ -246,14 +223,15 @@ if __name__ == "__main__":
 
 当子需求需要继承父需求的依赖时使用。
 
-```python
-sdk.transfer_dependencies(
-    project_id=project_id,
-    dependency_mapping={
-        "parent_req_id": ["child_req_id1", "child_req_id2"]
-    }
-)
+**CLI 方式:**
+
+```bash
+axon dependency transfer <parent_id> --mapping '{"child1": ["dep1"], "child2": ["dep2"]}'
 ```
+
+**MCP 方式:**
+
+使用 `manage_dependency` 工具，传入 `parent_id` 和 `dependency_mapping` 参数。
 
 ### 并行排序
 
@@ -268,32 +246,44 @@ sdk.resolve_parallel_order(
 
 ### 快照管理
 
-```python
+**CLI 方式:**
+
+```bash
 # 创建快照
-snapshot_id = sdk.create_snapshot(project_id, session_id="my_session")
+axon snapshot create --project <project_id>
 
 # 列出快照
-snapshots = sdk.list_snapshots(project_id)
+axon snapshot list --project <project_id>
 
 # 恢复快照
-sdk.restore_snapshot(snapshot_id, session_id="my_session")
+axon snapshot restore <snapshot_id>
 ```
+
+**MCP 方式:**
+
+使用 `manage_snapshot` 工具 (action: create/list/restore)。
 
 ### 并发控制
 
-```python
+**CLI 方式:**
+
+```bash
 # 获取锁
-sdk.acquire_lock(project_id, session_id="my_session")
+axon lock acquire --project <project_id> --session <session_id>
 
 # 检查锁状态
-is_locked = sdk.is_locked(project_id)
+axon lock check --project <project_id>
 
-# 获取锁信息
-lock_info = sdk.get_lock_info(project_id)
+# 查询锁信息
+axon lock info --project <project_id>
 
 # 释放锁
-sdk.release_lock(project_id, session_id="my_session")
+axon lock release --project <project_id> --session <session_id>
 ```
+
+**MCP 方式:**
+
+使用 `manage_lock` 工具 (action: acquire/release/check/info)。
 
 ---
 
@@ -301,34 +291,65 @@ sdk.release_lock(project_id, session_id="my_session")
 
 ### ✅ 推荐做法
 
-```python
-# 1. 使用 try-except 处理错误
-try:
-    sdk.create_project(name="项目")
-except Exception as e:
-    print(f"错误: {e}")
+#### CLI 最佳实践
+
+```bash
+# 1. 使用环境变量配置数据库
+export MCP_AXON_DB_PATH="/path/to/your/db.lbug"
 
 # 2. 使用会话 ID 进行并发控制
-session_id = "user_session_123"
-sdk.acquire_lock(project_id, session_id=session_id)
-try:
+axon lock acquire --project <project_id> --session <session_id>
+try
     # 执行操作
-    sdk.add_requirement(project_id, "新需求")
-finally:
-    sdk.release_lock(project_id, session_id=session_id)
+    axon requirement create --project <project_id> --content "新需求"
+finally
+    axon lock release --project <project_id> --session <session_id>
 
 # 3. 定期创建快照
-sdk.create_snapshot(project_id, session_id="backup")
+axon snapshot create --project <project_id>
+```
+
+#### MCP 最佳实践
+
+```json
+// 1. 使用 MCP 客户端的会话管理
+{
+  "mcpServers": {
+    "mcp-axon": {
+      "command": "uv",
+      "args": ["run", "--isolated", "--with", "git+https://github.com/Kirky-X/axon.git", "mcp-axon"]
+    }
+  }
+}
+
+// 2. 批量操作减少调用次数
+// 3. 定期检查项目状态
+```
+
+#### HTTP 最佳实践
+
+```bash
+# 1. 启动 HTTP 服务器
+axon-server --mode http --http-port 8080
+
+# 2. 使用健康检查
+curl http://localhost:8080/health
+
+# 3. 使用 API 文档
+curl http://localhost:8080/docs
 ```
 
 ### ❌ 避免做法
 
-```python
-# ❌ 避免不使用会话 ID
-sdk.add_requirement(project_id, "需求")  # 应该传入 session_id
+```bash
+# ❌ 避免不使用锁直接修改
+axon requirement create --project <project_id> --content "需求"  # 应该先获取锁
 
-# ❌ 避免在锁外修改数据
-# 应该先 acquire_lock
+# ❌ 避免并发操作不加锁
+# 应该先 axon lock acquire
+
+# ❌ 避免忘记释放锁
+# 应该在 finally 块中释放
 ```
 
 ---
@@ -338,15 +359,49 @@ sdk.add_requirement(project_id, "需求")  # 应该传入 session_id
 ### 常见问题
 
 | 问题 | 解决方案 |
-|-----|---------|
-| 数据库锁定 | 确保在使用后释放锁 |
-| 依赖循环 | 检查需求间的依赖关系 |
+|-----|----------|
+| 数据库锁定 | 确保在使用后释放锁: `axon lock release` |
+| 依赖循环 | 检查需求间的依赖关系: `axon dependency add` |
 | 性能问题 | 使用批量操作，减少数据库查询 |
+| 请求限流 | 等待一段时间后重试，或调整限流配置 |
+
+### CLI 常见问题
+
+```bash
+# Q: 如何查看可用命令?
+axon --help
+axon project --help
+
+# Q: 如何查看版本?
+axon version
+
+# Q: 数据库文件在哪里?
+# 默认: mcp_axon.lbug 或环境变量 MCP_AXON_DB_PATH 指定的位置
+```
+
+### MCP 常见问题
+
+- **工具调用失败**: 检查参数是否完整，参考 [API 参考](API_REFERENCE.md)
+- **限流错误**: 等待 `RateLimitExceeded` 错误中提示的时间后重试
+- **会话过期**: 重新连接 MCP 客户端
+
+### HTTP 常见问题
+
+```bash
+# Q: 如何启动 HTTP 服务器?
+axon-server --mode http --http-port 8080
+
+# Q: 如何检查服务状态?
+curl http://localhost:8080/health
+
+# Q: 如何查看 API 文档?
+# 访问 http://localhost:8080/docs
+```
 
 ### 获取帮助
 
 - [查看 FAQ](FAQ.md)
-- [创建 Issue](https://github.com/Kirky-X/mcp-axon/issues)
+- [创建 Issue](https://github.com/Kirky-X/axon/issues)
 - [API 参考](API_REFERENCE.md)
 
 ---

@@ -113,32 +113,42 @@ print(f"✅ 安装成功: {project['id']}")
 
 ### 如何开始使用？
 
-```python
-from src.core.sdk import RequirementSDK
+**CLI 方式:**
 
-sdk = RequirementSDK()
-
+```bash
 # 1. 创建项目
-project = sdk.create_project(name="我的项目", description="描述")
+axon project create --name "我的项目" --desc "描述"
 
 # 2. 添加需求
-req = sdk.add_requirement(project["id"], "用户认证功能")
+axon requirement create --project <project_id> --content "用户认证功能"
 
 # 3. 标记为叶子节点
-sdk.mark_as_leaf(req["requirement_id"])
+axon requirement mark-leaf <requirement_id>
 
 # 4. 添加验证
-sdk.add_validation(
-    requirement_id=req["requirement_id"],
-    test_cases=[{"name": "测试", "steps": ["步骤"], "expected_result": "结果"}],
-    acceptance_criteria="用户能够登录"
-)
+axon validation add <requirement_id> --tests '[{"name": "测试", "steps": ["步骤"], "expected_result": "结果"}]'
 
 # 5. 触发链化
-sdk.trigger_chaining(project["id"])
+axon execution trigger --project <project_id>
 
 # 6. 获取下一个需求
-next_req = sdk.get_next_requirement(project["id"])
+axon execution next --project <project_id>
+```
+
+**MCP 方式:**
+
+通过 MCP 客户端调用相应工具，参考 [API 参考](API_REFERENCE.md)。
+
+**HTTP 方式:**
+
+```bash
+# 启动 HTTP 服务器
+axon-server --mode http --http-port 8080
+
+# 使用 REST API
+curl -X POST http://localhost:8080/api/tools/manage_project \
+  -H "Content-Type: application/json" \
+  -d '{"action": "create", "name": "我的项目", "description": "描述"}'
 ```
 
 ### 支持哪些需求类型？
@@ -159,13 +169,24 @@ next_req = sdk.get_next_requirement(project["id"])
 
 ### 如何处理错误？
 
-```python
-try:
-    result = sdk.create_project(name="项目")
-except Exception as e:
-    print(f"错误: {e}")
-    # 处理错误
+**CLI 方式:**
+
+CLI 命令会直接显示错误信息，根据提示修正即可。
+
+**MCP 方式:**
+
+```json
+// 错误响应格式
+{
+  "success": false,
+  "error": "错误描述",
+  "error_type": "错误类型"
+}
 ```
+
+**HTTP 方式:**
+
+HTTP API 返回标准 HTTP 状态码和错误信息。
 
 ---
 
@@ -182,24 +203,24 @@ except Exception as e:
 ### 如何优化性能？
 
 1. **使用批量操作**
-   ```python
-   # 批量添加需求
-   for content in contents:
-       sdk.add_requirement(project_id, content)
+   ```bash
+   # CLI 批量添加需求
+   for content in "需求1" "需求2" "需求3"; do
+       axon requirement create --project <project_id> --content "$content"
+   done
    ```
 
 2. **合理使用缓存**
-   ```python
-   sdk = RequirementSDK()  # 默认启用缓存
-   ```
+   - 系统自动缓存查询结果
+   - 无需手动配置
 
 3. **及时释放锁**
-   ```python
-   sdk.acquire_lock(project_id, session_id="session")
-   try:
+   ```bash
+   axon lock acquire --project <project_id> --session <session_id>
+   try
        # 操作
-   finally:
-       sdk.release_lock(project_id, session_id="session")
+   finally
+       axon lock release --project <project_id> --session <session_id>
    ```
 
 ### 内存使用情况如何？

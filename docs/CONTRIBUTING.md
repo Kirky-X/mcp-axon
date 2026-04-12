@@ -149,21 +149,25 @@ def new_feature() -> Dict[str, Any]:
 ```python
 # tests/test_services/test_example.py
 import pytest
-from src.core.sdk import RequirementSDK
+import subprocess
 
 class TestExample:
     """测试类"""
 
-    @pytest.fixture
-    def sdk(self):
-        """测试 fixture"""
-        return RequirementSDK()
+    def test_cli_project_create(self):
+        """测试 CLI 创建项目"""
+        result = subprocess.run(
+            ["axon", "project", "create", "--name", "测试项目", "--desc", "测试"],
+            capture_output=True,
+            text=True
+        )
+        assert result.returncode == 0
+        assert "✅ 项目创建成功" in result.stdout
 
-    def test_new_feature(self, sdk):
-        """测试新功能"""
-        result = sdk.create_project(name="测试项目", description="测试")
-        assert result["success"] is True
-        assert "id" in result
+    def test_mcp_tool(self):
+        """测试 MCP 工具调用"""
+        # 使用 MCP 客户端测试工具
+        pass
 ```
 
 ### 运行测试

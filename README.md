@@ -92,54 +92,6 @@ axon-server --mode http --http-port 8080
 uv run pytest tests/ -v --cov=src
 ```
 
-#### Python SDK 方式
-
-```python
-from src.core.sdk import RequirementSDK
-
-# 初始化 SDK (可选:指定数据库路径)
-sdk = RequirementSDK()
-# 或: sdk = RequirementSDK(db_path="custom.lbug")
-
-# 创建项目
-project = sdk.manage_project(
-    name="我的项目",
-    description="项目描述"
-)
-print(f"项目创建成功: {project['project_id']}")
-
-# 添加根需求
-root_req = sdk.manage_requirement(
-    project_id=project["project_id"],
-    content="实现用户认证功能"
-)
-
-# 标记为叶子节点
-sdk.manage_requirement(
-    action="mark_leaf",
-    requirement_id=root_req["requirement_id"]
-)
-
-# 添加验证
-sdk.add_validation(
-    requirement_id=root_req["requirement_id"],
-    test_cases=[{
-        "name": "登录测试",
-        "steps": ["输入用户名密码", "点击登录"],
-        "expected_result": "登录成功"
-    }],
-    acceptance_criteria="用户能够成功登录系统"
-)
-
-# 触发链化
-chain_result = sdk.trigger_chaining(project["project_id"], session_id="session_123")
-print(f"链化结果: {chain_result}")
-
-# 获取下一个需求
-next_req = sdk.get_next_requirement(project["project_id"], session_id="session_123")
-print(f"下一个需求: {next_req}")
-```
-
 ---
 
 ### MCP 客户端配置

@@ -1,6 +1,6 @@
 # 🏗️ 架构设计
 
-### MCP-Axon 需求链化系统架构设计
+### Axon 需求链化系统架构设计
 
 ---
 
@@ -20,7 +20,7 @@
 
 ## 概述
 
-MCP-Axon 采用分层架构设计，基于 Model Context Protocol (MCP) 标准，提供智能需求链化管理功能。
+Axon 采用分层架构设计，基于 Model Context Protocol (MCP) 标准，提供智能需求链化管理功能。
 
 ### 设计目标
 
@@ -51,6 +51,8 @@ MCP-Axon 采用分层架构设计，基于 Model Context Protocol (MCP) 标准�
 │                      API 层                                  │
 │                 (src/api/mcp_server.py)                     │
 │                 (src/api/tools.py)                          │
+│                 (src/api/tool_router.py)                    │
+│                 (src/api/http_server.py)                    │
 └─────────────────────────────────────────────────────────────┘
                             │
                             ▼
@@ -65,6 +67,13 @@ MCP-Axon 采用分层架构设计，基于 Model Context Protocol (MCP) 标准�
     │  服务层      │ │  服务层      │ │  服务层      │
     │ProjectManager│ │Requirement  │ │Dependency   │
     │              │ │Manager      │ │Service      │
+    └─────────────┘ └─────────────┘ └─────────────┘
+            │               │               │
+            ▼               ▼               ▼
+    ┌─────────────┐ ┌─────────────┐ ┌─────────────┐
+    │  服务层      │ │  服务层      │ │  服务层      │
+    │Validation   │ │ChainBuilder │ │Chain        │
+    │Service      │ │             │ │Orchestrator │
     └─────────────┘ └─────────────┘ └─────────────┘
             │               │               │
             └───────────────┼───────────────┘
@@ -82,10 +91,10 @@ MCP-Axon 采用分层架构设计，基于 Model Context Protocol (MCP) 标准�
 | 层次           | 职责     | 组件                                         |
 | -------------- | -------- | -------------------------------------------- |
 | **MCP 协议层** | 通信协议 | MCP Python SDK, JSON-RPC 2.0                 |
-| **API 层**     | 请求处理 | MCP 服务器、ToolRouter、输入验证、速率限制             |
+| **API 层**     | 请求处理 | MCP 服务器、ToolRouter、HTTP 服务器、输入验证、速率限制   |
 | **SDK 层**     | SDK 入口 | RequirementSDK, 服务协调                     |
-| **服务层**     | 核心业务 | 各业务服务管理器                             |
-| **容器层**     | 依赖注入 | dependency-injector 容器                     |
+| **服务层**     | 核心业务 | ProjectManager、RequirementManager、DependencyService、ValidationService、ChainBuilder、ChainOrchestrator |
+| **容器层**     | 依赖注入 | dependency-injector 容器、配置管理、数据库初始化                     |
 | **数据层**     | 数据存储 | real_ladybug, Cypher 查询模板, Pydantic 模型 |
 
 ---
@@ -110,20 +119,32 @@ class RequirementSDK:
         # 优先使用环境变量，其次使用参数，最后使用默认值
         self.db_path = os.getenv("MCP_AXON_DB_PATH", db_path or "mcp_axon.lbug")
 
-        # 初始化容器和数据库
-        init_container(db_path=self.db_path)
-        init_database()
+        try:
+            # 初始化容器和数据库
+            init_container(db_path=self.db_path)
+            init_database()
+        except Exception as e:
+            logger.error(f"图数据库初始化失败: {e}")
+            raise RuntimeError(f"无法初始化图数据库: {e}")
 
-        # 从容器获取服务
-        container = get_container()
-        self.project_manager = container.project_manager()
-        self.requirement_manager = container.requirement_manager()
-        self.dependency_service = container.dependency_service()
-        self.validation_service = container.validation_service()
-        self.chain_builder = container.chain_builder()
-        self.chain_orchestrator = container.chain_orchestrator()
-        self.lock_manager = container.lock_manager()
-        self.snapshot_manager = container.snapshot_manager()
+        try:
+            # 从容器获取服务
+            container = get_container()
+            self._container = container
+
+            self.project_manager = container.project_manager()
+            self.requirement_manager = container.requirement_manager()
+            self.dependency_service = container.dependency_service()
+            self.validation_service = container.validation_service()
+            self.chain_builder = container.chain_builder()
+            self.chain_orchestrator = container.chain_orchestrator()
+            self.lock_manager = container.lock_manager()
+            self.snapshot_manager = container.snapshot_manager()
+
+            logger.info(f"SDK 初始化完成: {self.db_path}")
+        except Exception as e:
+            logger.error(f"服务初始化失败: {e}")
+            raise RuntimeError(f"无法初始化服务: {e}")
 ```
 
 ### 2. 项目管理器 (ProjectManager)
@@ -132,16 +153,30 @@ class RequirementSDK:
 
 ```python
 class ProjectManager:
-    """项目管理器"""
+    """项目管理服务"""
 
-    def create_project(self, name: str, description: str) -> Dict[str, Any]:
+    def __init__(self, cache: CacheManager):
+        """初始化项目管理器"""
+
+    def create_project(
+        self, conn: lb.Connection, name: str, description: str = ""
+    ) -> dict[str, Any]:
         """创建项目"""
 
-    def get_project(self, project_id: str) -> Optional[Project]:
+    def get_project(
+        self, conn: lb.Connection, project_uuid: str
+    ) -> dict[str, Any]:
         """获取项目"""
 
-    def update_project(self, project_id: str, **kwargs) -> Project:
+    def update_project(
+        self, conn: lb.Connection, project_uuid: str, update_data: ProjectUpdate
+    ) -> dict[str, Any]:
         """更新项目"""
+
+    def get_project_state(
+        self, conn: lb.Connection, project_uuid: str
+    ) -> dict[str, Any]:
+        """获取项目状态"""
 ```
 
 ### 3. 需求管理器 (RequirementManager)
@@ -150,17 +185,53 @@ class ProjectManager:
 
 ```python
 class RequirementManager:
-    """需求管理器"""
+    """需求管理服务"""
 
-    def add_requirement(self, project_id: str, content: str,
-                       parent_id: Optional[str] = None) -> Dict[str, Any]:
-        """添加需求"""
+    def __init__(
+        self,
+        cache: CacheManager,
+        complexity_evaluator: ComplexityEvaluator,
+        decomposition_advisor: DecompositionAdvisor,
+    ):
+        """初始化需求管理器"""
 
-    def mark_as_leaf(self, requirement_id: str) -> Requirement:
+    def add_requirement(
+        self,
+        conn: lb.Connection,
+        project_uuid: str,
+        content: str,
+        parent_uuid: str | None = None,
+        order_in_parent: int = 0,
+    ) -> dict[str, Any]:
+        """添加需求节点"""
+
+    def update_requirement(
+        self,
+        conn: lb.Connection,
+        requirement_uuid: str,
+        update_data: RequirementUpdate,
+    ) -> dict[str, Any]:
+        """更新需求"""
+
+    def delete_requirement(
+        self, conn: lb.Connection, requirement_uuid: str
+    ) -> dict[str, Any]:
+        """删除需求"""
+
+    def list_requirements(
+        self,
+        conn: lb.Connection,
+        project_uuid: str,
+        status: str | None = None,
+        is_leaf: bool | None = None,
+        parent_uuid: str | None = None,
+    ) -> dict[str, Any]:
+        """列出需求"""
+
+    def mark_as_leaf(
+        self, conn: lb.Connection, requirement_uuid: str
+    ) -> dict[str, Any]:
         """标记为叶子节点"""
-
-    def evaluate_complexity(self, content: str, level: int) -> float:
-        """评估需求复杂度"""
 ```
 
 ### 4. 依赖服务 (DependencyService)
@@ -169,16 +240,28 @@ class RequirementManager:
 
 ```python
 class DependencyService:
-    """依赖服务"""
+    """依赖关系管理服务"""
 
-    def add_dependency(self, requirement_id: str, dependency_id: str) -> None:
-        """添加依赖"""
+    def __init__(self, cache: CacheManager):
+        """初始化依赖服务"""
 
-    def detect_cycle(self, project_id: str) -> Optional[List[str]]:
+    def add_dependency(
+        self, conn: lb.Connection, requirement_uuid: str, dependency_uuid: str
+    ) -> dict[str, Any]:
+        """添加依赖关系"""
+
+    def transfer_dependencies(
+        self,
+        conn: lb.Connection,
+        parent_uuid: str,
+        dependency_mapping: dict[str, list[str]],
+    ) -> dict[str, Any]:
+        """应用依赖传递映射"""
+
+    def detect_cycle(
+        self, conn: lb.Connection, project_uuid: str
+    ) -> list[str] | None:
         """检测循环依赖"""
-
-    def transfer_dependencies(self, parent_id: str, mapping: Dict[str, List[str]]):
-        """依赖传递"""
 ```
 
 ### 5. 链化构建器 (ChainBuilder)
@@ -189,14 +272,18 @@ class DependencyService:
 class ChainBuilder:
     """链化构建器"""
 
-    def build_chain(self, project_id: str) -> List[Dict[str, Any]]:
-        """构建执行链"""
+    def __init__(self, cache: CacheManager, graph_algorithms: GraphAlgorithms):
+        """初始化链化构建器"""
 
-    def topological_sort(self, project_id: str) -> List[str]:
-        """拓扑排序 (Kahn 算法)"""
+    def build_chain(
+        self, conn: lb.Connection, project_uuid: str
+    ) -> dict[str, Any]:
+        """构建需求链"""
 
-    def identify_parallel_nodes(self, sorted_ids: List[str]) -> List[List[str]]:
-        """识别并行节点"""
+    def build_chain_with_order(
+        self, conn: lb.Connection, project_uuid: str, sorted_order: list[str]
+    ) -> dict[str, Any]:
+        """使用指定顺序构建链"""
 ```
 
 ### 6. 链化编排器 (ChainOrchestrator)
@@ -207,11 +294,37 @@ class ChainBuilder:
 class ChainOrchestrator:
     """链化编排器"""
 
-    def orchestrate(self, project_id: str) -> Dict[str, Any]:
-        """执行链化编排"""
+    def __init__(self, chain_builder: ChainBuilder, snapshot_manager: SnapshotManager):
+        """初始化链化编排器"""
 
-    def resolve_parallel_order(self, project_id: str, sorted_order: List[str]):
-        """解决并行顺序"""
+    def should_trigger_chaining(
+        self, conn: lb.Connection, project_uuid: str
+    ) -> bool:
+        """检查是否应该触发链化"""
+
+    def trigger_chaining(
+        self, conn: lb.Connection, project_uuid: str, session_id: str
+    ) -> dict[str, Any]:
+        """触发链化"""
+
+    def resolve_parallel_order(
+        self,
+        conn: lb.Connection,
+        project_uuid: str,
+        parallel_nodes: list[str],
+        sorted_order: list[str],
+    ) -> dict[str, Any]:
+        """应用并行节点排序"""
+
+    def get_next_requirement(
+        self, conn: lb.Connection, project_uuid: str, session_id: str
+    ) -> dict[str, Any]:
+        """获取下一个需求"""
+
+    def mark_requirement_completed(
+        self, conn: lb.Connection, project_uuid: str, requirement_uuid: str
+    ) -> dict[str, Any]:
+        """标记需求为已完成"""
 ```
 
 ---
@@ -233,12 +346,15 @@ class ChainOrchestrator:
 ### 链化流程
 
 ```
-1. 触发链化 (trigger_chaining)
-2. 拓扑排序 (topological_sort)
-3. 识别并行节点 (identify_parallel_nodes)
-4. 构建链表 (build_chain)
-5. 更新需求状态
-6. 返回执行链
+1. 检查触发条件 (should_trigger_chaining)
+2. 创建快照 (create_snapshot)
+3. 构建依赖图 (build_dependency_graph)
+4. 检测循环依赖 (detect_cycle)
+5. 拓扑排序 (topological_sort)
+6. 识别并行节点 (get_parallel_nodes)
+7. 构建链表 (build_chain)
+8. 更新项目状态
+9. 返回执行链
 ```
 
 ---
@@ -247,20 +363,20 @@ class ChainOrchestrator:
 
 ### 核心技术
 
-| 类别         | 技术                 | 版本   | 用途             |
-| ------------ | -------------------- | ------ | ---------------- |
-| **语言**     | Python               | 3.12+  | 主要开发语言     |
-| **协议**     | MCP                  | >=1.27.0 | 模型上下文协议   |
-| **数据库**   | real_ladybug         | >=0.15.3 | 图数据库客户端     |
-| **查询语言** | Cypher               | -      | 图查询语言       |
-| **数据验证** | Pydantic             | >=2.11.0 | 数据模型和验证   |
-| **依赖注入** | dependency-injector  | >=4.49.0 | 服务生命周期管理 |
-| **图算法**   | NetworkX             | >=3.6.1 | 拓扑排序等算法   |
-| **状态机**   | transitions          | >=0.9.3 | 状态管理         |
-| **缓存**     | cachetools           | >=7.0.5 | 查询缓存         |
-| **CLI**      | Typer                | >=0.24.1 | 命令行界面       |
-| **测试**     | pytest               | >=9.0.0 | 测试框架         |
-| **重试**     | tenacity             | >=9.1.4 | 失败重试机制     |
+| 类别         | 技术                | 版本         | 用途             |
+| ------------ | ------------------- | ------------ | ---------------- |
+| **语言**     | Python              | 3.12+        | 主要开发语言     |
+| **协议**     | MCP                 | >=1.27.0,<2.0.0 | 模型上下文协议   |
+| **数据库**   | real_ladybug        | >=0.15.3     | 图数据库客户端   |
+| **查询语言** | Cypher              | -            | 图查询语言       |
+| **数据验证** | Pydantic            | >=2.11.0,<3.0.0 | 数据模型和验证   |
+| **依赖注入** | dependency-injector | >=4.49.0     | 服务生命周期管理 |
+| **图算法**   | NetworkX            | >=3.6.1,<4.0.0 | 拓扑排序等算法   |
+| **状态机**   | transitions         | >=0.9.3      | 状态管理         |
+| **缓存**     | cachetools          | >=7.0.5      | 查询缓存         |
+| **CLI**      | Typer               | >=0.24.1     | 命令行界面       |
+| **测试**     | pytest              | >=9.0.0,<10.0.0 | 测试框架         |
+| **重试**     | tenacity            | >=9.1.4,<10.0.0 | 失败重试机制     |
 
 ### 依赖关系
 
@@ -268,18 +384,25 @@ class ChainOrchestrator:
 RequirementSDK
     ├── ProjectManager (数据库操作)
     ├── RequirementManager (数据库操作)
+    │       ├── ComplexityEvaluator (复杂度评估)
+    │       └── DecompositionAdvisor (分解建议)
     ├── DependencyService (数据库操作)
     ├── ValidationService (数据库操作)
     ├── ChainBuilder (图算法 - 拓扑排序)
+    │       └── GraphAlgorithms (图算法工具)
     ├── ChainOrchestrator (状态管理)
+    │       ├── ChainBuilder (链化构建)
+    │       └── SnapshotManager (快照管理)
     ├── SnapshotManager (快照管理)
     └── ProjectLockManager (并发控制)
             │
             ▼
-    real_ladybug (Neo4j 图数据库客户端)
+    real_ladybug (图数据库客户端)
             │
             ▼
-    Neo4j 数据库 (Cypher 查询)
+    LadybugDB 数据库 (Cypher 查询)
+
+注：所有服务通过 dependency-injector 容器管理依赖关系和生命周期
 ```
 
 ---
@@ -321,20 +444,14 @@ RequirementSDK
 - 与项目图模型需求匹配
 - 提供连接池和事务管理
 
-### 决策 6: 为什么使用 dependency-injector？
+### 决策 6: 为什么使用 Typer 构建 CLI？
 
-- 显式依赖声明，易于理解
-- 支持 Singleton/Factory 等多种生命周期
-- 便于测试时替换 mock
-- 与服务容器无缝集成
-- 统一管理组件依赖关系
-
-### 决策 7: 为什么使用 Typer 构建 CLI？
-
-- 基于 Python 类型提示，自动生成帮助文档
-- 简洁的装饰器语法，易于维护
-- 支持子命令和参数验证
-- 与 FastAPI 同源，生态良好
+| 优点         | 说明                                   |
+| ------------ | -------------------------------------- |
+| 类型提示驱动 | 基于 Python 类型提示，自动生成帮助文档 |
+| 简洁语法     | 装饰器语法，易于维护                   |
+| 功能完善     | 支持子命令、参数验证、自动补全         |
+| 生态良好     | 与 FastAPI 同源，社区活跃              |
 
 ---
 
@@ -353,7 +470,7 @@ RequirementSDK
 ### 性能优化策略
 
 1. **连接池管理**
-   - Neo4j 客户端内置连接池支持
+   - LadybugDB 客户端内置连接池支持
 
 2. **查询优化**
    - 使用 Cypher 参数化查询
@@ -364,8 +481,9 @@ RequirementSDK
    - 图数据库原生遍历操作
 
 4. **缓存策略**
-   - 查询结果缓存
+   - 查询结果缓存 (cachetools)
    - 依赖关系缓存
+   - 项目级缓存失效机制
 
 ---
 
@@ -385,18 +503,28 @@ RequirementSDK
 
 ```python
 # 获取锁
-sdk.acquire_lock(project_id, session_id="session_123")
+sdk.acquire_lock(project_uuid, session_id="session_123")
 
 # 执行操作
-sdk.add_requirement(project_id, "新需求")
+sdk.add_requirement(project_uuid, "新需求")
 
 # 释放锁
-sdk.release_lock(project_id, session_id="session_123")
+sdk.release_lock(project_uuid, session_id="session_123")
 ```
 
 ---
 
 ## 扩展性
+
+### 数据库路径说明
+
+系统支持三种不同的默认数据库路径，根据不同使用场景自动选择：
+
+| 场景           | 默认路径           | 说明                           |
+| -------------- | ------------------ | ------------------------------ |
+| **默认**       | `axon.db`  | 所有组件统一使用       |
+
+可通过环境变量 `MCP_AXON_DB_PATH` 统一覆盖默认路径。
 
 ### 当前限制
 
@@ -406,14 +534,14 @@ sdk.release_lock(project_id, session_id="session_123")
 
 ### 未来改进方向
 
-| 方向            | 说明           |
-| --------------- | -------------- |
-| 分布式部署 | 支持多实例部署 |
-| Redis 分布式锁  | 高并发场景     |
-| WebSocket 推送  | 实时链化进度   |
-| 需求版本历史    | 回溯和审计     |
-| 插件机制        | 扩展链化策略   |
-| 配置中心        | 动态配置管理   |
+| 方向           | 说明           |
+| -------------- | -------------- |
+| 分布式部署     | 支持多实例部署 |
+| Redis 分布式锁 | 高并发场景     |
+| WebSocket 推送 | 实时链化进度   |
+| 需求版本历史   | 回溯和审计     |
+| 插件机制       | 扩展链化策略   |
+| 配置中心       | 动态配置管理   |
 
 ### 可扩展点
 

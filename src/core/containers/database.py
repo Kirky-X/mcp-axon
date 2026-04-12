@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 class DatabaseConnectionManager:
     """数据库连接管理器"""
 
-    def __init__(self, db_path: str = "mcp_axon.lbug", max_retries: int = 3):
+    def __init__(self, db_path: str = "axon.db", max_retries: int = 3):
         """
         初始化数据库连接管理器
 

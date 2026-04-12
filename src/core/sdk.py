@@ -32,7 +32,7 @@ class RequirementSDK:
             db_path: 数据库文件路径 (默认从环境变量 MCP_AXON_DB_PATH 获取)
         """
         # 优先使用环境变量，其次使用参数，最后使用默认值
-        self.db_path = os.getenv("MCP_AXON_DB_PATH", db_path or "mcp_axon.lbug")
+        self.db_path = os.getenv("MCP_AXON_DB_PATH", db_path or "axon.db")
 
         try:
             # 初始化容器和数据库

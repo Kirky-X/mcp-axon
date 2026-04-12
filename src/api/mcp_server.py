@@ -33,7 +33,7 @@ IS_TESTING = (
     or "pytest" in sys.modules
     or any("pytest" in arg for arg in sys.argv)
 )
-db_path = ":memory:" if IS_TESTING else os.getenv("MCP_AXON_DB_PATH", "requirements.db")
+db_path = ":memory:" if IS_TESTING else os.getenv("MCP_AXON_DB_PATH", "axon.db")
 
 # 延迟初始化 SDK
 _sdk: RequirementSDK | None = None
@@ -198,8 +198,8 @@ async def main():
     )
     parser.add_argument(
         "--db-path",
-        default="requirements.db",
-        help="数据库文件路径 (默认: requirements.db)",
+        default="axon.db",
+        help="数据库文件路径 (默认: axon.db)",
     )
     parser.add_argument(
         "--http-host",

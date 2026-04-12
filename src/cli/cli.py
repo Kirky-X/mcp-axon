@@ -27,7 +27,7 @@ def get_router() -> ToolRouter:
     """获取 ToolRouter 实例（延迟初始化）"""
     global _router, _sdk
     if _router is None:
-        db_path = os.getenv("MCP_AXON_DB_PATH", "requirements.db")
+        db_path = os.getenv("MCP_AXON_DB_PATH", "axon.db")
         _sdk = RequirementSDK(db_path=db_path)
         _router = ToolRouter(lambda: _sdk)
     return _router

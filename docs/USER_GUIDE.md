@@ -1,6 +1,6 @@
 # 📖 用户指南
 
-### MCP-Axon 需求链化系统完整使用指南
+### Axon 需求链化系统完整使用指南
 
 ---
 
@@ -18,17 +18,17 @@
 
 ## 简介
 
-**MCP-Axon** 是一个基于 Model Context Protocol (MCP) 的智能需求链化管理系统，专门用于将复杂的需求分解为可执行的链式结构。
+**Axon** 是一个基于 Model Context Protocol (MCP) 的智能需求链化管理系统，专门用于将复杂的需求分解为可执行的链式结构。
 
 ### 核心功能
 
-| 功能 | 说明 |
-|-----|------|
+| 功能     | 说明                             |
+| -------- | -------------------------------- |
 | 需求分解 | 智能分解复杂需求为可执行的子需求 |
-| 依赖管理 | 自动检测和管理需求间的依赖关系 |
-| 链化构建 | 基于依赖关系构建最优执行链 |
+| 依赖管理 | 自动检测和管理需求间的依赖关系   |
+| 链化构建 | 基于依赖关系构建最优执行链       |
 | 并行处理 | 识别并行需求，支持自定义执行顺序 |
-| 快照回滚 | 支持项目状态快照和回滚功能 |
+| 快照回滚 | 支持项目状态快照和回滚功能       |
 
 ---
 
@@ -62,6 +62,9 @@ uv pip install -e .
 export MCP_AXON_DB_PATH="my_requirements.lbug"
 ```
 
+> **注意**: CLI 和 Server 的默认数据库路径为 `requirements.db`,SDK 的默认数据库路径为 `mcp_axon.lbug`。
+> 可通过环境变量 `MCP_AXON_DB_PATH` 统一覆盖。
+
 ### 验证安装
 
 使用 CLI 验证安装:
@@ -94,8 +97,9 @@ axon requirement create --project <project_id> --content "界面设计"
 axon dependency add <ui_req_id> <auth_req_id>
 axon dependency add <ui_req_id> <db_req_id>
 
-# 触发链化
-axon execution trigger --project <project_id>
+# 注意: CLI 没有 trigger 子命令,链化触发需通过 MCP 工具或 SDK
+# 使用 MCP 工具: manage_execution(action="trigger")
+# 或使用 SDK: sdk.trigger_chaining(project_id, session_id)
 ```
 
 **MCP 方式:**
@@ -130,14 +134,25 @@ axon validation add <req_id> --tests '[{"name": "登录测试", "steps": ["输�
 **CLI 方式:**
 
 ```bash
-# 触发链化后查看执行顺序
-axon execution trigger --project <project_id>
+# 链化触发后查看可执行需求 (使用 MCP 工具或 SDK 触发链化)
 axon execution next --project <project_id>
 ```
 
 **MCP 方式:**
 
-通过 `manage_execution` 工具的 `trigger` 和 `next` 动作实现。
+通过 `manage_execution` 工具的 `next` 动作获取下一个需求。
+
+**SDK 方式:**
+
+```python
+from src.core.sdk import RequirementSDK
+
+sdk = RequirementSDK()
+# 触发链化
+result = sdk.trigger_chaining(project_id, session_id)
+# 获取下一个需求
+next_req = sdk.get_next_requirement(project_id, session_id)
+```
 
 ---
 
@@ -156,29 +171,43 @@ export MCP_AXON_DB_PATH="my_requirements.lbug"
 
 #### CLI 方式
 
-| 操作 | 命令 |
-|-----|------|
-| 创建项目 | `axon project create --name "项目名" --desc "描述"` |
-| 查询项目 | `axon project get <project_id>` |
-| 更新项目 | `axon project update <project_id> --name "新名称"` |
-| 创建需求 | `axon requirement create --project <id> --content "内容"` |
-| 查询需求 | `axon requirement get <requirement_id>` |
+| 操作     | 命令                                                          |
+| -------- | ------------------------------------------------------------- |
+| 创建项目 | `axon project create --name "项目名" --desc "描述"`           |
+| 查询项目 | `axon project get <project_id>`                               |
+| 更新项目 | `axon project update <project_id> --name "新名称"`            |
+| 创建需求 | `axon requirement create --project <id> --content "内容"`     |
+| 查询需求 | `axon requirement get <requirement_id>`                       |
 | 更新需求 | `axon requirement update <requirement_id> --content "新内容"` |
-| 删除需求 | `axon requirement delete <requirement_id>` |
-| 标记叶子 | `axon requirement mark-leaf <requirement_id>` |
-| 列出需求 | `axon requirement list --project <project_id>` |
+| 删除需求 | `axon requirement delete <requirement_id>`                    |
+| 标记叶子 | `axon requirement mark-leaf <requirement_id>`                 |
+| 列出需求 | `axon requirement list --project <project_id>`                |
+| 添加依赖 | `axon dependency add <requirement_id> <dependency_id>`        |
+| 传递依赖 | `axon dependency transfer <parent_id> --mapping 'JSON'`       |
+| 添加验证 | `axon validation add <requirement_id> --tests 'JSON'`         |
+| 运行验证 | `axon validation run <requirement_id>`                        |
+| 下一步   | `axon execution next --project <project_id>`                  |
+| 标记完成 | `axon execution complete <requirement_id> --project <id>`     |
+| 执行状态 | `axon execution state --project <project_id>`                 |
+| 创建快照 | `axon snapshot create --project <project_id>`                 |
+| 列出快照 | `axon snapshot list --project <project_id>`                   |
+| 恢复快照 | `axon snapshot restore <snapshot_id>`                         |
+| 获取锁   | `axon lock acquire --project <project_id> --session <id>`     |
+| 释放锁   | `axon lock release --project <project_id> --session <id>`     |
+| 检查锁   | `axon lock check --project <project_id>`                      |
+| 查看版本 | `axon version`                                                |
 
 #### MCP 方式
 
-| 操作 | 工具 |
-|-----|------|
-| 项目管理 | `manage_project` (action: create/get/update) |
+| 操作     | 工具                                                                   |
+| -------- | ---------------------------------------------------------------------- |
+| 项目管理 | `manage_project` (action: create/get/update)                           |
 | 需求管理 | `manage_requirement` (action: create/get/update/delete/mark_leaf/list) |
-| 依赖管理 | `manage_dependency` |
-| 验证管理 | `manage_validation` |
-| 执行流程 | `manage_execution` (action: next/complete/state/trigger) |
-| 快照管理 | `manage_snapshot` (action: create/restore/list) |
-| 锁管理 | `manage_lock` (action: acquire/release/check/info) |
+| 依赖管理 | `manage_dependency`                                                    |
+| 验证管理 | `manage_validation`                                                    |
+| 执行流程 | `manage_execution` (action: next/complete/state/trigger)               |
+| 快照管理 | `manage_snapshot` (action: create/restore/list)                        |
+| 锁管理   | `manage_lock` (action: acquire/release/check/info)                     |
 
 ### 完整示例
 
@@ -204,8 +233,9 @@ axon requirement mark-leaf <profile_id>
 # 5. 添加验证
 axon validation add <auth_id> --tests '[{"name": "登录测试", "steps": ["输入用户名密码", "点击登录"], "expected_result": "登录成功"}]'
 
-# 6. 触发链化
-axon execution trigger --project <project_id>
+# 6. 触发链化 (通过 MCP 工具或 SDK,CLI 无此命令)
+# MCP 方式: 调用 manage_execution 工具,action="trigger"
+# SDK 方式: sdk.trigger_chaining(project_id, session_id)
 
 # 7. 获取下一个需求
 axon execution next --project <project_id>
@@ -240,7 +270,8 @@ axon dependency transfer <parent_id> --mapping '{"child1": ["dep1"], "child2": [
 ```python
 sdk.resolve_parallel_order(
     project_id=project_id,
-    ordered_ids=["req_id_1", "req_id_2", "req_id_3"]
+    parallel_nodes=["req_id_1", "req_id_2", "req_id_3"],
+    sorted_order=["req_id_1", "req_id_2", "req_id_3"]
 )
 ```
 
@@ -317,7 +348,13 @@ axon snapshot create --project <project_id>
   "mcpServers": {
     "axon": {
       "command": "uv",
-      "args": ["run", "--isolated", "--with", "git+https://github.com/Kirky-X/axon.git", "axon"]
+      "args": [
+        "run",
+        "--isolated",
+        "--with",
+        "git+https://github.com/Kirky-X/axon.git",
+        "axon"
+      ]
     }
   }
 }
@@ -335,9 +372,17 @@ axon-server --mode http --http-port 8080
 # 2. 使用健康检查
 curl http://localhost:8080/health
 
-# 3. 使用 API 文档
-curl http://localhost:8080/docs
+# 3. 查看服务信息
+curl http://localhost:8080/
+
+# 4. 查看性能指标
+curl http://localhost:8080/metrics
+
+# 5. 查看 API 版本
+curl http://localhost:8080/api_version
 ```
+
+> **可用端点**: `/`, `/health`, `/metrics`, `/api_version`
 
 ### ❌ 避免做法
 
@@ -358,12 +403,12 @@ axon requirement create --project <project_id> --content "需求"  # 应该先�
 
 ### 常见问题
 
-| 问题 | 解决方案 |
-|-----|----------|
-| 数据库锁定 | 确保在使用后释放锁: `axon lock release` |
-| 依赖循环 | 检查需求间的依赖关系: `axon dependency add` |
-| 性能问题 | 使用批量操作，减少数据库查询 |
-| 请求限流 | 等待一段时间后重试，或调整限流配置 |
+| 问题       | 解决方案                                    |
+| ---------- | ------------------------------------------- |
+| 数据库锁定 | 确保在使用后释放锁: `axon lock release`     |
+| 依赖循环   | 检查需求间的依赖关系,避免循环依赖           |
+| 性能问题   | 使用批量操作,减少数据库查询                 |
+| 请求限流   | 等待一段时间后重试,或调整限流配置           |
 
 ### CLI 常见问题
 
@@ -376,7 +421,9 @@ axon project --help
 axon version
 
 # Q: 数据库文件在哪里?
-# 默认: mcp_axon.lbug 或环境变量 MCP_AXON_DB_PATH 指定的位置
+# CLI 默认: requirements.db
+# SDK 默认: mcp_axon.lbug
+# 可通过环境变量 MCP_AXON_DB_PATH 覆盖
 ```
 
 ### MCP 常见问题
@@ -394,8 +441,14 @@ axon-server --mode http --http-port 8080
 # Q: 如何检查服务状态?
 curl http://localhost:8080/health
 
-# Q: 如何查看 API 文档?
-# 访问 http://localhost:8080/docs
+# Q: 如何查看服务信息?
+curl http://localhost:8080/
+
+# Q: 如何查看性能指标?
+curl http://localhost:8080/metrics
+
+# Q: 可用端点有哪些?
+# /, /health, /metrics, /api_version
 ```
 
 ### 获取帮助

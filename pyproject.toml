@@ -45,9 +45,12 @@ python_classes = "Test*"
 python_functions = "test_*"
 addopts = "-v --tb=short --cache-clear"
 asyncio_mode = "auto"
-cache_dir = "/tmp/pytest_cache"
-# 禁止生成 __pycache__
-env = ["PYTHONDONTWRITEBYTECODE=1"]
+cache_dir = "/tmp/pytest_cache_mcp_axon"
+# 禁止生成 __pycache__ 和禁用 benchmark
+env = [
+    "PYTHONDONTWRITEBYTECODE=1",
+    "PYTEST_BENCHMARK_DISABLE=1",
+]
 
 [tool.coverage.run]
 source = ["src"]
@@ -68,6 +71,7 @@ exclude_lines = [
 
 [dependency-groups]
 dev = [
+    "pytest-env>=1.6.0",
     "types-pyyaml>=6.0.12.20260408",
 ]
 

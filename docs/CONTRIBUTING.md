@@ -1,21 +1,21 @@
 # 🤝 贡献指南
 
-### MCP-Axon 项目贡献指南
+### Axon 项目贡献指南
 
 ---
 
 ## 欢迎贡献者！
 
-感谢您对 MCP-Axon 项目的关注！我们欢迎所有形式的贡献，包括代码、文档、测试、错误报告和功能建议。
+感谢您对 Axon 项目的关注！我们欢迎所有形式的贡献，包括代码、文档、测试、错误报告和功能建议。
 
 ## 贡献方式
 
-| 方式 | 说明 |
-|-----|------|
+| 方式        | 说明                                     |
+| ----------- | ---------------------------------------- |
 | 💻 代码贡献 | 修复 bug、添加新功能、性能优化、编写测试 |
-| 📝 文档改进 | 完善文档、改进指南、修正错误 |
-| 🧪 测试 | 编写测试、发现 bug |
-| 💬 社区支持 | 回答问题、帮助其他贡献者 |
+| 📝 文档改进 | 完善文档、改进指南、修正错误             |
+| 🧪 测试     | 编写测试、发现 bug                       |
+| 💬 社区支持 | 回答问题、帮助其他贡献者                 |
 
 ---
 
@@ -121,6 +121,7 @@ git checkout -b fix/issue-123
 ```
 
 **分支命名规范：**
+
 - `feature/` - 新功能
 - `fix/` - Bug 修复
 - `docs/` - 文档改进
@@ -200,12 +201,12 @@ uv run pytest tests/performance/ -v
 
 遵循 PEP 8 和项目规范：
 
-| 规范 | 说明 |
-|-----|------|
-| **命名** | 使用描述性名称，如 `project_id` 而不是 `pid` |
-| **类型注解** | 所有函数必须添加类型注解 |
-| **文档字符串** | 公开函数必须有 docstring |
-| **行长度** | 最大 100 字符 |
+| 规范           | 说明                                         |
+| -------------- | -------------------------------------------- |
+| **命名**       | 使用描述性名称,如 `project_id` 而不是 `pid` |
+| **类型注解**   | 所有函数必须添加类型注解                     |
+| **文档字符串** | 公开函数必须有 docstring                     |
+| **行长度**     | 由 Ruff formatter 自动处理(E501 已忽略)     |
 
 ### 好的示例
 
@@ -246,44 +247,54 @@ def helper():
 ```
 src/
 ├── __init__.py
-├── core/
-│   ├── sdk.py          # SDK 主入口
-│   └── containers/     # 依赖注入容器
-│       ├── __init__.py
-│       ├── config.py   # 容器配置
-│       └── database.py # 数据库初始化
+├── constants.py          # 常量定义
+├── schemas.py            # Pydantic 数据模型
 ├── api/
 │   ├── __init__.py
-│   ├── mcp_server.py   # MCP 服务器
-│   ├── tools.py        # 工具定义 (8个)
-│   ├── tool_router.py  # 工具路由器
-│   └── http_server.py  # HTTP 服务器
-├── db/
-│   ├── __init__.py
-│   ├── graph_models.py     # Pydantic 模型
-│   ├── graph_queries.py    # Cypher 查询
-│   └── schema.py
-├── services/
-│   ├── __init__.py
-│   ├── project_manager.py
-│   ├── requirement_manager.py
-│   ├── dependency_service.py
-│   ├── validation_service.py
-│   ├── chain_builder.py
-│   ├── chain_orchestrator.py
-│   ├── complexity_evaluator.py
-│   └── decomposition_advisor.py
+│   ├── mcp_server.py     # MCP 服务器入口
+│   ├── tools.py          # MCP 工具定义
+│   ├── tool_router.py    # 工具路由
+│   └── http_server.py    # HTTP 服务器
 ├── cli/
 │   ├── __init__.py
-│   ├── cli.py          # Typer CLI
-│   └── cli_full.py
+│   ├── cli.py            # Typer CLI 入口
+│   └── cli_full.py       # 完整 CLI 实现
+├── core/
+│   ├── __init__.py
+│   ├── sdk.py            # SDK 主入口
+│   └── containers/
+│       ├── __init__.py   # 依赖注入容器
+│       ├── config.py     # 容器配置
+│       └── database.py   # 数据库初始化
+├── db/
+│   ├── __init__.py
+│   ├── graph_models.py   # 图数据模型
+│   ├── graph_queries.py  # Cypher 查询
+│   └── schema.py         # 数据库模式
+├── services/
+│   ├── __init__.py
+│   ├── project_manager.py        # 项目管理
+│   ├── requirement_manager.py    # 需求管理
+│   ├── dependency_service.py     # 依赖关系服务
+│   ├── validation_service.py     # 验证服务
+│   ├── chain_builder.py          # 链构建器
+│   ├── chain_orchestrator.py     # 链编排器
+│   ├── complexity_evaluator.py   # 复杂度评估
+│   └── decomposition_advisor.py  # 分解建议
 └── utils/
     ├── __init__.py
-    ├── cache.py
-    ├── rate_limiter.py
-    ├── lock_manager.py
-    ├── snapshot_manager.py
-    └── ...
+    ├── cache.py              # 缓存管理
+    ├── rate_limiter.py       # 限流器
+    ├── lock_manager.py       # 锁管理
+    ├── snapshot_manager.py   # 快照管理
+    ├── error_handler.py      # 错误处理
+    ├── event_logger.py       # 事件日志
+    ├── graph.py              # 图工具
+    ├── input_validator.py    # 输入验证
+    ├── metrics.py            # 指标收集
+    ├── performance_config.py # 性能配置
+    ├── state_machine.py      # 状态机
+    └── time_utils.py         # 时间工具
 ```
 
 ---
@@ -292,12 +303,17 @@ src/
 
 ### 测试类别
 
-| 类型 | 用途 | 位置 |
-|-----|------|------|
-| **单元测试** | 测试单个函数/类 | `tests/unit/` |
-| **集成测试** | 测试服务集成 | `tests/test_integration/` |
-| **端到端测试** | 测试完整流程 | `tests/test_e2e/` |
-| **性能测试** | 性能基准测试 | `tests/performance/` |
+| 类型               | 用途                 | 位置                        |
+| ------------------ | -------------------- | --------------------------- |
+| **单元测试**       | 测试单个函数/类      | `tests/unit/`               |
+| **服务测试**       | 测试服务层逻辑       | `tests/test_services/`      |
+| **API 测试**       | 测试 API 端点        | `tests/test_api/`           |
+| **集成测试**       | 测试组件集成         | `tests/test_integration/`   |
+| **端到端测试**     | 测试完整流程         | `tests/test_e2e/`           |
+| **性能测试**       | 性能基准测试         | `tests/performance/`        |
+| **工具测试**       | 测试工具函数         | `tests/test_utils/`         |
+| **用户验收测试**   | 用户场景验证         | `tests/test_uat/`           |
+| **边界案例**       | 边界条件测试         | `tests/edge_cases/`         |
 
 ### 测试覆盖率目标
 
@@ -333,6 +349,7 @@ git commit -m "test(service): 添加单元测试"
 ```
 
 **提交类型：**
+
 - `feat` - 新功能
 - `fix` - Bug 修复
 - `docs` - 文档
@@ -373,9 +390,11 @@ git push origin feature/your-feature-name
 
 ```markdown
 ## 描述
+
 简要描述更改内容
 
 ## 更改类型
+
 - [ ] Bug 修复
 - [ ] 新功能
 - [ ] 文档更新
@@ -383,16 +402,19 @@ git push origin feature/your-feature-name
 - [ ] 代码重构
 
 ## 更改内容
+
 - 更改 1
 - 更改 2
 - 更改 3
 
 ## 测试
+
 - [ ] 单元测试通过
 - [ ] 集成测试通过
 - [ ] 手动测试完成
 
 ## 检查清单
+
 - [ ] 代码符合规范
 - [ ] 自检完成
 - [ ] 复杂代码已添加注释
@@ -403,22 +425,24 @@ git push origin feature/your-feature-name
 
 ### PR 最佳实践
 
-| ✅ 推荐 | ❌ 避免 |
-|---------|---------|
-| 专注于单个问题 | 多个不相关的更改 |
-| 小而可 review | 大型 diff（>500 行）|
-| 清晰的描述 | 缺少上下文 |
-| 包含测试 | 没有测试 |
-| 文档已更新 | 未经文档化的更改 |
+| ✅ 推荐        | ❌ 避免              |
+| -------------- | -------------------- |
+| 专注于单个问题 | 多个不相关的更改     |
+| 小而可 review  | 大型 diff（>500 行） |
+| 清晰的描述     | 缺少上下文           |
+| 包含测试       | 没有测试             |
+| 文档已更新     | 未经文档化的更改     |
 
 ### 审核流程
 
 **时间线：**
+
 - 初始审核: 1-3 天
 - 反馈轮次: 2-5 天
 - 批准合并: 1-2 天
 
 **审核标准：**
+
 - ✅ 功能是否符合预期？
 - ✅ 代码质量是否良好？
 - ✅ 测试是否充分？
@@ -432,14 +456,15 @@ git push origin feature/your-feature-name
 
 ### 联系方式
 
-| 渠道 | 说明 |
-|-----|------|
-| [GitHub Issues](https://github.com/Kirky-X/axon/issues) | Bug 报告和功能请求 |
-| [GitHub Discussions](https://github.com/Kirky-X/axon/discussions) | 问答和讨论 |
+| 渠道                                                              | 说明               |
+| ----------------------------------------------------------------- | ------------------ |
+| [GitHub Issues](https://github.com/Kirky-X/axon/issues)           | Bug 报告和功能请求 |
+| [GitHub Discussions](https://github.com/Kirky-X/axon/discussions) | 问答和讨论         |
 
 ### 致谢
 
 感谢所有贡献者！贡献者将：
+
 - 列在 CONTRIBUTORS.md 中
 - 显示在 README 贡献者部分
 - 在发布说明中提及

@@ -956,7 +956,7 @@ class RequirementManager:
                 "requirement_id": requirement_uuid,
                 "status": current_status,
                 "message": "该需求已经是叶子节点",
-                "next_action": "add_validation",
+                "next_action": "manage_validation",
             }
 
         # 检查是否存在子需求
@@ -1002,5 +1002,5 @@ class RequirementManager:
             "requirement_id": requirement_uuid,
             "status": RequirementStatus.LEAF.value,
             "message": "需求已标记为叶子节点，请配置验证节点",
-            "next_action": "add_validation",
+            "next_action": "manage_validation",
         }

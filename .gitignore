@@ -125,6 +125,7 @@ openspec/
 temp/
 coverage.json
 mcp_axon.lbug
+CODE_REVIEW_ANALYSIS.md
 .gitnexus
 .qoder/
 

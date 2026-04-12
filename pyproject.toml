@@ -15,6 +15,7 @@ dependencies = [
     "transitions>=0.9.3",
     "dependency-injector>=4.49.0",
     "cachetools>=7.0.5",
+    "typer>=0.24.1",
 ]
 
 [project.optional-dependencies]
@@ -27,6 +28,7 @@ dev = [
 
 [project.scripts]
 mcp-axon = "src.api.mcp_server:entry_point"
+axon = "src.cli.cli:entry_point"
 
 [build-system]
 requires = ["hatchling"]

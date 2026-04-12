@@ -50,8 +50,8 @@
 
 ```bash
 # 克隆仓库
-git clone https://github.com/Kirky-X/mcp-axon.git
-cd mcp-axon
+git clone https://github.com/Kirky-X/axon.git
+cd axon
 
 # 方式一: 使用安装脚本(推荐)
 bash scripts/install.sh
@@ -107,7 +107,7 @@ uv run pytest tests/ -v --cov=src
         "run",
         "--isolated",
         "--with",
-        "git+https://github.com/Kirky-X/mcp-axon.git",
+        "git+https://github.com/Kirky-X/axon.git",
         "mcp-axon"
       ]
     }

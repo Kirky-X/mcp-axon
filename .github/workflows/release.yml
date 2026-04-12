@@ -3,7 +3,7 @@ name: Release
 on:
   push:
     tags:
-      - 'v*.*.*'
+      - "v*.*.*"
 
 permissions:
   contents: write
@@ -113,7 +113,7 @@ jobs:
           echo "## Installation" >> changelog.md
           echo "" >> changelog.md
           echo '```bash' >> changelog.md
-          echo "pip install mcp-axon==$VERSION" >> changelog.md
+          echo "pip install Axon==$VERSION" >> changelog.md
           echo '```' >> changelog.md
 
           cat changelog.md
@@ -136,7 +136,7 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: pypi
-      url: https://pypi.org/project/mcp-axon/
+      url: https://pypi.org/project/Axon/
     permissions:
       id-token: write
     steps:

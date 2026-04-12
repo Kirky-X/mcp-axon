@@ -15,7 +15,7 @@ PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 cd "$PROJECT_ROOT"
 
 echo "========================================="
-echo "MCP-Axon 安装脚本"
+echo "Axon 安装脚本"
 echo "========================================="
 echo "项目目录: $PROJECT_ROOT"
 echo ""

@@ -1,4 +1,4 @@
-# Pre-commit hooks for MCP-Axon Python Project
+# Pre-commit hooks for Axon Python Project
 # Install: pip install pre-commit && pre-commit install
 # Docs: https://pre-commit.com/
 
@@ -13,12 +13,12 @@ repos:
       - id: check-yaml
       - id: check-toml
       - id: check-added-large-files
-        args: ['--maxkb=1000']
+        args: ["--maxkb=1000"]
       - id: detect-private-key
       - id: check-merge-conflict
-        args: ['--assume-in-merge']
+        args: ["--assume-in-merge"]
       - id: no-commit-to-branch
-        args: ['--branch', 'main', '--branch', 'master']
+        args: ["--branch", "main", "--branch", "master"]
 
   # 2. Detect secrets
   - repo: https://github.com/Yelp/detect-secrets
@@ -45,7 +45,7 @@ repos:
         language: system
         types: [python]
         pass_filenames: false
-        args: ['--fix']
+        args: ["--fix"]
 
       - id: mypy
         name: mypy type check
@@ -53,7 +53,7 @@ repos:
         language: system
         types: [python]
         pass_filenames: false
-        args: ['src/']
+        args: ["src/"]
 
 ci:
   autoupdate_commit_msg: "chore: update pre-commit hooks"

@@ -43,8 +43,8 @@
 
 ```bash
 # 克隆仓库
-git clone https://github.com/Kirky-X/mcp-axon.git
-cd mcp-axon
+git clone https://github.com/Kirky-X/axon.git
+cd axon
 
 # 使用 uv 创建虚拟环境
 uv venv
@@ -315,9 +315,9 @@ axon snapshot create --project <project_id>
 // 1. 使用 MCP 客户端的会话管理
 {
   "mcpServers": {
-    "mcp-axon": {
+    "axon": {
       "command": "uv",
-      "args": ["run", "--isolated", "--with", "git+https://github.com/Kirky-X/axon.git", "mcp-axon"]
+      "args": ["run", "--isolated", "--with", "git+https://github.com/Kirky-X/axon.git", "axon"]
     }
   }
 }

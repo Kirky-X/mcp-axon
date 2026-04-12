@@ -101,14 +101,14 @@ uv run pytest tests/ -v --cov=src
 ```json
 {
   "mcpServers": {
-    "mcp-axon": {
+    "axon": {
       "command": "uv",
       "args": [
         "run",
         "--isolated",
         "--with",
         "git+https://github.com/Kirky-X/axon.git",
-        "mcp-axon"
+        "axon"
       ]
     }
   }

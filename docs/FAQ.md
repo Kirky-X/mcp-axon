@@ -76,8 +76,8 @@ MCP-Axon 使用 **real_ladybug** 图数据库客户端,支持:
 
 ```bash
 # 克隆仓库
-git clone https://github.com/Kirky-X/mcp-axon.git
-cd mcp-axon
+git clone https://github.com/Kirky-X/axon.git
+cd axon
 
 # 使用 uv 安装
 uv venv
@@ -248,7 +248,7 @@ HTTP API 返回标准 HTTP 状态码和错误信息。
 
 - 查看 [用户指南](USER_GUIDE.md)
 - 查看 [API 参考](API_REFERENCE.md)
-- [创建 Issue](https://github.com/Kirky-X/mcp-axon/issues)
+- [创建 Issue](https://github.com/Kirky-X/axon/issues)
 
 ---
 

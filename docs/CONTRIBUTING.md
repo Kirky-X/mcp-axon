@@ -68,8 +68,8 @@
 # 点击 GitHub 上的 Fork 按钮
 
 # 2. 克隆您的 fork
-git clone https://github.com/YOUR_USERNAME/mcp-axon.git
-cd mcp-axon
+git clone https://github.com/YOUR_USERNAME/axon.git
+cd axon
 
 # 3. 创建虚拟环境
 uv venv
@@ -87,7 +87,7 @@ uv run pytest tests/ -v --tb=short
 
 ```bash
 # 添加上游仓库
-git remote add upstream https://github.com/Kirky-X/mcp-axon.git
+git remote add upstream https://github.com/Kirky-X/axon.git
 
 # 验证远程仓库
 git remote -v
@@ -434,8 +434,8 @@ git push origin feature/your-feature-name
 
 | 渠道 | 说明 |
 |-----|------|
-| [GitHub Issues](https://github.com/Kirky-X/mcp-axon/issues) | Bug 报告和功能请求 |
-| [GitHub Discussions](https://github.com/Kirky-X/mcp-axon/discussions) | 问答和讨论 |
+| [GitHub Issues](https://github.com/Kirky-X/axon/issues) | Bug 报告和功能请求 |
+| [GitHub Discussions](https://github.com/Kirky-X/axon/discussions) | 问答和讨论 |
 
 ### 致谢
 
@@ -450,7 +450,7 @@ git push origin feature/your-feature-name
 
 您的贡献使这个项目变得更好。
 
-**准备好贡献了吗？** [创建第一个 issue](https://github.com/Kirky-X/mcp-axon/issues/new) 或 [开始讨论](https://github.com/Kirky-X/mcp-axon/discussions/new)！
+**准备好贡献了吗？** [创建第一个 issue](https://github.com/Kirky-X/axon/issues/new) 或 [开始讨论](https://github.com/Kirky-X/axon/discussions/new)！
 
 ---
 

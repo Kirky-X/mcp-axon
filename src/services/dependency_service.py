@@ -5,7 +5,8 @@
 """依赖关系管理服务"""
 
 import logging
-from typing import Any, Dict, List, Optional, Set
+import threading
+from typing import Any, Dict, List, Optional, Set, Union
 
 import real_ladybug as lb
 
@@ -47,8 +48,9 @@ class DependencyService:
         self.cache = cache
         self._use_networkx = NETWORKX_AVAILABLE
         # 缓存项目依赖图，避免重复构建
-        self._graph_cache: Dict[str, Any] = {}
+        self._graph_cache: Optional[Any] = None  # nx.DiGraph 或 None
         self._cache_project_uuid: Optional[str] = None
+        self._cache_lock = threading.RLock()  # 保护缓存的线程安全
 
     @performance_monitor("transfer_dependencies")
     def transfer_dependencies(
@@ -83,7 +85,7 @@ class DependencyService:
         parent_row = rows[0]
         project_uuid = parent_row[1]  # project_uuid
         parent_deps = (
-            parent_row[12] if len(parent_row) > 12 and parent_row[12] else []
+            parent_row[13] if len(parent_row) > 13 and parent_row[13] else []
         )  # dependencies
 
         # 获取所有子需求
@@ -405,9 +407,11 @@ class DependencyService:
         if not self._use_networkx:
             return None
 
-        # 检查缓存
-        if self._cache_project_uuid == project_uuid and self._graph_cache:
-            return self._graph_cache
+        # 检查缓存（线程安全）
+        with self._cache_lock:
+            if self._cache_project_uuid == project_uuid and self._graph_cache:
+                # 返回副本避免并发修改
+                return self._graph_cache.copy()
 
         # 查询所有需求
         result = conn.execute(
@@ -416,7 +420,7 @@ class DependencyService:
         requirements = list(result)
 
         # 构建 NetworkX 图
-        G = nx.DiGraph()
+        G: Any = nx.DiGraph()
 
         # 添加所有节点
         for req in requirements:
@@ -433,9 +437,10 @@ class DependencyService:
                 # 边方向：req_uuid -> dep_uuid（表示 req_uuid 依赖于 dep_uuid）
                 G.add_edge(req_uuid, dep_uuid)
 
-        # 更新缓存
-        self._graph_cache = G
-        self._cache_project_uuid = project_uuid
+        # 更新缓存（线程安全）
+        with self._cache_lock:
+            self._graph_cache = G
+            self._cache_project_uuid = project_uuid
 
         return G
 
@@ -615,5 +620,5 @@ class DependencyService:
 
     def invalidate_cache(self):
         """清除依赖图缓存"""
-        self._graph_cache = {}
+        self._graph_cache = None
         self._cache_project_uuid = None

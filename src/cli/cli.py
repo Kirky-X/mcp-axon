@@ -4,12 +4,13 @@
 
 """MCP-Axon CLI - 命令行接口"""
 
+import os
 from typing import Annotated
 
 import typer
 
 from src.api.tool_router import ToolRouter
-from src.core.containers import init_container
+from src.core.sdk import RequirementSDK
 
 app = typer.Typer(
     name="axon",
@@ -17,17 +18,18 @@ app = typer.Typer(
     add_completion=False,
 )
 
-# 初始化 SDK
+# 延迟初始化
 _router: ToolRouter | None = None
+_sdk: RequirementSDK | None = None
 
 
 def get_router() -> ToolRouter:
     """获取 ToolRouter 实例（延迟初始化）"""
-    global _router
+    global _router, _sdk
     if _router is None:
-        container = init_container()
-        sdk = container.requirement_sdk()
-        _router = ToolRouter(lambda: sdk)
+        db_path = os.getenv("MCP_AXON_DB_PATH", "requirements.db")
+        _sdk = RequirementSDK(db_path=db_path)
+        _router = ToolRouter(lambda: _sdk)
     return _router
 
 
@@ -134,7 +136,7 @@ def requirement_list(
         status_icon = "✅" if req.get("status") == "completed" else "⏳"
         leaf_icon = "🍃" if req.get("is_leaf") else "📦"
         typer.echo(
-            f"{status_icon} {leaf_icon} {req['requirement_id'][:8]}... {req.get('content', '')[:50]}"
+            f"{status_icon} {leaf_icon} {req.get('id', 'N/A')[:8]}... {req.get('content', '')[:50]}"
         )
 
 

@@ -26,7 +26,7 @@
 | **需求分解** | 智能分解复杂需求为可执行的子需求 |
 | **依赖管理** | 自动检测和管理需求间的依赖关系 |
 | **链化构建** | 基于依赖关系构建最优执行链 |
-| **并行处理** | 识别并行需求，支持自定义执行顺序 |
+| **并行处理** | 识别并行需求,支持自定义执行顺序 |
 | **状态追踪** | 实时追踪项目执行进度和状态 |
 | **快照回滚** | 支持项目状态快照和回滚功能 |
 | **并发控制** | 项目锁定机制防止并发冲突 |
@@ -144,7 +144,7 @@ print(f"下一个需求: {next_req}")
 
 ### MCP 客户端配置
 
-在 Claude Desktop 或其他 MCP 客户端中使用以下配置：
+在 Claude Desktop 或其他 MCP 客户端中使用以下配置:
 
 ```json
 {
@@ -208,15 +208,34 @@ bash scripts/pre-commit-check.sh
 
 ---
 
+## 🛠️ API 工具
+
+MCP-Axon 提供 8 个合并后的 MCP 工具:
+
+| 工具 | 功能 |
+|-----|------|
+| `manage_project` | 项目管理 (创建/更新/查询) |
+| `manage_requirement` | 需求管理 (创建/更新/删除/标记叶子/列表/查询) |
+| `manage_dependency` | 依赖管理 (添加依赖/传递依赖) |
+| `manage_validation` | 验证管理 (添加验证/执行验证) |
+| `manage_execution` | 执行流程 (下一个需求/标记完成/查询状态/触发链化) |
+| `manage_snapshot` | 快照管理 (创建/恢复/列出快照) |
+| `manage_lock` | 锁管理 (获取/释放/检查/查询锁) |
+| `get_api_version` | API 版本查询 |
+
+---
+
 ## 🤝 贡献
 
-欢迎贡献代码、文档或报告问题！
+欢迎贡献代码、文档或报告问题!
 
 1. Fork 本仓库
 2. 创建功能分支 (`git checkout -b feature/amazing-feature`)
 3. 提交更改 (`git commit -m 'Add amazing feature'`)
 4. 推送到分支 (`git push origin feature/amazing-feature`)
 5. 创建 Pull Request
+
+详见 [贡献指南](docs/CONTRIBUTING.md)
 
 ---
 
@@ -229,6 +248,8 @@ bash scripts/pre-commit-check.sh
 ## 🙏 致谢
 
 - [MCP Python SDK](https://github.com/modelcontextprotocol/python-sdk)
-- [SQLAlchemy](https://www.sqlalchemy.org/)
-- [NetworkX](https://networkx.org/)
-- [Pydantic](https://docs.pydantic.dev/)
+- [real-ladybug](https://github.com/real-ladybug/real-ladybug) - 图数据库客户端
+- [NetworkX](https://networkx.org/) - 图算法
+- [Pydantic](https://docs.pydantic.dev/) - 数据验证
+- [dependency-injector](https://python-dependency-injector.eticloud.io/) - 依赖注入
+- [Typer](https://typer.tiangolo.com/) - CLI 框架

@@ -37,7 +37,6 @@
 ### 系统要求
 
 - **Python**: 3.12+
-- **SQLite**: 3.35+
 - **Git**: 2.x+
 
 ### 安装步骤
@@ -54,6 +53,13 @@ source .venv/bin/activate  # Linux/Mac
 
 # 安装项目
 uv pip install -e .
+```
+
+### 环境变量配置
+
+```bash
+# 设置数据库路径 (可选,默认为 mcp_axon.lbug)
+export MCP_AXON_DB_PATH="my_requirements.lbug"
 ```
 
 ### 验证安装
@@ -155,11 +161,15 @@ sdk = RequirementSDK(db_path="my_requirements.db")
 
 | 操作 | 代码示例 |
 |-----|---------|
-| 创建项目 | `sdk.create_project(name="项目名", description="描述")` |
-| 添加需求 | `sdk.add_requirement(project_id, content, parent_id=None)` |
-| 更新需求 | `sdk.update_requirement(requirement_id, content=新内容)` |
-| 删除需求 | `sdk.delete_requirement(requirement_id)` |
-| 查询项目 | `sdk.get_project(project_id)` |
+| 创建项目 | `sdk.manage_project(name="项目名", description="描述")` |
+| 查询项目 | `sdk.manage_project(action="get", project_id="id")` |
+| 更新项目 | `sdk.manage_project(action="update", project_id="id", name="新名称")` |
+| 创建需求 | `sdk.manage_requirement(project_id="id", content="内容")` |
+| 更新需求 | `sdk.manage_requirement(action="update", requirement_id="id", content="新内容")` |
+| 删除需求 | `sdk.manage_requirement(action="delete", requirement_id="id")` |
+| 标记叶子 | `sdk.manage_requirement(action="mark_leaf", requirement_id="id")` |
+| 列出需求 | `sdk.manage_requirement(action="list", project_id="id")` |
+| 查询需求 | `sdk.manage_requirement(action="get", requirement_id="id")` |
 
 ### 完整示例
 
@@ -171,34 +181,40 @@ def main():
     sdk = RequirementSDK()
 
     # 创建项目
-    project = sdk.create_project(
+    project = sdk.manage_project(
         name="电商平台",
         description="电商系统的需求管理"
     )
-    project_id = project["id"]
+    project_id = project["project_id"]
 
     # 添加根需求
-    user_mgmt = sdk.add_requirement(
+    user_mgmt = sdk.manage_requirement(
         project_id=project_id,
         content="用户管理模块"
     )
 
     # 添加子需求
-    auth = sdk.add_requirement(
+    auth = sdk.manage_requirement(
         project_id=project_id,
         content="用户认证功能",
         parent_id=user_mgmt["requirement_id"]
     )
 
-    profile = sdk.add_requirement(
+    profile = sdk.manage_requirement(
         project_id=project_id,
         content="用户资料管理",
         parent_id=user_mgmt["requirement_id"]
     )
 
     # 标记为叶子节点
-    sdk.mark_as_leaf(auth["requirement_id"])
-    sdk.mark_as_leaf(profile["requirement_id"])
+    sdk.manage_requirement(
+        action="mark_leaf",
+        requirement_id=auth["requirement_id"]
+    )
+    sdk.manage_requirement(
+        action="mark_leaf",
+        requirement_id=profile["requirement_id"]
+    )
 
     # 添加验证
     sdk.add_validation(
@@ -212,10 +228,10 @@ def main():
     )
 
     # 触发链化
-    chain_result = sdk.trigger_chaining(project_id)
+    chain_result = sdk.trigger_chaining(project_id, session_id="session_123")
 
     # 获取下一个需求
-    next_req = sdk.get_next_requirement(project_id)
+    next_req = sdk.get_next_requirement(project_id, session_id="session_123")
     print(f"下一个待执行需求: {next_req}")
 
 if __name__ == "__main__":

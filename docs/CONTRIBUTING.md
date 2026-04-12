@@ -243,23 +243,43 @@ def helper():
 src/
 ├── __init__.py
 ├── core/
-│   └── sdk.py          # SDK 主入口
+│   ├── sdk.py          # SDK 主入口
+│   └── containers/     # 依赖注入容器
+│       ├── __init__.py
+│       ├── config.py   # 容器配置
+│       └── database.py # 数据库初始化
 ├── api/
+│   ├── __init__.py
 │   ├── mcp_server.py   # MCP 服务器
-│   └── tools.py        # 工具定义
+│   ├── tools.py        # 工具定义 (8个)
+│   ├── tool_router.py  # 工具路由器
+│   └── http_server.py  # HTTP 服务器
 ├── db/
-│   ├── database.py     # 数据库连接
-│   └── models.py       # 数据模型
+│   ├── __init__.py
+│   ├── graph_models.py     # Pydantic 模型
+│   ├── graph_queries.py    # Cypher 查询
+│   └── schema.py
 ├── services/
+│   ├── __init__.py
 │   ├── project_manager.py
 │   ├── requirement_manager.py
 │   ├── dependency_service.py
 │   ├── validation_service.py
 │   ├── chain_builder.py
-│   └── chain_orchestrator.py
+│   ├── chain_orchestrator.py
+│   ├── complexity_evaluator.py
+│   └── decomposition_advisor.py
+├── cli/
+│   ├── __init__.py
+│   ├── cli.py          # Typer CLI
+│   └── cli_full.py
 └── utils/
+    ├── __init__.py
+    ├── cache.py
+    ├── rate_limiter.py
     ├── lock_manager.py
-    └── snapshot_manager.py
+    ├── snapshot_manager.py
+    └── ...
 ```
 
 ---

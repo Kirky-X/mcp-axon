@@ -158,50 +158,6 @@ def _create_rel_tables(conn: lb.Connection) -> None:
     logger.info("关系表创建完成")
 
 
-def drop_schema(conn: lb.Connection) -> None:
-    """
-    删除图数据库 Schema (用于测试清理)
-
-    Args:
-        conn: LadybugDB 连接
-    """
-    logger.warning("开始删除图数据库 Schema...")
-
-    # 删除关系表 (LadybugDB 使用 DROP TABLE 删除关系表)
-    rel_tables = [
-        "DROP TABLE IF EXISTS HAS_EVENT",
-        "DROP TABLE IF EXISTS HAS_CHAIN_STATE",
-        "DROP TABLE IF EXISTS NEXT_IN_CHAIN",
-        "DROP TABLE IF EXISTS DEPENDS_ON",
-        "DROP TABLE IF EXISTS HAS_VALIDATION",
-        "DROP TABLE IF EXISTS HAS_CHILD",
-        "DROP TABLE IF EXISTS HAS_REQUIREMENT",
-    ]
-
-    for stmt in rel_tables:
-        try:
-            conn.execute(stmt)
-        except Exception as e:
-            logger.debug(f"删除关系表失败（可能已不存在）: {stmt}: {e}")
-
-    # 删除节点表
-    node_tables = [
-        "DROP TABLE IF EXISTS Event",
-        "DROP TABLE IF EXISTS ChainState",
-        "DROP TABLE IF EXISTS ValidationNode",
-        "DROP TABLE IF EXISTS Requirement",
-        "DROP TABLE IF EXISTS Project",
-    ]
-
-    for stmt in node_tables:
-        try:
-            conn.execute(stmt)
-        except Exception as e:
-            logger.debug(f"删除节点表失败（可能已不存在）: {stmt}: {e}")
-
-    logger.info("图数据库 Schema 删除完成")
-
-
 def get_schema_info(conn: lb.Connection) -> dict:
     """
     获取 Schema 信息

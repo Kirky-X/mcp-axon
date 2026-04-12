@@ -6,7 +6,7 @@
 
 import logging
 import threading
-from typing import Any, Dict, List, Optional, Set, Union
+from typing import Any, Dict, List, Optional, Set
 
 import real_ladybug as lb
 
@@ -444,83 +444,6 @@ class DependencyService:
 
         return G
 
-    def detect_cycle_with_networkx(
-        self, conn: lb.Connection, project_uuid: str
-    ) -> Optional[List[str]]:
-        """
-        使用 NetworkX 检测循环依赖（无深度限制）
-
-        相比 Cypher 查询的深度限制，NetworkX 使用图论算法检测所有循环。
-
-        Args:
-            conn: 数据库连接
-            project_uuid: 项目 ID
-
-        Returns:
-            循环路径列表，如果没有循环则返回 None
-        """
-        if not self._use_networkx:
-            # 回退到 Cypher 查询
-            return self.detect_cycle(conn, project_uuid)
-
-        G = self._build_dependency_graph_nx(conn, project_uuid)
-        if G is None or G.number_of_nodes() == 0:
-            return None
-
-        try:
-            # NetworkX 的 find_cycle 使用图论算法，无深度限制
-            cycle = nx.find_cycle(G, orientation="original")
-            # 转换为节点列表
-            cycle_nodes: List[str] = []
-            for edge in cycle:
-                if edge[0] not in cycle_nodes:
-                    cycle_nodes.append(edge[0])
-                if edge[1] not in cycle_nodes:
-                    cycle_nodes.append(edge[1])
-            # 闭环
-            if cycle_nodes and cycle_nodes[0] != cycle_nodes[-1]:
-                cycle_nodes.append(cycle_nodes[0])
-            return cycle_nodes
-        except nx.NetworkXNoCycle:
-            return None
-
-    def would_create_cycle_with_networkx(
-        self,
-        conn: lb.Connection,
-        requirement_uuid: str,
-        dependency_uuid: str,
-        project_uuid: str,
-    ) -> bool:
-        """
-        使用 NetworkX 检查添加依赖是否会创建循环（无深度限制）
-
-        Args:
-            conn: 数据库连接
-            requirement_uuid: 需求 ID
-            dependency_uuid: 依赖的需求 ID
-            project_uuid: 项目 ID
-
-        Returns:
-            是否会创建循环依赖
-        """
-        if not self._use_networkx:
-            # 回退到 Cypher 查询
-            return self._would_create_cycle(conn, requirement_uuid, dependency_uuid)
-
-        G = self._build_dependency_graph_nx(conn, project_uuid)
-        if G is None:
-            return self._would_create_cycle(conn, requirement_uuid, dependency_uuid)
-
-        # 检查添加 requirement_uuid -> dependency_uuid 边是否会创建循环
-        # 逻辑：如果从 dependency_uuid 能到达 requirement_uuid，则添加边后会形成环
-        try:
-            # 检查是否存在从 dependency_uuid 到 requirement_uuid 的路径
-            has_path = nx.has_path(G, dependency_uuid, requirement_uuid)
-            return has_path
-        except nx.NodeNotFound:
-            # 节点不存在于图中，不会有循环
-            return False
-
     def get_dependency_chain(
         self,
         conn: lb.Connection,
@@ -617,8 +540,3 @@ class DependencyService:
             result["downstream"] = get_downstream(requirement_uuid, 1)
 
         return result
-
-    def invalidate_cache(self):
-        """清除依赖图缓存"""
-        self._graph_cache = None
-        self._cache_project_uuid = None

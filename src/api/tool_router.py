@@ -298,9 +298,6 @@ class ToolRouter:
         if not isinstance(arguments, dict):
             raise ValueError("参数必须是字典格式")
 
-        # 通用 action 验证（接口都有 action 参数）
-        action = arguments.get("action")
-
         # 1. 项目管理验证
         if name == "manage_project":
             self._validate_project_input(arguments)

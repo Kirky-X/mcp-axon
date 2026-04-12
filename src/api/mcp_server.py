@@ -220,14 +220,10 @@ async def main():
 
     # 启动 HTTP 服务器（如果需要）
     if args.mode in ["http", "both"]:
-
-        def health_check():
-            return True
-
         start_http_server(
             host=args.http_host,
             port=args.http_port,
-            health_check_fn=health_check,
+            health_check_fn=lambda: True,
             sdk_check_fn=lambda: _sdk is not None,
         )
 
@@ -249,9 +245,4 @@ async def main():
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
-
-
-def entry_point():
-    """同步入口点"""
     asyncio.run(main())

@@ -108,12 +108,12 @@ class InputValidator:
 
         # 先检查 SQL 注入（在转义之前）
         if cls._contains_sql_injection(content):
-            logger.warning(f"检测到潜在 SQL 注入尝试")
+            logger.warning("检测到潜在 SQL 注入尝试")
             raise ValueError("需求内容包含不安全的内容")
 
         # 检查危险模式（XSS等）
         if cls._contains_dangerous_patterns(content):
-            logger.warning(f"检测到潜在危险内容")
+            logger.warning("检测到潜在危险内容")
             raise ValueError("需求内容包含不安全的内容")
 
         # 清洗 HTML/XSS 标签（转义特殊字符）

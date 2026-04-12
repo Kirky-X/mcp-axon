@@ -68,11 +68,6 @@ class LRUCache:
         with self.lock:
             self._cache.clear()
 
-    def size(self) -> int:
-        """获取缓存大小"""
-        with self.lock:
-            return len(self._cache)
-
     def cleanup_expired(self) -> int:
         """
         清理过期的缓存条目
@@ -126,23 +121,21 @@ class CacheManager:
         """获取需求缓存"""
         return self.requirement_cache.get(f"req_{req_id}")
 
-    def set_requirement(
-        self, req_id: str, requirement: Any, project_id: str
-    ) -> None:
+    def set_requirement(self, req_id: str, requirement: Any, project_id: str) -> None:
         """
         设置需求缓存
-        
+
         Args:
             req_id: 需求 ID
             requirement: 需求数据
             project_id: 项目 ID（必填，用于缓存失效）
-            
+
         Raises:
             ValueError: 如果 project_id 为空
         """
         if not project_id:
             raise ValueError("project_id is required for requirement caching")
-            
+
         self.requirement_cache.put(f"req_{req_id}", requirement)
 
         with self.project_requirements_lock:

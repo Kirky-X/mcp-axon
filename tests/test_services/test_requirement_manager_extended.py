@@ -53,14 +53,17 @@ class TestRequirementManagerBatch:
         assert result["success"] == 2
 
     def test_batch_add_empty_content_fails(self, sdk, project):
-        """测试: 批量添加空内容失败"""
+        """测试: 批量添加空内容失败（事务回滚）"""
         result = sdk.requirement_manager.batch_add_requirements(
             sdk._get_conn(),
             project["project_id"],
             [{"content": "有效需求"}, {"content": ""}, {"content": "  "}],
         )
-        assert result["success"] == 1
-        assert result["failed"] == 2
+        # 由于事务保护，失败时会回滚所有已创建的需求
+        assert result["success"] == 0
+        assert result["failed"] == 1
+        assert result["rolled_back"] is True
+        assert result["rolled_back_count"] == 1  # 第一个需求被回滚
 
     def test_batch_update_requirements(self, sdk, project):
         """测试: 批量更新需求"""
@@ -129,7 +132,11 @@ class TestRequirementManagerBoundary:
         from src.db.graph_models import RequirementStatus
 
         req = sdk.manage_requirement(project_id=project["project_id"], content="短需求")
-        # 直接设置 CHAINED 状态
+        # 先添加验证（状态变为 VALIDATED）
+        sdk.add_validation(
+            requirement_id=req["requirement_id"], test_cases=[{"name": "测试"}]
+        )
+        # 手动更新状态为 CHAINED（VALIDATED -> CHAINED 是允许的）
         sdk.requirement_manager.update_requirement(
             sdk._get_conn(),
             req["requirement_id"],

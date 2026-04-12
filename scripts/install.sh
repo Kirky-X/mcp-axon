@@ -1,6 +1,9 @@
 #!/bin/bash
-# MCP-Axon 安装脚本
-# 注意: 此脚本应在项目根目录下运行
+# Axon 快速安装脚本
+#
+# 注意: 此脚本是 `uv pip install -e .[dev]` 的便捷封装
+# 你也可以手动执行以下命令:
+#   uv venv && source .venv/bin/activate && uv pip install -e .[dev]
 
 set -e
 
@@ -68,16 +71,7 @@ else
     pip install -e .[dev]
 fi
 
-# 初始化数据库
-echo "初始化数据库..."
-python -m src.init_db
-
-# 运行测试
-echo "运行测试..."
-pytest tests/ -v || {
-    echo "警告: 部分测试失败，但安装继续..."
-}
-
+# 显示使用说明
 echo ""
 echo "========================================="
 echo "安装完成！"
@@ -85,16 +79,16 @@ echo "========================================="
 echo ""
 echo "使用方法:"
 echo "  1. 激活虚拟环境: source .venv/bin/activate"
-echo "  2. 运行演示: python scripts/main.py demo"
-echo "  3. 启动 MCP 服务器: python scripts/main.py server"
-echo "  4. 运行测试: python scripts/main.py test"
+echo "  2. 创建项目: axon project create --name \"我的项目\""
+echo "  3. 启动 MCP 服务器: axon-server"
+echo "  4. 运行测试: uv run pytest tests/ -v"
 echo "  5. 运行预检查: bash scripts/pre-commit-check.sh"
 echo ""
 echo "Claude Desktop 配置:"
 echo '  在 Claude Desktop 的配置文件中添加:'
 echo '  {'
 echo '    "mcpServers": {'
-echo '      "mcp-axon": {'
+echo '      "axon": {'
 echo '        "command": "python",'
 echo '        "args": ["-m", "src.api.mcp_server"],'
 echo '        "cwd": "<项目根目录路径>"'

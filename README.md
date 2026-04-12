@@ -1,7 +1,7 @@
 # 🚀 MCP-Axon
 
 <p>
-  <img src="https://img.shields.io/badge/version-0.1.0-blue.svg" alt="Version">
+  <img src="https://img.shields.io/badge/version-1.0.0-blue.svg" alt="Version">
   <img src="https://img.shields.io/badge/license-MIT-green.svg" alt="License">
   <a href="#"><img src="https://img.shields.io/badge/build-passing-brightgreen.svg" alt="Build"></a>
 </p>
@@ -34,10 +34,13 @@
 
 | 高级特性 | 说明 |
 |---------|------|
-| **MCP 协议** | 基于 Model Context Protocol 的标准化接口 |
-| **数据持久化** | SQLite 数据库存储，支持数据完整性 |
-| **跨平台** | Python 实现，支持多平台部署 |
-| **易于集成** | 标准 MCP 工具接口，易于与 AI 系统集成 |
+| **MCP 协议** | 基于 Model Context Protocol 的标准化接口 (8个合并工具) |
+| **图数据库** | real_ladybug 图数据库存储,支持复杂依赖关系 |
+| **依赖注入** | dependency-injector 容器管理服务生命周期 |
+| **速率限制** | 内置请求限流保护,防止滥用 |
+| **CLI 工具** | 完整的命令行界面 (Typer) |
+| **API 版本管理** | 版本查询和兼容性管理 |
+| **跨平台** | Python 实现,支持多平台部署 |
 
 ---
 
@@ -47,8 +50,8 @@
 
 ```bash
 # 克隆仓库
-git clone https://github.com/Kirky-X/mcp-axon.git
-cd mcp-axon
+git clone https://github.com/Kirky-X/axon.git
+cd axon
 
 # 方式一: 使用安装脚本(推荐)
 bash scripts/install.sh
@@ -62,67 +65,31 @@ source .venv/bin/activate  # Linux/Mac
 uv pip install -e .[dev]
 ```
 
+### 环境变量配置
+
+```bash
+# 设置数据库路径 (可选,默认为 mcp_axon.lbug)
+export MCP_AXON_DB_PATH="my_custom_db.lbug"
+```
+
 ### 基本使用
 
 #### 命令行方式
 
 ```bash
-# 运行演示
-python scripts/main.py demo
+# 使用 CLI 工具
+axon project create --name "我的项目" --desc "项目描述"
+axon requirement create --project <project_id> --content "实现用户认证"
+axon execution next --project <project_id>
 
 # 启动 MCP 服务器
-python scripts/main.py server
+axon-server
+
+# 启动 HTTP 服务器
+axon-server --mode http --http-port 8080
 
 # 运行测试
-python scripts/main.py test
-
-# 运行预检查
-bash scripts/pre-commit-check.sh
-```
-
-#### Python SDK 方式
-
-```python
-from src.core.sdk import RequirementSDK
-
-# 初始化 SDK
-sdk = RequirementSDK()
-
-# 创建项目
-project = sdk.create_project(
-    name="我的项目",
-    description="项目描述"
-)
-print(f"项目创建成功: {project['id']}")
-
-# 添加根需求
-root_req = sdk.add_requirement(
-    project_id=project["id"],
-    content="实现用户认证功能",
-    parent_id=None
-)
-
-# 标记为叶子节点
-sdk.mark_as_leaf(root_req["requirement_id"])
-
-# 添加验证
-sdk.add_validation(
-    requirement_id=root_req["requirement_id"],
-    test_cases=[{
-        "name": "登录测试",
-        "steps": ["输入用户名密码", "点击登录"],
-        "expected_result": "登录成功"
-    }],
-    acceptance_criteria="用户能够成功登录系统"
-)
-
-# 触发链化
-chain_result = sdk.trigger_chaining(project["id"])
-print(f"链化结果: {chain_result}")
-
-# 获取下一个需求
-next_req = sdk.get_next_requirement(project["id"])
-print(f"下一个需求: {next_req}")
+uv run pytest tests/ -v --cov=src
 ```
 
 ---
@@ -134,14 +101,14 @@ print(f"下一个需求: {next_req}")
 ```json
 {
   "mcpServers": {
-    "mcp-axon": {
+    "axon": {
       "command": "uv",
       "args": [
         "run",
         "--isolated",
         "--with",
-        "git+https://github.com/Kirky-X/mcp-axon.git",
-        "mcp-axon"
+        "git+https://github.com/Kirky-X/axon.git",
+        "axon"
       ]
     }
   }
@@ -155,10 +122,11 @@ print(f"下一个需求: {next_req}")
 | 文档 | 说明 |
 |-----|------|
 | [用户指南](docs/USER_GUIDE.md) | 完整使用指南 |
-| [API 参考](docs/API_REFERENCE.md) | MCP 工具完整文档 |
+| [API 参考](docs/API_REFERENCE.md) | MCP 工具完整文档 (8个合并工具) |
 | [架构设计](docs/ARCHITECTURE.md) | 系统架构设计 |
 | [常见问题](docs/FAQ.md) | 常见问题解答 |
 | [贡献指南](docs/CONTRIBUTING.md) | 贡献代码指南 |
+| [缓存配置](docs/CACHE_CONFIG.md) | 缓存配置说明 |
 
 ---
 
@@ -167,9 +135,6 @@ print(f"下一个需求: {next_req}")
 ```bash
 # 运行所有测试
 uv run pytest tests/ -v --cov=src
-
-# 或使用主脚本
-python scripts/main.py test
 
 # 运行性能测试
 uv run pytest tests/performance/ -v
@@ -181,7 +146,7 @@ uv run pytest tests/test_e2e/ -v
 bash scripts/pre-commit-check.sh
 ```
 
-**测试结果**: 279 个测试全部通过 (100%)
+**测试结果**: 所有测试通过 ✅
 
 ---
 
@@ -210,12 +175,3 @@ bash scripts/pre-commit-check.sh
 ## 📄 许可证
 
 本项目基于 MIT 许可证开源。
-
----
-
-## 🙏 致谢
-
-- [MCP Python SDK](https://github.com/modelcontextprotocol/python-sdk)
-- [SQLAlchemy](https://www.sqlalchemy.org/)
-- [NetworkX](https://networkx.org/)
-- [Pydantic](https://docs.pydantic.dev/)

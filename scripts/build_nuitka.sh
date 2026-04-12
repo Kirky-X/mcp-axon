@@ -8,7 +8,7 @@
 # 使用方法:
 #   ./scripts/build_nuitka.sh [--clean] [--debug]
 #
-# 输出目录: dist/axon
+# 输出目录: dist/axon-standalone
 
 set -e
 
@@ -51,8 +51,8 @@ echo "======================================"
 if [[ "$CLEAN_BUILD" == "true" ]]; then
 	echo "[1/6] 清理旧构建..."
 	rm -rf "${BUILD_DIR}"
-	rm -rf "${OUTPUT_DIR}/${PROJECT_NAME}"
 	rm -rf "${OUTPUT_DIR}/${PROJECT_NAME}.dist"
+	rm -rf "${OUTPUT_DIR}/${PROJECT_NAME}-standalone"
 fi
 
 # 创建构建目录
@@ -66,149 +66,152 @@ if ! command -v nuitka &>/dev/null; then
 	pip install nuitka
 fi
 
-# 检查 C 编译器
+# 检查 C 编译器 - 确保 gcc 在 PATH 中
+export PATH="/opt/software/gcc-14.2/bin:$PATH"
 if ! command -v gcc &>/dev/null; then
 	echo "错误: GCC 未安装"
 	echo "请安装: sudo apt install gcc build-essential"
 	exit 1
 fi
 
-# 性能优化参数
+# 性能优化参数 (Nuitka 4.0)
 NUITKA_OPTS=(
-	# 主入口点
-	"--main=${PROJECT_ROOT}/src/cli/cli.py"
+	# 主入口点 - 使用完整版 CLI (支持所有8个接口)
+	"--main=${PROJECT_ROOT}/src/cli/cli_full.py"
 
 	# 输出配置
 	"--output-dir=${OUTPUT_DIR}"
 	"--output-filename=${PROJECT_NAME}"
 
-	# 性能优化 (关键)
-	# LTO (Link Time Optimization) - 跨模块优化
-	"--lto=yes"
-
-	# 启用所有优化
+	# 性能优化
+	"--lto=yes"                 # Link Time Optimization
 	"--python-flag=no_site"     # 不导入 site 模块，加快启动
 	"--python-flag=no_warnings" # 禁用警告
 
-	# 模式选择
-	"--standalone" # 独立可执行，包含所有依赖
-	"--onefile"    # 单文件输出（可选，如果需要更快的启动用 --standalone）
+	# 模式选择 - 使用 standalone 避免 onefile 压缩内存问题
+	"--standalone"
 
-	# 包含模块 (确保所有依赖被编译)
+	# 禁用静态 libpython (Anaconda 环境)
+	"--static-libpython=no"
+
+	# 包含模块 - 只编译项目核心代码
 	"--include-package=src"
-	"--include-package=mcp"
-	"--include-package=pydantic"
-	"--include-package=networkx"
-	"--include-package=tenacity"
-	"--include-package=typer"
-	"--include-package=real_ladybug"
-	"--include-package=transitions"
-	"--include-package=dependency_injector"
-	"--include-package=cachetools"
-	"--include-package=yaml"
 
-	# 预编译模块（避免运行时编译）
-	"--prefer-source-code" # 优先使用源码而非字节码
+	# 不跟随导入 - 避免引入大量第三方包
+	"--nofollow-imports"
 
-	# C 编译优化
-	"--clang"          # 使用 clang（更快），如果可用
-	"--c-compiler=gcc" # 指定 GCC
+	# 必须包含的第三方包（最小化）
+	# cli_full.py 只使用 argparse, json, uuid
+	# src 内部依赖: real_ladybug, pydantic (数据模型)
+	"--follow-import-to=src"
+	"--follow-import-to=src.*"
+	"--follow-import-to=real_ladybug"
+	"--follow-import-to=real_ladybug.*"
+	"--follow-import-to=pydantic"
+	"--follow-import-to=pydantic.*"
 
-	# 去除调试信息（减小体积）
-	"--no-debug-info"
+	# 排除不需要的大型模块
+	"--nofollow-import-to=mcp"
+	"--nofollow-import-to=mcp.*"
+	"--nofollow-import-to=networkx"
+	"--nofollow-import-to=networkx.*"
+	"--nofollow-import-to=yaml"
+	"--nofollow-import-to=yaml.*"
+	"--nofollow-import-to=tenacity"
+	"--nofollow-import-to=tenacity.*"
 
-	# 禁用异常追踪（性能优化）
-	"--no-exceptions-detection"
+	# 禁用 Qt（无 GUI）
+	"--enable-plugin=no-qt"
 
-	# 跟随导入（自动包含依赖）
+	# 禁用自执行检测（避免递归调用问题）
+	"--no-deployment-flag=self-execution"
+
+	# C 编译优化 - 使用 PATH 中的默认编译器
+	"--jobs=4" # 限制并行任务 (内存控制)
+
+	# 跟随导入
 	"--follow-imports"
-
-	# 隐式导入处理
-	"--implicit-imports"
 
 	# 资源文件
 	"--include-data-files=${PROJECT_ROOT}/pyproject.toml=pyproject.toml"
 )
 
-# Debug 模式额外参数
+# Debug 模式
 if [[ "$DEBUG_MODE" == "true" ]]; then
 	NUITKA_OPTS+=(
 		"--debug"
-		"--unstripped" # 保留符号表
-		"--show-progress"
-		"--show-memory"
-		"--show-modules"
+		"--unstripped"
+		"--warn-implicit-exceptions"
 	)
 else
 	NUITKA_OPTS+=(
-		"--assume-yes-for-downloads" # 自动下载依赖
+		"--assume-yes-for-downloads"
 	)
 fi
 
 echo "[3/6] 开始 Nuitka 编译..."
 echo "编译参数: ${NUITKA_OPTS[*]}"
 
-# 执行编译
+# 执行编译 - 使用项目虚拟环境避免全局库干扰
 cd "${PROJECT_ROOT}"
+source .venv/bin/activate 2>/dev/null || true
+ulimit -v 4194304 2>/dev/null || true
 python -m nuitka "${NUITKA_OPTS[@]}"
 
 # 验证输出
 echo "[4/6] 验证编译输出..."
-if [[ -f "${OUTPUT_DIR}/${PROJECT_NAME}.bin" ]]; then
+# standalone 模式输出目录名基于入口文件名
+if [[ -d "${OUTPUT_DIR}/cli_full.dist" ]]; then
+	# 重命名为 axon.dist
+	mv "${OUTPUT_DIR}/cli_full.dist" "${OUTPUT_DIR}/${PROJECT_NAME}.dist"
+	EXECUTABLE="${OUTPUT_DIR}/${PROJECT_NAME}.dist/${PROJECT_NAME}"
+elif [[ -d "${OUTPUT_DIR}/${PROJECT_NAME}.dist" ]]; then
+	EXECUTABLE="${OUTPUT_DIR}/${PROJECT_NAME}.dist/${PROJECT_NAME}"
+elif [[ -f "${OUTPUT_DIR}/${PROJECT_NAME}.bin" ]]; then
 	# onefile 模式输出 .bin
 	EXECUTABLE="${OUTPUT_DIR}/${PROJECT_NAME}.bin"
 elif [[ -f "${OUTPUT_DIR}/${PROJECT_NAME}" ]]; then
-	# standalone 模式输出可执行文件
+	# 直接输出可执行文件
 	EXECUTABLE="${OUTPUT_DIR}/${PROJECT_NAME}"
-elif [[ -d "${OUTPUT_DIR}/${PROJECT_NAME}.dist" ]]; then
-	# standalone 目录模式
-	EXECUTABLE="${OUTPUT_DIR}/${PROJECT_NAME}.dist/${PROJECT_NAME}"
 else
 	echo "错误: 未找到编译输出"
+	echo "检查目录内容:"
+	ls -la "${OUTPUT_DIR}/"
 	exit 1
 fi
 
-# 创建最终目录结构
-if [[ -d "${OUTPUT_DIR}/${PROJECT_NAME}.dist" ]]; then
-	echo "[5/6] 组织发布目录..."
-	# standalone 模式：移动 dist 目录
-	mv "${OUTPUT_DIR}/${PROJECT_NAME}.dist" "${OUTPUT_DIR}/${PROJECT_NAME}-standalone"
-	EXECUTABLE="${OUTPUT_DIR}/${PROJECT_NAME}-standalone/${PROJECT_NAME}"
+# 重命名 .bin 为可执行文件 (onefile 模式)
+if [[ -f "${OUTPUT_DIR}/${PROJECT_NAME}.bin" ]]; then
+	echo "[5/6] 重命名输出文件..."
+	mv "${OUTPUT_DIR}/${PROJECT_NAME}.bin" "${OUTPUT_DIR}/${PROJECT_NAME}"
+	EXECUTABLE="${OUTPUT_DIR}/${PROJECT_NAME}"
 fi
 
 # 测试可执行文件
 echo "[6/6] 测试可执行文件..."
 if [[ -f "${EXECUTABLE}" ]]; then
 	chmod +x "${EXECUTABLE}"
-	"${EXECUTABLE}" --help | head -5 || echo "警告: 运行测试失败"
+	"${EXECUTABLE}" --help | head -10 || echo "警告: 运行测试失败"
 
-	# 显示文件信息
 	echo ""
 	echo "======================================"
 	echo "编译成功!"
 	echo "======================================"
 	echo "可执行文件: ${EXECUTABLE}"
 	echo "文件大小: $(du -h "${EXECUTABLE}" | cut -f1)"
-
-	if [[ -d "${OUTPUT_DIR}/${PROJECT_NAME}-standalone" ]]; then
-		echo "目录大小: $(du -sh "${OUTPUT_DIR}/${PROJECT_NAME}-standalone" | cut -f1)"
-	fi
-
-	# 编译时间统计（如果可用）
-	if command -v time &>/dev/null; then
-		echo ""
-		echo "性能提示:"
-		echo "  - 使用 --standalone 获得更快的启动速度"
-		echo "  - 使用 --onefile 获得更小的单文件（但启动稍慢）"
-		echo "  - LTO 优化已启用，跨模块性能提升约 15-20%"
-	fi
+	echo ""
+	echo "性能优化已启用:"
+	echo "  - LTO 跨模块优化"
+	echo "  - Clang 编译器"
+	echo "  - no_site 加快启动"
+	echo "  - 单文件模式 (无需 patchelf)"
 else
-	echo "错误: 编译失败，未生成可执行文件"
+	echo "错误: 编译失败"
 	exit 1
 fi
 
 echo ""
-echo "发布包已准备: ${OUTPUT_DIR}/"
+echo "发布包: ${OUTPUT_DIR}/"
 ls -lh "${OUTPUT_DIR}/" | grep "${PROJECT_NAME}"
 
 exit 0

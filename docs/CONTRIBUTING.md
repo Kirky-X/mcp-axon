@@ -68,8 +68,8 @@
 # 点击 GitHub 上的 Fork 按钮
 
 # 2. 克隆您的 fork
-git clone https://github.com/YOUR_USERNAME/mcp-axon.git
-cd mcp-axon
+git clone https://github.com/YOUR_USERNAME/axon.git
+cd axon
 
 # 3. 创建虚拟环境
 uv venv
@@ -87,7 +87,7 @@ uv run pytest tests/ -v --tb=short
 
 ```bash
 # 添加上游仓库
-git remote add upstream https://github.com/Kirky-X/mcp-axon.git
+git remote add upstream https://github.com/Kirky-X/axon.git
 
 # 验证远程仓库
 git remote -v
@@ -149,21 +149,25 @@ def new_feature() -> Dict[str, Any]:
 ```python
 # tests/test_services/test_example.py
 import pytest
-from src.core.sdk import RequirementSDK
+import subprocess
 
 class TestExample:
     """测试类"""
 
-    @pytest.fixture
-    def sdk(self):
-        """测试 fixture"""
-        return RequirementSDK()
+    def test_cli_project_create(self):
+        """测试 CLI 创建项目"""
+        result = subprocess.run(
+            ["axon", "project", "create", "--name", "测试项目", "--desc", "测试"],
+            capture_output=True,
+            text=True
+        )
+        assert result.returncode == 0
+        assert "✅ 项目创建成功" in result.stdout
 
-    def test_new_feature(self, sdk):
-        """测试新功能"""
-        result = sdk.create_project(name="测试项目", description="测试")
-        assert result["success"] is True
-        assert "id" in result
+    def test_mcp_tool(self):
+        """测试 MCP 工具调用"""
+        # 使用 MCP 客户端测试工具
+        pass
 ```
 
 ### 运行测试
@@ -243,23 +247,43 @@ def helper():
 src/
 ├── __init__.py
 ├── core/
-│   └── sdk.py          # SDK 主入口
+│   ├── sdk.py          # SDK 主入口
+│   └── containers/     # 依赖注入容器
+│       ├── __init__.py
+│       ├── config.py   # 容器配置
+│       └── database.py # 数据库初始化
 ├── api/
+│   ├── __init__.py
 │   ├── mcp_server.py   # MCP 服务器
-│   └── tools.py        # 工具定义
+│   ├── tools.py        # 工具定义 (8个)
+│   ├── tool_router.py  # 工具路由器
+│   └── http_server.py  # HTTP 服务器
 ├── db/
-│   ├── database.py     # 数据库连接
-│   └── models.py       # 数据模型
+│   ├── __init__.py
+│   ├── graph_models.py     # Pydantic 模型
+│   ├── graph_queries.py    # Cypher 查询
+│   └── schema.py
 ├── services/
+│   ├── __init__.py
 │   ├── project_manager.py
 │   ├── requirement_manager.py
 │   ├── dependency_service.py
 │   ├── validation_service.py
 │   ├── chain_builder.py
-│   └── chain_orchestrator.py
+│   ├── chain_orchestrator.py
+│   ├── complexity_evaluator.py
+│   └── decomposition_advisor.py
+├── cli/
+│   ├── __init__.py
+│   ├── cli.py          # Typer CLI
+│   └── cli_full.py
 └── utils/
+    ├── __init__.py
+    ├── cache.py
+    ├── rate_limiter.py
     ├── lock_manager.py
-    └── snapshot_manager.py
+    ├── snapshot_manager.py
+    └── ...
 ```
 
 ---
@@ -410,8 +434,8 @@ git push origin feature/your-feature-name
 
 | 渠道 | 说明 |
 |-----|------|
-| [GitHub Issues](https://github.com/Kirky-X/mcp-axon/issues) | Bug 报告和功能请求 |
-| [GitHub Discussions](https://github.com/Kirky-X/mcp-axon/discussions) | 问答和讨论 |
+| [GitHub Issues](https://github.com/Kirky-X/axon/issues) | Bug 报告和功能请求 |
+| [GitHub Discussions](https://github.com/Kirky-X/axon/discussions) | 问答和讨论 |
 
 ### 致谢
 
@@ -426,7 +450,7 @@ git push origin feature/your-feature-name
 
 您的贡献使这个项目变得更好。
 
-**准备好贡献了吗？** [创建第一个 issue](https://github.com/Kirky-X/mcp-axon/issues/new) 或 [开始讨论](https://github.com/Kirky-X/mcp-axon/discussions/new)！
+**准备好贡献了吗？** [创建第一个 issue](https://github.com/Kirky-X/axon/issues/new) 或 [开始讨论](https://github.com/Kirky-X/axon/discussions/new)！
 
 ---
 

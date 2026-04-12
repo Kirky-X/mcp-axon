@@ -39,6 +39,16 @@
 | 易用性 | 简单 | 复杂 |
 | 文档完善度 | 全面 | 基础 |
 
+### 使用什么数据库？
+
+MCP-Axon 使用 **real_ladybug** 图数据库客户端,支持:
+- Cypher 查询语言
+- 图数据存储 (节点和关系)
+- 事务管理
+- 连接池
+
+默认数据库文件为 `mcp_axon.lbug`,可通过环境变量 `MCP_AXON_DB_PATH` 配置。
+
 ### 支持哪些平台？
 
 | 平台 | 架构 | 状态 |
@@ -51,10 +61,12 @@
 
 - **Python**: 3.12+
 - **主要依赖**:
-  - `mcp==1.25.0` - MCP 协议
-  - `sqlalchemy==2.0.23` - ORM
+  - `mcp>=1.27.0` - MCP 协议
+  - `real-ladybug>=0.15.3` - 图数据库客户端
   - `pydantic>=2.11.0` - 数据验证
-  - `networkx==3.2.1` - 图算法
+  - `networkx>=3.6.1` - 图算法
+  - `dependency-injector>=4.49.0` - 依赖注入
+  - `typer>=0.24.1` - CLI 框架
 
 ---
 
@@ -64,8 +76,8 @@
 
 ```bash
 # 克隆仓库
-git clone https://github.com/Kirky-X/mcp-axon.git
-cd mcp-axon
+git clone https://github.com/Kirky-X/axon.git
+cd axon
 
 # 使用 uv 安装
 uv venv
@@ -101,32 +113,42 @@ print(f"✅ 安装成功: {project['id']}")
 
 ### 如何开始使用？
 
-```python
-from src.core.sdk import RequirementSDK
+**CLI 方式:**
 
-sdk = RequirementSDK()
-
+```bash
 # 1. 创建项目
-project = sdk.create_project(name="我的项目", description="描述")
+axon project create --name "我的项目" --desc "描述"
 
 # 2. 添加需求
-req = sdk.add_requirement(project["id"], "用户认证功能")
+axon requirement create --project <project_id> --content "用户认证功能"
 
 # 3. 标记为叶子节点
-sdk.mark_as_leaf(req["requirement_id"])
+axon requirement mark-leaf <requirement_id>
 
 # 4. 添加验证
-sdk.add_validation(
-    requirement_id=req["requirement_id"],
-    test_cases=[{"name": "测试", "steps": ["步骤"], "expected_result": "结果"}],
-    acceptance_criteria="用户能够登录"
-)
+axon validation add <requirement_id> --tests '[{"name": "测试", "steps": ["步骤"], "expected_result": "结果"}]'
 
 # 5. 触发链化
-sdk.trigger_chaining(project["id"])
+axon execution trigger --project <project_id>
 
 # 6. 获取下一个需求
-next_req = sdk.get_next_requirement(project["id"])
+axon execution next --project <project_id>
+```
+
+**MCP 方式:**
+
+通过 MCP 客户端调用相应工具，参考 [API 参考](API_REFERENCE.md)。
+
+**HTTP 方式:**
+
+```bash
+# 启动 HTTP 服务器
+axon-server --mode http --http-port 8080
+
+# 使用 REST API
+curl -X POST http://localhost:8080/api/tools/manage_project \
+  -H "Content-Type: application/json" \
+  -d '{"action": "create", "name": "我的项目", "description": "描述"}'
 ```
 
 ### 支持哪些需求类型？
@@ -147,13 +169,24 @@ next_req = sdk.get_next_requirement(project["id"])
 
 ### 如何处理错误？
 
-```python
-try:
-    result = sdk.create_project(name="项目")
-except Exception as e:
-    print(f"错误: {e}")
-    # 处理错误
+**CLI 方式:**
+
+CLI 命令会直接显示错误信息，根据提示修正即可。
+
+**MCP 方式:**
+
+```json
+// 错误响应格式
+{
+  "success": false,
+  "error": "错误描述",
+  "error_type": "错误类型"
+}
 ```
+
+**HTTP 方式:**
+
+HTTP API 返回标准 HTTP 状态码和错误信息。
 
 ---
 
@@ -170,24 +203,24 @@ except Exception as e:
 ### 如何优化性能？
 
 1. **使用批量操作**
-   ```python
-   # 批量添加需求
-   for content in contents:
-       sdk.add_requirement(project_id, content)
+   ```bash
+   # CLI 批量添加需求
+   for content in "需求1" "需求2" "需求3"; do
+       axon requirement create --project <project_id> --content "$content"
+   done
    ```
 
 2. **合理使用缓存**
-   ```python
-   sdk = RequirementSDK()  # 默认启用缓存
-   ```
+   - 系统自动缓存查询结果
+   - 无需手动配置
 
 3. **及时释放锁**
-   ```python
-   sdk.acquire_lock(project_id, session_id="session")
-   try:
+   ```bash
+   axon lock acquire --project <project_id> --session <session_id>
+   try
        # 操作
-   finally:
-       sdk.release_lock(project_id, session_id="session")
+   finally
+       axon lock release --project <project_id> --session <session_id>
    ```
 
 ### 内存使用情况如何？
@@ -215,7 +248,7 @@ except Exception as e:
 
 - 查看 [用户指南](USER_GUIDE.md)
 - 查看 [API 参考](API_REFERENCE.md)
-- [创建 Issue](https://github.com/Kirky-X/mcp-axon/issues)
+- [创建 Issue](https://github.com/Kirky-X/axon/issues)
 
 ---
 

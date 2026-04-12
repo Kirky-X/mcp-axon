@@ -82,9 +82,10 @@ MCP-Axon 采用分层架构设计，基于 Model Context Protocol (MCP) 标准�
 | 层次           | 职责     | 组件                                         |
 | -------------- | -------- | -------------------------------------------- |
 | **MCP 协议层** | 通信协议 | MCP Python SDK, JSON-RPC 2.0                 |
-| **API 层**     | 请求处理 | MCP 服务器、ToolRouter、输入验证             |
+| **API 层**     | 请求处理 | MCP 服务器、ToolRouter、输入验证、速率限制             |
 | **SDK 层**     | SDK 入口 | RequirementSDK, 服务协调                     |
 | **服务层**     | 核心业务 | 各业务服务管理器                             |
+| **容器层**     | 依赖注入 | dependency-injector 容器                     |
 | **数据层**     | 数据存储 | real_ladybug, Cypher 查询模板, Pydantic 模型 |
 
 ---
@@ -99,16 +100,30 @@ MCP-Axon 采用分层架构设计，基于 Model Context Protocol (MCP) 标准�
 class RequirementSDK:
     """需求链化 SDK - 主入口"""
 
-    def __init__(self, db_path: str = "requirements.db"):
-        self.db_path = db_path
-        self.project_manager = ProjectManager()
-        self.requirement_manager = RequirementManager()
-        self.dependency_service = DependencyService()
-        self.validation_service = ValidationService()
-        self.chain_builder = ChainBuilder()
-        self.chain_orchestrator = ChainOrchestrator()
-        self.snapshot_manager = SnapshotManager()
-        self.lock_manager = ProjectLockManager()
+    def __init__(self, db_path: str | None = None):
+        """
+        初始化 SDK
+
+        Args:
+            db_path: 数据库文件路径 (默认从环境变量 MCP_AXON_DB_PATH 获取)
+        """
+        # 优先使用环境变量，其次使用参数，最后使用默认值
+        self.db_path = os.getenv("MCP_AXON_DB_PATH", db_path or "mcp_axon.lbug")
+
+        # 初始化容器和数据库
+        init_container(db_path=self.db_path)
+        init_database()
+
+        # 从容器获取服务
+        container = get_container()
+        self.project_manager = container.project_manager()
+        self.requirement_manager = container.requirement_manager()
+        self.dependency_service = container.dependency_service()
+        self.validation_service = container.validation_service()
+        self.chain_builder = container.chain_builder()
+        self.chain_orchestrator = container.chain_orchestrator()
+        self.lock_manager = container.lock_manager()
+        self.snapshot_manager = container.snapshot_manager()
 ```
 
 ### 2. 项目管理器 (ProjectManager)
@@ -235,13 +250,17 @@ class ChainOrchestrator:
 | 类别         | 技术                 | 版本   | 用途             |
 | ------------ | -------------------- | ------ | ---------------- |
 | **语言**     | Python               | 3.12+  | 主要开发语言     |
-| **协议**     | MCP                  | 1.25.0 | 模型上下文协议   |
-| **数据库**   | Neo4j (real_ladybug) | 最新版 | 图数据库存储     |
+| **协议**     | MCP                  | >=1.27.0 | 模型上下文协议   |
+| **数据库**   | real_ladybug         | >=0.15.3 | 图数据库客户端     |
 | **查询语言** | Cypher               | -      | 图查询语言       |
-| **数据验证** | Pydantic             | 2.5.0+ | 数据模型和验证   |
-| **依赖注入** | dependency-injector  | 最新版 | 服务生命周期管理 |
-| **测试**     | pytest               | 7.4.3  | 测试框架         |
-| **重试**     | tenacity             | 8.2.3  | 失败重试机制     |
+| **数据验证** | Pydantic             | >=2.11.0 | 数据模型和验证   |
+| **依赖注入** | dependency-injector  | >=4.49.0 | 服务生命周期管理 |
+| **图算法**   | NetworkX             | >=3.6.1 | 拓扑排序等算法   |
+| **状态机**   | transitions          | >=0.9.3 | 状态管理         |
+| **缓存**     | cachetools           | >=7.0.5 | 查询缓存         |
+| **CLI**      | Typer                | >=0.24.1 | 命令行界面       |
+| **测试**     | pytest               | >=9.0.0 | 测试框架         |
+| **重试**     | tenacity             | >=9.1.4 | 失败重试机制     |
 
 ### 依赖关系
 
@@ -295,11 +314,27 @@ RequirementSDK
 - 便于测试时替换 mock
 - 与服务容器无缝集成
 
-### 决策 5: 为什么使用 real_ladybug 作为 Neo4j 客户端？
+### 决策 5: 为什么使用 real_ladybug 作为图数据库客户端？
 
 - 轻量级图数据库客户端
 - 支持 Cypher 参数化查询，防止注入
 - 与项目图模型需求匹配
+- 提供连接池和事务管理
+
+### 决策 6: 为什么使用 dependency-injector？
+
+- 显式依赖声明，易于理解
+- 支持 Singleton/Factory 等多种生命周期
+- 便于测试时替换 mock
+- 与服务容器无缝集成
+- 统一管理组件依赖关系
+
+### 决策 7: 为什么使用 Typer 构建 CLI？
+
+- 基于 Python 类型提示，自动生成帮助文档
+- 简洁的装饰器语法，易于维护
+- 支持子命令和参数验证
+- 与 FastAPI 同源，生态良好
 
 ---
 
@@ -366,18 +401,19 @@ sdk.release_lock(project_id, session_id="session_123")
 ### 当前限制
 
 - 单机部署，无法水平扩展
-- SQLite 不支持真正的并发写入
 - 项目锁依赖超时机制
+- 速率限制配置需要优化
 
 ### 未来改进方向
 
 | 方向            | 说明           |
 | --------------- | -------------- |
-| PostgreSQL 支持 | 生产环境数据库 |
+| 分布式部署 | 支持多实例部署 |
 | Redis 分布式锁  | 高并发场景     |
 | WebSocket 推送  | 实时链化进度   |
 | 需求版本历史    | 回溯和审计     |
 | 插件机制        | 扩展链化策略   |
+| 配置中心        | 动态配置管理   |
 
 ### 可扩展点
 

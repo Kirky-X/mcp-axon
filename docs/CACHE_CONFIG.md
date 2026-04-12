@@ -50,6 +50,7 @@ ruff check src/ --no-cache
 ✅ **自动清理** - `/tmp` 目录会定期被系统清理  
 ✅ **Git 干净** - 不需要在 `.gitignore` 中维护这些目录  
 ✅ **多项目隔离** - 不同项目的缓存不会冲突  
+✅ **禁止生成 __pycache__** - 通过 `PYTHONDONTWRITEBYTECODE=1` 环境变量  
 
 ## 注意事项
 
@@ -60,4 +61,4 @@ ruff check src/ --no-cache
 
 ---
 
-**最后更新**: 2026-04-12
+**最后更新**: 2026-04-13

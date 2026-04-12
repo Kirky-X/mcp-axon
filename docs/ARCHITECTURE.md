@@ -522,9 +522,7 @@ sdk.release_lock(project_uuid, session_id="session_123")
 
 | 场景           | 默认路径           | 说明                           |
 | -------------- | ------------------ | ------------------------------ |
-| **SDK 默认**   | `mcp_axon.lbug`    | 直接实例化 RequirementSDK 时   |
-| **CLI 默认**   | `requirements.db`  | 使用 `axon` 命令行工具时       |
-| **Server 默认**| `requirements.db`  | 使用 `axon-server` 启动 MCP 服务器时 |
+| **默认**       | `axon.db`  | 所有组件统一使用       |
 
 可通过环境变量 `MCP_AXON_DB_PATH` 统一覆盖默认路径。
 

@@ -62,7 +62,7 @@ uv pip install -e .
 export MCP_AXON_DB_PATH="my_requirements.lbug"
 ```
 
-> **注意**: CLI 和 Server 的默认数据库路径为 `requirements.db`,SDK 的默认数据库路径为 `mcp_axon.lbug`。
+> **注意**: 默认数据库路径为 `axon.db`,可以通过环境变量 `MCP_AXON_DB_PATH` 自定义。
 > 可通过环境变量 `MCP_AXON_DB_PATH` 统一覆盖。
 
 ### 验证安装
@@ -421,8 +421,8 @@ axon project --help
 axon version
 
 # Q: 数据库文件在哪里?
-# CLI 默认: requirements.db
-# SDK 默认: mcp_axon.lbug
+# CLI 默认: axon.db
+# 默认: axon.db
 # 可通过环境变量 MCP_AXON_DB_PATH 覆盖
 ```
 

@@ -52,9 +52,7 @@ Axon 使用 **real-ladybug** 图数据库客户端，底层存储为本地文件
 
 | 组件 | 默认数据库文件 | 配置文件位置 |
 |------|---------------|-------------|
-| SDK | `mcp_axon.lbug` | `src/core/sdk.py:35` |
-| CLI | `requirements.db` | `src/cli/cli.py:30` |
-| Server | `requirements.db` | `src/api/mcp_server.py:36` |
+| 全局 | `axon.db` | `src/core/containers/config.py:58` |
 
 可通过环境变量 `MCP_AXON_DB_PATH` 统一覆盖默认路径：
 

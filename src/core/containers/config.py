@@ -39,7 +39,7 @@ class LockConfig:
 class DatabaseConfig:
     """数据库配置"""
 
-    db_path: str = "mcp_axon.lbug"
+    db_path: str = "axon.db"
     max_retries: int = 3
 
 
@@ -55,7 +55,7 @@ class AppConfig:
 
 def create_config_from_env() -> AppConfig:
     """从环境变量创建配置"""
-    db_path = os.getenv("MCP_AXON_DB_PATH", "mcp_axon.lbug")
+    db_path = os.getenv("MCP_AXON_DB_PATH", "axon.db")
 
     # 尝试从性能配置中读取缓存大小
     cache_config = CacheConfig()

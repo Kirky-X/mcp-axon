@@ -280,7 +280,7 @@ def init_container(db_path: str | None = None, max_retries: int = 3) -> Containe
 
     # 获取配置
     if db_path is None:
-        db_path = os.getenv("MCP_AXON_DB_PATH", "mcp_axon.lbug")
+        db_path = os.getenv("MCP_AXON_DB_PATH", "axon.db")
 
     # 创建容器
     _container = Container()

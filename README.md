@@ -83,9 +83,7 @@ uv pip install -e .[dev]
 
 ```bash
 # 设置数据库路径 (可选)
-# SDK 默认: mcp_axon.lbug
-# CLI/Server 默认: requirements.db
-export MCP_AXON_DB_PATH="my_custom_db.lbug"
+export MCP_AXON_DB_PATH="my_custom.db"
 ```
 
 ### 基本使用
@@ -162,7 +160,7 @@ axon-server --db-path my_project.db --mode http
 | 参数 | 默认值 | 说明 |
 | ---- | ------ | ---- |
 | `--mode` | `mcp` | 运行模式: `mcp`, `http`, `both` |
-| `--db-path` | `requirements.db` | 数据库文件路径 |
+| `--db-path` | `axon.db` | 数据库文件路径 |
 | `--http-host` | `0.0.0.0` | HTTP 服务器绑定地址 |
 | `--http-port` | `8080` | HTTP 服务器端口 |
 

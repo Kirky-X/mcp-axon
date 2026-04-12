@@ -246,3 +246,8 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
+
+
+def entry_point():
+    """CLI 入口点"""
+    asyncio.run(main())

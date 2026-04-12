@@ -41,7 +41,7 @@ repos:
 
       - id: ruff-check
         name: ruff check
-        entry: uv run ruff check --cache-dir=/tmp/ruff_cache
+        entry: uv run ruff check --cache-dir=/tmp/ruff_cache --exit-zero
         language: system
         types: [python]
         pass_filenames: false

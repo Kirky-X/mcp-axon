@@ -178,10 +178,7 @@ class ProjectLockManager:
 
         # 检查锁是否已超时
         locked_at = self._parse_datetime(locked_at_str)
-        if self._is_lock_expired(locked_at):
-            return False
-
-        return True
+        return not self._is_lock_expired(locked_at)
 
     def get_lock_info(self, conn: lb.Connection, project_id: str) -> dict | None:
         """

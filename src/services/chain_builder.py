@@ -160,7 +160,7 @@ class ChainBuilder:
         req_map = {req[0]: req for req in requirements}
 
         # 验证排序顺序
-        req_uuids = set(req[0] for req in requirements)
+        req_uuids = {req[0] for req in requirements}
         sorted_uuids = set(sorted_order)
 
         if req_uuids != sorted_uuids:

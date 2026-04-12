@@ -7,7 +7,7 @@
 import json
 import uuid
 from datetime import UTC, datetime
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 from pydantic import BaseModel, Field
@@ -15,7 +15,7 @@ from pydantic import BaseModel, Field
 # ============ 枚举类型 ============
 
 
-class ProjectStatus(str, Enum):
+class ProjectStatus(StrEnum):
     """项目状态枚举"""
 
     CREATED = "CREATED"
@@ -26,7 +26,7 @@ class ProjectStatus(str, Enum):
     COMPLETED = "COMPLETED"
 
 
-class RequirementStatus(str, Enum):
+class RequirementStatus(StrEnum):
     """需求状态枚举"""
 
     DRAFT = "DRAFT"
@@ -37,7 +37,7 @@ class RequirementStatus(str, Enum):
     COMPLETED = "COMPLETED"
 
 
-class ValidationStatus(str, Enum):
+class ValidationStatus(StrEnum):
     """验证状态枚举"""
 
     PENDING = "pending"
@@ -45,7 +45,7 @@ class ValidationStatus(str, Enum):
     FAILED = "failed"
 
 
-class ChainStatus(str, Enum):
+class ChainStatus(StrEnum):
     """链化状态枚举"""
 
     IDLE = "IDLE"

@@ -394,9 +394,8 @@ class ToolRouter:
                     )
 
         parent_id = args.get("parent_id")
-        if parent_id is not None:
-            if not self._uuid_pattern.match(parent_id):
-                raise ValueError("parent_id 格式不正确，必须是有效的 UUID")
+        if parent_id is not None and not self._uuid_pattern.match(parent_id):
+            raise ValueError("parent_id 格式不正确，必须是有效的 UUID")
 
     def _validate_dependency_input(self, args: dict) -> None:
         """验证依赖管理参数"""

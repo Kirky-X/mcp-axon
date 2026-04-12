@@ -13,7 +13,7 @@ def test_uat001_project_creation():
     sdk = RequirementSDK(db_path=":memory:")
 
     # 创建项目
-    result = sdk.create_project("我的第一个项目", "这是一个测试项目")
+    result = sdk.manage_project(name="我的第一个项目", description="这是一个测试项目")
 
     assert result["project_id"] is not None
     assert result["status"] == "CREATED"
@@ -27,19 +27,21 @@ def test_uat001_project_creation():
 def test_uat002_requirement_complexity_evaluation():
     """UAT-002: 需求添加与复杂度评估"""
     sdk = RequirementSDK(db_path=":memory:")
-    project = sdk.create_project("测试项目")
+    project = sdk.manage_project(name="测试项目")
 
     # 复杂需求（根据优化后的算法，应该触发分解）
-    complex_req = sdk.add_requirement(
-        project["project_id"],
-        "实现完整的用户管理系统，包括用户注册、登录、权限控制、角色管理等功能",
+    complex_req = sdk.manage_requirement(
+        project_id=project["project_id"],
+        content="实现完整的用户管理系统，包括用户注册、登录、权限控制、角色管理等功能",
     )
     assert complex_req["needs_decomposition"] is True  # 复杂度 >= 0.5，需要分解
     assert complex_req["complexity_score"] >= 0.5
     assert complex_req["status"] == "DECOMPOSING"  # 状态应该是 DECOMPOSING
 
     # 简单需求
-    simple_req = sdk.add_requirement(project["project_id"], "修改用户头像")
+    simple_req = sdk.manage_requirement(
+        project_id=project["project_id"], content="修改用户头像"
+    )
     assert simple_req["needs_decomposition"] is False
     assert simple_req["status"] == "LEAF"  # 低复杂度应该是 LEAF
 
@@ -47,17 +49,23 @@ def test_uat002_requirement_complexity_evaluation():
 def test_uat003_requirement_decomposition():
     """UAT-003: 需求分解与层级管理"""
     sdk = RequirementSDK(db_path=":memory:")
-    project = sdk.create_project("测试项目")
+    project = sdk.manage_project(name="测试项目")
 
     # 添加根需求
-    root = sdk.add_requirement(project["project_id"], "用户管理系统")
+    root = sdk.manage_requirement(
+        project_id=project["project_id"], content="用户管理系统"
+    )
 
     # 分解为子需求
-    child1 = sdk.add_requirement(
-        project["project_id"], "用户注册功能", parent_id=root["requirement_id"]
+    child1 = sdk.manage_requirement(
+        project_id=project["project_id"],
+        content="用户注册功能",
+        parent_id=root["requirement_id"],
     )
-    child2 = sdk.add_requirement(
-        project["project_id"], "用户登录功能", parent_id=root["requirement_id"]
+    child2 = sdk.manage_requirement(
+        project_id=project["project_id"],
+        content="用户登录功能",
+        parent_id=root["requirement_id"],
     )
 
     assert child1["level"] == 1
@@ -67,15 +75,17 @@ def test_uat003_requirement_decomposition():
 def test_uat004_dependency_management():
     """UAT-004: 依赖关系管理"""
     sdk = RequirementSDK(db_path=":memory:")
-    project = sdk.create_project("测试项目")
+    project = sdk.manage_project(name="测试项目")
 
     # 创建需求（默认是叶子节点）
-    dep1 = sdk.add_requirement(project["project_id"], "依赖1")
+    dep1 = sdk.manage_requirement(project_id=project["project_id"], content="依赖1")
     assert dep1["status"] == "LEAF"
 
-    parent = sdk.add_requirement(project["project_id"], "父需求")
-    child = sdk.add_requirement(
-        project["project_id"], "子需求", parent_id=parent["requirement_id"]
+    parent = sdk.manage_requirement(project_id=project["project_id"], content="父需求")
+    child = sdk.manage_requirement(
+        project_id=project["project_id"],
+        content="子需求",
+        parent_id=parent["requirement_id"],
     )
 
     # 传递依赖
@@ -91,10 +101,10 @@ def test_uat004_dependency_management():
 def test_uat006_validation_configuration():
     """UAT-006: 验证节点配置（需求默认是叶子节点）"""
     sdk = RequirementSDK(db_path=":memory:")
-    project = sdk.create_project("测试项目")
+    project = sdk.manage_project(name="测试项目")
 
     # 需求创建时自动是叶子节点
-    req = sdk.add_requirement(project["project_id"], "叶子需求")
+    req = sdk.manage_requirement(project_id=project["project_id"], content="叶子需求")
     assert req["status"] == "LEAF", "新创建的需求应该是叶子节点"
 
     test_cases = [
@@ -114,11 +124,13 @@ def test_uat006_validation_configuration():
 def test_uat007_auto_chaining_trigger():
     """UAT-007: 自动链化触发"""
     sdk = RequirementSDK(db_path=":memory:")
-    project = sdk.create_project("测试项目")
+    project = sdk.manage_project(name="测试项目")
 
     # 创建多个叶子需求并配置验证（需求默认是叶子节点）
     for i in range(5):
-        req = sdk.add_requirement(project["project_id"], f"需求{i}")
+        req = sdk.manage_requirement(
+            project_id=project["project_id"], content=f"需求{i}"
+        )
         assert req["status"] == "LEAF", "新创建的需求应该是叶子节点"
         sdk.add_validation(req["requirement_id"], [{"name": f"测试{i}"}])
 
@@ -132,14 +144,14 @@ def test_uat007_auto_chaining_trigger():
 def test_uat008_parallel_order_resolution():
     """UAT-008: 并行节点排序决策"""
     sdk = RequirementSDK(db_path=":memory:")
-    project = sdk.create_project("测试项目")
+    project = sdk.manage_project(name="测试项目")
 
     # 创建并行节点（默认是叶子节点）
-    req1 = sdk.add_requirement(project["project_id"], "需求1")
+    req1 = sdk.manage_requirement(project_id=project["project_id"], content="需求1")
     assert req1["status"] == "LEAF"
     sdk.add_validation(req1["requirement_id"], [{"name": "测试1"}])
 
-    req2 = sdk.add_requirement(project["project_id"], "需求2")
+    req2 = sdk.manage_requirement(project_id=project["project_id"], content="需求2")
     assert req2["status"] == "LEAF"
     sdk.add_validation(req2["requirement_id"], [{"name": "测试2"}])
 
@@ -157,9 +169,9 @@ def test_uat008_parallel_order_resolution():
 def test_uat009_get_next_requirement():
     """UAT-009: 获取下一个需求"""
     sdk = RequirementSDK(db_path=":memory:")
-    project = sdk.create_project("测试项目")
+    project = sdk.manage_project(name="测试项目")
 
-    req = sdk.add_requirement(project["project_id"], "需求")
+    req = sdk.manage_requirement(project_id=project["project_id"], content="需求")
     assert req["status"] == "LEAF"
     sdk.add_validation(req["requirement_id"], [{"name": "测试"}])
 
@@ -173,11 +185,13 @@ def test_uat009_get_next_requirement():
 def test_uat010_project_status_query():
     """UAT-010: 项目状态查询"""
     sdk = RequirementSDK(db_path=":memory:")
-    project = sdk.create_project("测试项目")
+    project = sdk.manage_project(name="测试项目")
 
     # 添加一些需求（默认是叶子节点）
     for i in range(3):
-        req = sdk.add_requirement(project["project_id"], f"需求{i}")
+        req = sdk.manage_requirement(
+            project_id=project["project_id"], content=f"需求{i}"
+        )
         assert req["status"] == "LEAF"
 
     # 查询项目状态

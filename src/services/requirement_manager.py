@@ -40,6 +40,7 @@ from src.utils.cache import CacheManager
 from src.utils.event_logger import log_event
 from src.utils.input_validator import InputValidator
 from src.utils.metrics import performance_monitor
+from src.utils.state_machine import RequirementStateMachine, StateTransitionError
 
 logger = logging.getLogger(__name__)
 
@@ -334,6 +335,14 @@ class RequirementManager:
                     f"有效状态为: {', '.join(valid_statuses)}"
                 )
 
+            # 使用状态机验证状态转换
+            try:
+                RequirementStateMachine.validate_transition(
+                    current_status, update_data.status
+                )
+            except StateTransitionError as e:
+                raise ValueError(str(e))
+
             log_event(
                 conn,
                 project_uuid,
@@ -477,14 +486,15 @@ class RequirementManager:
             "level": row[6],  # level
             "order_in_parent": row[7],  # order_in_parent
             "chain_order": row[8] if row[8] != -1 else None,  # chain_order
-            "created_at": row[9],  # created_at
-            "updated_at": row[10],  # updated_at
-            "version": row[11] if len(row) > 11 else 1,  # version
-            "dependencies": row[12]
-            if len(row) > 12 and row[12]
-            else [],  # dependencies
-            "next_requirement_id": row[13]
+            "parallel_group": row[9] if row[9] is not None else None,  # parallel_group
+            "created_at": row[10],  # created_at
+            "updated_at": row[11],  # updated_at
+            "version": row[12] if len(row) > 12 else 1,  # version
+            "dependencies": row[13]
             if len(row) > 13 and row[13]
+            else [],  # dependencies
+            "next_requirement_id": row[14]
+            if len(row) > 14 and row[14]
             else None,  # next_requirement_uuid
         }
 
@@ -599,7 +609,10 @@ class RequirementManager:
         parent_uuid: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
-        批量添加需求
+        批量添加需求（带事务保护）
+
+        使用补偿机制确保数据一致性：如果某个需求创建失败，
+        会回滚已创建的所有需求。
 
         Args:
             conn: 数据库连接
@@ -610,8 +623,9 @@ class RequirementManager:
         Returns:
             批量操作结果
         """
-        created_requirements = []
-        failed_requirements = []
+        created_requirements: List[Dict[str, Any]] = []
+        failed_requirements: List[Dict[str, Any]] = []
+        created_uuids: List[str] = []  # 记录已创建的 UUID 用于回滚
 
         # 限制批量大小
         batch_size = min(len(requirements), Chain.DEFAULT_BATCH_SIZE)
@@ -638,6 +652,15 @@ class RequirementManager:
                     f"需求层级超过限制（当前: {parent_level}, 最大: {Limits.MAX_DEPTH}）。"
                     f"无法继续分解。"
                 )
+
+        def rollback_created():
+            """回滚已创建的需求"""
+            for uuid_to_delete in created_uuids:
+                try:
+                    conn.execute(DELETE_REQUIREMENT, {"uuid": uuid_to_delete})
+                    logger.info(f"回滚删除需求: {uuid_to_delete}")
+                except Exception as e:
+                    logger.error(f"回滚失败 {uuid_to_delete}: {e}")
 
         # 批量创建需求
         for i, req_data in enumerate(requirements[:batch_size]):
@@ -683,6 +706,9 @@ class RequirementManager:
                         "version": 1,
                     },
                 )
+
+                # 记录已创建的 UUID（在创建边之前）
+                created_uuids.append(req_uuid)
 
                 # 创建边
                 conn.execute(
@@ -734,7 +760,25 @@ class RequirementManager:
                 logger.error(f"批量添加需求失败（索引 {i}）: {e}")
                 failed_requirements.append({"index": i, "error": str(e)})
 
-        # 使缓存失效
+                # 执行回滚
+                logger.warning(f"开始回滚已创建的 {len(created_uuids)} 个需求")
+                rollback_created()
+
+                # 使缓存失效
+                self.cache.invalidate_project(project_uuid)
+
+                # 返回失败结果
+                return {
+                    "total": len(requirements),
+                    "success": 0,
+                    "failed": len(failed_requirements),
+                    "created": [],
+                    "failed_details": failed_requirements,
+                    "rolled_back": True,
+                    "rolled_back_count": len(created_uuids),
+                }
+
+        # 全部成功，使缓存失效
         self.cache.invalidate_project(project_uuid)
 
         return {
@@ -743,6 +787,7 @@ class RequirementManager:
             "failed": len(failed_requirements),
             "created": created_requirements,
             "failed_details": failed_requirements,
+            "rolled_back": False,
         }
 
     @performance_monitor("batch_update_requirements")
@@ -822,20 +867,30 @@ class RequirementManager:
 
         # 根据过滤条件选择查询
         if parent_uuid:
+            # 验证 parent_uuid 属于该项目
+            parent_result = conn.execute(GET_REQUIREMENT_BY_UUID, {"uuid": parent_uuid})
+            parent_rows = list(parent_result)
+            if parent_rows:
+                parent_project_uuid = parent_rows[0][1]
+                if parent_project_uuid != project_uuid:
+                    raise ValueError(f"父需求不属于该项目: {parent_uuid}")
+
             result = conn.execute(
                 GET_REQUIREMENTS_BY_PARENT, {"parent_uuid": parent_uuid}
             )
+            # 过滤：只返回属于该项目的子需求
+            requirements = [r for r in list(result) if r[1] == project_uuid]
         elif status:
             result = conn.execute(
                 GET_REQUIREMENTS_BY_STATUS,
                 {"project_uuid": project_uuid, "status": status},
             )
+            requirements = list(result)
         else:
             result = conn.execute(
                 GET_REQUIREMENTS_BY_PROJECT, {"project_uuid": project_uuid}
             )
-
-        requirements = list(result)
+            requirements = list(result)
 
         # 过滤叶子节点
         if is_leaf is not None:

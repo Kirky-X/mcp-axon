@@ -70,44 +70,36 @@ class RequirementSDK:
         """
         return get_connection()
 
-    def create_project(self, name: str, description: str = "") -> Dict[str, Any]:
+    def manage_project(
+        self,
+        project_id: Optional[str] = None,
+        name: str = "",
+        description: str = "",
+    ) -> Dict[str, Any]:
         """
-        创建项目
+        管理项目（创建或更新）
 
         Args:
-            name: 项目名称
+            project_id: 项目 ID（有则更新，无则创建）
+            name: 项目名称（创建时必填，更新时可选）
             description: 项目描述
 
         Returns:
             项目信息
         """
         conn = self._get_conn()
-        result = self.project_manager.create_project(conn, name, description)
-        result["next_action"] = "add_root_requirement"
-        return result
+        if project_id:
+            from src.schemas import ProjectUpdate
 
-    def update_project(
-        self,
-        project_id: str,
-        name: Optional[str] = None,
-        description: Optional[str] = None,
-    ) -> Dict[str, Any]:
-        """
-        更新项目信息
-
-        Args:
-            project_id: 项目 ID
-            name: 新名称
-            description: 新描述
-
-        Returns:
-            更新后的项目信息
-        """
-        from src.schemas import ProjectUpdate
-
-        conn = self._get_conn()
-        update_data = ProjectUpdate(name=name, description=description)
-        return self.project_manager.update_project(conn, project_id, update_data)
+            update_data = ProjectUpdate(
+                name=name if name else None,
+                description=description if description else None,
+            )
+            return self.project_manager.update_project(conn, project_id, update_data)
+        else:
+            result = self.project_manager.create_project(conn, name, description)
+            result["next_action"] = "add_root_requirement"
+            return result
 
     def get_project(self, project_id: str) -> Dict[str, Any]:
         """
@@ -122,64 +114,52 @@ class RequirementSDK:
         conn = self._get_conn()
         return self.project_manager.get_project(conn, project_id)
 
-    def add_requirement(
+    def manage_requirement(
         self,
-        project_id: str,
-        content: str,
+        requirement_id: Optional[str] = None,
+        project_id: Optional[str] = None,
+        content: str = "",
         parent_id: Optional[str] = None,
         order_in_parent: int = 0,
+        status: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
-        添加需求节点
+        管理需求（创建或更新）
 
         Args:
-            project_id: 项目 ID
+            requirement_id: 需求 ID（有则更新，无则创建）
+            project_id: 项目 ID（创建时必填）
             content: 需求内容
             parent_id: 父需求 ID（可选）
-            order_in_parent: 在父需求中的顺序
+            order_in_parent: 在父需求中的顺序（创建时）
+            status: 新状态（更新时）
 
         Returns:
             需求信息
         """
         conn = self._get_conn()
-        result = self.requirement_manager.add_requirement(
-            conn, project_id, content, parent_id, order_in_parent
-        )
+        if requirement_id:
+            from src.schemas import RequirementUpdate
 
-        # 添加下一步操作提示
-        if result["needs_decomposition"]:
-            result["next_action"] = "decompose_requirement"
-        elif result["level"] == 0:
-            result["next_action"] = "add_child_requirement"
+            update_data = RequirementUpdate(
+                content=content if content else None, status=status
+            )
+            return self.requirement_manager.update_requirement(
+                conn, requirement_id, update_data
+            )
         else:
-            result["next_action"] = "add_validation"
-
-        return result
-
-    def update_requirement(
-        self,
-        requirement_id: str,
-        content: Optional[str] = None,
-        status: Optional[str] = None,
-    ) -> Dict[str, Any]:
-        """
-        更新需求
-
-        Args:
-            requirement_id: 需求 ID
-            content: 新内容
-            status: 新状态
-
-        Returns:
-            更新后的需求信息
-        """
-        from src.schemas import RequirementUpdate
-
-        conn = self._get_conn()
-        update_data = RequirementUpdate(content=content, status=status)
-        return self.requirement_manager.update_requirement(
-            conn, requirement_id, update_data
-        )
+            if not project_id:
+                raise ValueError("创建需求时 project_id 必填")
+            result = self.requirement_manager.add_requirement(
+                conn, project_id, content or "", parent_id, order_in_parent
+            )
+            if result["needs_decomposition"]:
+                result["next_action"] = "decompose_requirement"
+            elif result["level"] == 0:
+                result["next_action"] = "add_child_requirement"
+            else:
+                result["next_action"] = "add_validation"
+            return result
 
     def delete_requirement(self, requirement_id: str) -> Dict[str, Any]:
         """

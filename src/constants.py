@@ -4,6 +4,14 @@
 
 """系统常量定义"""
 
+import re
+
+# UUID 验证正则（全局共享，避免各模块重复定义）
+UUID_PATTERN = re.compile(
+    r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+    re.IGNORECASE,
+)
+
 
 class Limits:
     """系统限制常量"""
@@ -21,37 +29,6 @@ class Limits:
 
     # 项目限制
     MAX_CONCURRENT_PROJECTS = 5
-
-
-class CacheSizes:
-    """缓存容量常量"""
-
-    PROJECT_CACHE_SIZE = 50
-    REQUIREMENT_CACHE_SIZE = 200
-    CHAIN_CACHE_SIZE = 50
-
-
-class Timeouts:
-    """超时常量"""
-
-    LOCK_TIMEOUT_MINUTES = 30
-    RATE_LIMIT_WINDOW_SECONDS = 60
-
-
-class Database:
-    """数据库配置常量"""
-
-    DEFAULT_POOL_SIZE = 5
-    DEFAULT_MAX_OVERFLOW = 10
-    POOL_RECYCLE_SECONDS = 3600
-
-
-class PerformanceThresholds:
-    """性能阈值常量"""
-
-    SLOW_OPERATION_SECONDS = 1.0
-    SLOW_DB_QUERY_SECONDS = 0.5
-    SLOW_API_CALL_SECONDS = 0.5
 
 
 class ComplexityScoring:
@@ -84,3 +61,15 @@ class APIVersion:
     VERSION_HISTORY = {
         "1.0.0": "初始版本，支持所有核心功能",
     }
+
+
+class Messages:
+    """用户可见的中文消息常量"""
+
+    LOCK_ACQUIRED = "锁获取成功"
+    LOCK_IN_USE = "锁已被占用"
+    LOCK_RELEASED = "锁释放成功"
+    LOCK_NOT_OWNER = "锁不属于该会话"
+    PROJECT_LOCKED = "项目已锁定"
+    PROJECT_NOT_LOCKED = "项目未锁定"
+    SNAPSHOT_CREATED = "快照创建成功"

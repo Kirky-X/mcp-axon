@@ -2,24 +2,20 @@
 # Licensed under the MIT License.
 # See LICENSE file in the project root for full license information.
 
-"""MCP 工具定义测试"""
+"""MCP 工具定义测试 - 埋缩版（8个接口）"""
 
 from src.api.tools import TOOL_DEFINITIONS
 
 
-def test_tool_definitions_not_empty():
-    """测试工具定义列表不为空"""
-    # Arrange & Act & Assert
-    assert len(TOOL_DEFINITIONS) > 0
-    assert len(TOOL_DEFINITIONS) == 23
+def test_tool_definitions_count():
+    """测试工具定义数量为8个"""
+    assert len(TOOL_DEFINITIONS) == 8
 
 
 def test_tool_definitions_structure():
     """测试所有工具定义都有正确的结构"""
-    # Arrange
     required_attributes = ["name", "description", "inputSchema"]
 
-    # Act & Assert
     for tool in TOOL_DEFINITIONS:
         for attr in required_attributes:
             assert hasattr(tool, attr), (
@@ -29,16 +25,12 @@ def test_tool_definitions_structure():
 
 def test_tool_names_are_unique():
     """测试工具名称是唯一的"""
-    # Arrange
     tool_names = [tool.name for tool in TOOL_DEFINITIONS]
-
-    # Act & Assert
     assert len(tool_names) == len(set(tool_names)), "工具名称必须唯一"
 
 
 def test_tool_descriptions_not_empty():
     """测试所有工具都有描述"""
-    # Act & Assert
     for tool in TOOL_DEFINITIONS:
         assert tool.description, f"工具 {tool.name} 缺少描述"
         assert len(tool.description) > 0, f"工具 {tool.name} 的描述不能为空"
@@ -46,7 +38,6 @@ def test_tool_descriptions_not_empty():
 
 def test_tool_input_schema_type():
     """测试所有工具的 inputSchema 都是对象类型"""
-    # Act & Assert
     for tool in TOOL_DEFINITIONS:
         assert tool.inputSchema["type"] == "object", (
             f"工具 {tool.name} 的 inputSchema 必须是对象类型"
@@ -55,7 +46,6 @@ def test_tool_input_schema_type():
 
 def test_tool_input_schema_has_properties():
     """测试所有工具的 inputSchema 都有 properties 字段"""
-    # Act & Assert
     for tool in TOOL_DEFINITIONS:
         assert "properties" in tool.inputSchema, (
             f"工具 {tool.name} 的 inputSchema 缺少 properties 字段"
@@ -64,147 +54,109 @@ def test_tool_input_schema_has_properties():
 
 def test_tool_required_fields_are_valid():
     """测试所有工具的 required 字段都是有效的"""
-    # Act & Assert
     for tool in TOOL_DEFINITIONS:
         required = tool.inputSchema.get("required", [])
         properties = tool.inputSchema.get("properties", {})
 
-        # 验证所有 required 字段都在 properties 中
         for field in required:
             assert field in properties, (
                 f"工具 {tool.name} 的 required 字段 {field} 不在 properties 中"
             )
 
 
-def test_create_project_tool_schema():
-    """测试 create_project 工具的 schema"""
-    # Arrange
-    tool = next(t for t in TOOL_DEFINITIONS if t.name == "create_project")
+def test_all_consolidated_tools_exist():
+    """测试所有合并后的接口都已定义"""
+    expected_tools = [
+        "manage_project",
+        "manage_requirement",
+        "manage_dependency",
+        "manage_validation",
+        "manage_execution",
+        "manage_snapshot",
+        "manage_lock",
+    ]
 
-    # Assert
-    assert tool.name == "create_project"
-    assert "name" in tool.inputSchema["required"]
-    assert "description" not in tool.inputSchema["required"]
-    assert "name" in tool.inputSchema["properties"]
-    assert "description" in tool.inputSchema["properties"]
-    assert tool.inputSchema["properties"]["name"]["type"] == "string"
-    assert tool.inputSchema["properties"]["description"]["type"] == "string"
+    tool_names = [tool.name for tool in TOOL_DEFINITIONS]
 
-
-def test_add_requirement_tool_schema():
-    """测试 add_requirement 工具的 schema"""
-    # Arrange
-    tool = next(t for t in TOOL_DEFINITIONS if t.name == "add_requirement")
-
-    # Assert
-    assert tool.name == "add_requirement"
-    assert "project_id" in tool.inputSchema["required"]
-    assert "content" in tool.inputSchema["required"]
-    assert "parent_id" not in tool.inputSchema["required"]
-    assert "order_in_parent" not in tool.inputSchema["required"]
+    for expected in expected_tools:
+        assert expected in tool_names, f"合并接口 {expected} 未定义"
 
 
-def test_add_validation_tool_schema():
-    """测试 add_validation 工具的 schema"""
-    # Arrange
-    tool = next(t for t in TOOL_DEFINITIONS if t.name == "add_validation")
-
-    # Assert
-    assert tool.name == "add_validation"
-    assert "requirement_id" in tool.inputSchema["required"]
-    assert "test_cases" not in tool.inputSchema["required"]
-    assert "acceptance_criteria" not in tool.inputSchema["required"]
-
-    # 验证 test_cases 是数组类型
-    if "test_cases" in tool.inputSchema["properties"]:
-        test_cases_schema = tool.inputSchema["properties"]["test_cases"]
-        assert test_cases_schema["type"] == "array"
+def test_manage_project_has_action():
+    """测试 manage_project 有 action 参数"""
+    tool = next(t for t in TOOL_DEFINITIONS if t.name == "manage_project")
+    assert "action" in tool.inputSchema["properties"]
+    assert "action" in tool.inputSchema.get("required", [])
+    action_schema = tool.inputSchema["properties"]["action"]
+    assert action_schema["type"] == "string"
+    assert "enum" in action_schema
+    assert set(action_schema["enum"]) == {"get", "create", "update"}
 
 
-def test_transfer_dependencies_tool_schema():
-    """测试 transfer_dependencies 工具的 schema"""
-    # Arrange
-    tool = next(t for t in TOOL_DEFINITIONS if t.name == "transfer_dependencies")
-
-    # Assert
-    assert tool.name == "transfer_dependencies"
-    assert "parent_id" in tool.inputSchema["required"]
-    assert "dependency_mapping" in tool.inputSchema["required"]
-
-    # 验证 dependency_mapping 是对象类型
-    dependency_mapping_schema = tool.inputSchema["properties"]["dependency_mapping"]
-    assert dependency_mapping_schema["type"] == "object"
+def test_manage_requirement_has_action():
+    """测试 manage_requirement 有 action 参数"""
+    tool = next(t for t in TOOL_DEFINITIONS if t.name == "manage_requirement")
+    assert "action" in tool.inputSchema["properties"]
+    assert "action" in tool.inputSchema.get("required", [])
+    action_schema = tool.inputSchema["properties"]["action"]
+    assert action_schema["type"] == "string"
+    assert "enum" in action_schema
+    expected_actions = {"get", "create", "update", "delete", "mark_leaf", "list"}
+    assert set(action_schema["enum"]) == expected_actions
 
 
-def test_resolve_parallel_order_tool_schema():
-    """测试 resolve_parallel_order 工具的 schema"""
-    # Arrange
-    tool = next(t for t in TOOL_DEFINITIONS if t.name == "resolve_parallel_order")
-
-    # Assert
-    assert tool.name == "resolve_parallel_order"
-    assert "project_id" in tool.inputSchema["required"]
-    assert "parallel_nodes" in tool.inputSchema["required"]
-    assert "sorted_order" in tool.inputSchema["required"]
-
-    # 验证 parallel_nodes 和 sorted_order 都是数组类型
-    parallel_nodes_schema = tool.inputSchema["properties"]["parallel_nodes"]
-    sorted_order_schema = tool.inputSchema["properties"]["sorted_order"]
-    assert parallel_nodes_schema["type"] == "array"
-    assert sorted_order_schema["type"] == "array"
+def test_manage_validation_has_execution_result():
+    """测试 manage_validation 有 execution_result 参数（用于区分执行/添加）"""
+    tool = next(t for t in TOOL_DEFINITIONS if t.name == "manage_validation")
+    assert "execution_result" in tool.inputSchema["properties"]
+    assert tool.inputSchema["properties"]["execution_result"]["type"] == "string"
 
 
-def test_lock_related_tools_schema():
-    """测试锁相关工具的 schema"""
-    # Arrange
-    lock_tools = ["acquire_lock", "release_lock"]
-
-    # Act & Assert
-    for tool_name in lock_tools:
-        tool = next(t for t in TOOL_DEFINITIONS if t.name == tool_name)
-        assert tool.name == tool_name
-        assert "project_id" in tool.inputSchema["required"]
-        assert "session_id" in tool.inputSchema["required"]
+def test_manage_execution_has_action():
+    """测试 manage_execution 有 action 参数"""
+    tool = next(t for t in TOOL_DEFINITIONS if t.name == "manage_execution")
+    assert "action" in tool.inputSchema["properties"]
+    assert "action" in tool.inputSchema.get("required", [])
+    action_schema = tool.inputSchema["properties"]["action"]
+    assert action_schema["type"] == "string"
+    assert "enum" in action_schema
+    assert set(action_schema["enum"]) == {"next", "complete", "state", "trigger"}
 
 
-def test_get_lock_info_tool_schema():
-    """测试 get_lock_info 工具的 schema"""
-    # Arrange
-    tool = next(t for t in TOOL_DEFINITIONS if t.name == "get_lock_info")
-
-    # Assert
-    assert tool.name == "get_lock_info"
-    assert "project_id" in tool.inputSchema["required"]
-    assert len(tool.inputSchema["required"]) == 1
-
-
-def test_snapshot_related_tools_schema():
-    """测试快照相关工具的 schema"""
-    # Arrange
-    snapshot_tools = ["create_snapshot", "restore_snapshot", "list_snapshots"]
-
-    # Act & Assert
-    for tool_name in snapshot_tools:
-        tool = next(t for t in TOOL_DEFINITIONS if t.name == tool_name)
-        assert tool.name == tool_name
-
-        if tool_name == "restore_snapshot":
-            assert "snapshot_id" in tool.inputSchema["required"]
-        else:
-            assert "project_id" in tool.inputSchema["required"]
+def test_manage_snapshot_has_action():
+    """测试 manage_snapshot 有 action 参数"""
+    tool = next(t for t in TOOL_DEFINITIONS if t.name == "manage_snapshot")
+    assert "action" in tool.inputSchema["properties"]
+    assert "action" in tool.inputSchema.get("required", [])
+    action_schema = tool.inputSchema["properties"]["action"]
+    assert action_schema["type"] == "string"
+    assert "enum" in action_schema
+    assert set(action_schema["enum"]) == {"create", "restore", "list"}
 
 
-def test_tool_descriptions_are_meaningful():
-    """测试工具描述都是有意义的"""
-    # Act & Assert
+def test_manage_lock_has_action():
+    """测试 manage_lock 有 action 参数"""
+    tool = next(t for t in TOOL_DEFINITIONS if t.name == "manage_lock")
+    assert "action" in tool.inputSchema["properties"]
+    assert "action" in tool.inputSchema.get("required", [])
+    action_schema = tool.inputSchema["properties"]["action"]
+    assert action_schema["type"] == "string"
+    assert "enum" in action_schema
+    assert set(action_schema["enum"]) == {"acquire", "release", "check", "info"}
+
+
+def test_tool_input_schema_properties_have_types():
+    """测试所有工具的 properties 都有类型定义"""
     for tool in TOOL_DEFINITIONS:
-        description = tool.description
-        assert len(description) >= 5, f"工具 {tool.name} 的描述太短: {description}"
+        properties = tool.inputSchema.get("properties", {})
+        for prop_name, prop_schema in properties.items():
+            assert "type" in prop_schema, (
+                f"工具 {tool.name} 的属性 {prop_name} 缺少类型定义"
+            )
 
 
 def test_tool_names_are_snake_case():
     """测试工具名称使用 snake_case 格式"""
-    # Act & Assert
     for tool in TOOL_DEFINITIONS:
         tool_name = tool.name
         # 验证名称只包含小写字母、数字和下划线
@@ -213,58 +165,31 @@ def test_tool_names_are_snake_case():
         )
 
 
-def test_all_core_tools_exist():
-    """测试所有核心工具都已定义"""
-    # Arrange
-    core_tools = [
-        "create_project",
-        "add_requirement",
-        "add_validation",
-        "get_next_requirement",
-        "mark_requirement_completed",
-        "get_project_state",
-    ]
-
-    # Act
-    tool_names = [tool.name for tool in TOOL_DEFINITIONS]
-
-    # Assert
-    for core_tool in core_tools:
-        assert core_tool in tool_names, f"核心工具 {core_tool} 未定义"
-
-
-def test_all_lock_tools_exist():
-    """测试所有锁相关工具都已定义"""
-    # Arrange
-    lock_tools = ["acquire_lock", "release_lock", "is_locked", "get_lock_info"]
-
-    # Act
-    tool_names = [tool.name for tool in TOOL_DEFINITIONS]
-
-    # Assert
-    for lock_tool in lock_tools:
-        assert lock_tool in tool_names, f"锁工具 {lock_tool} 未定义"
-
-
-def test_all_snapshot_tools_exist():
-    """测试所有快照相关工具都已定义"""
-    # Arrange
-    snapshot_tools = ["create_snapshot", "restore_snapshot", "list_snapshots"]
-
-    # Act
-    tool_names = [tool.name for tool in TOOL_DEFINITIONS]
-
-    # Assert
-    for snapshot_tool in snapshot_tools:
-        assert snapshot_tool in tool_names, f"快照工具 {snapshot_tool} 未定义"
-
-
-def test_tool_input_schema_properties_have_types():
-    """测试所有工具的 properties 都有类型定义"""
-    # Act & Assert
+def test_tool_descriptions_are_meaningful():
+    """测试工具描述都是有意义的"""
     for tool in TOOL_DEFINITIONS:
-        properties = tool.inputSchema.get("properties", {})
-        for prop_name, prop_schema in properties.items():
-            assert "type" in prop_schema, (
-                f"工具 {tool.name} 的属性 {prop_name} 缺少类型定义"
-            )
+        description = tool.description
+        assert len(description) >= 5, f"工具 {tool.name} 的描述太短: {description}"
+
+
+def test_manage_dependency_has_both_modes():
+    """测试 manage_dependency 支持单个添加和批量传递两种模式"""
+    tool = next(t for t in TOOL_DEFINITIONS if t.name == "manage_dependency")
+
+    # 单个添加参数
+    assert "requirement_id" in tool.inputSchema["properties"]
+    assert "dependency_id" in tool.inputSchema["properties"]
+
+    # 批量传递参数
+    assert "parent_id" in tool.inputSchema["properties"]
+    assert "dependency_mapping" in tool.inputSchema["properties"]
+
+    # dependency_mapping 应该是对象类型
+    dep_mapping = tool.inputSchema["properties"]["dependency_mapping"]
+    assert dep_mapping["type"] == "object"
+
+
+def test_get_api_version_tool_exists():
+    """测试 get_api_version 工具存在"""
+    tool_names = [tool.name for tool in TOOL_DEFINITIONS]
+    assert "get_api_version" in tool_names, "get_api_version 工具未定义"

@@ -13,7 +13,7 @@ def test_uat011_concurrent_lock():
     """UAT-011: 并发锁机制"""
 
     sdk = RequirementSDK(db_path=":memory:")
-    project = sdk.create_project("测试项目")
+    project = sdk.manage_project(name="测试项目")
 
     # 会话 A 获取锁
     result_a = sdk.acquire_lock(project["project_id"], "session1")
@@ -34,17 +34,17 @@ def test_uat011_concurrent_lock():
 def test_uat012_cycle_detection():
     """UAT-012: 循环依赖检测"""
     sdk = RequirementSDK(db_path=":memory:")
-    project = sdk.create_project("测试项目")
+    project = sdk.manage_project(name="测试项目")
 
     # 创建需求 A
-    req_a = sdk.add_requirement(project["project_id"], "需求A")
+    req_a = sdk.manage_requirement(project_id=project["project_id"], content="需求A")
 
     # 创建需求 B（依赖 A）
-    req_b = sdk.add_requirement(project["project_id"], "需求B")
+    req_b = sdk.manage_requirement(project_id=project["project_id"], content="需求B")
     sdk.add_dependency(req_b["requirement_id"], req_a["requirement_id"])
 
     # 创建需求 C（依赖 B）
-    req_c = sdk.add_requirement(project["project_id"], "需求C")
+    req_c = sdk.manage_requirement(project_id=project["project_id"], content="需求C")
     sdk.add_dependency(req_c["requirement_id"], req_b["requirement_id"])
 
     # 尝试让 A 依赖 C（应检测到循环）
@@ -57,10 +57,10 @@ def test_uat013_chain_rollback():
     # 这个测试需要模拟链化失败的场景
     # 在实际实现中，可以通过创建循环依赖来触发失败
     sdk = RequirementSDK(db_path=":memory:")
-    project = sdk.create_project("测试项目")
+    project = sdk.manage_project(name="测试项目")
 
     # 创建需求
-    req1 = sdk.add_requirement(project["project_id"], "需求1")
+    req1 = sdk.manage_requirement(project_id=project["project_id"], content="需求1")
     sdk.add_validation(req1["requirement_id"], [{"name": "测试1"}])
 
     # 创建快照
@@ -80,11 +80,11 @@ def test_uat014_data_validation():
     sdk = RequirementSDK(db_path=":memory:")
 
     # 测试空内容需求
-    project = sdk.create_project("测试项目")
+    project = sdk.manage_project(name="测试项目")
     with pytest.raises(Exception, match="不能为空"):
-        sdk.add_requirement(project["project_id"], "")
+        sdk.manage_requirement(project_id=project["project_id"], content="")
 
     # 测试不存在的需求 ID
-    req = sdk.add_requirement(project["project_id"], "需求")
+    req = sdk.manage_requirement(project_id=project["project_id"], content="需求")
     with pytest.raises(ValueError, match="依赖需求不存在"):
         sdk.add_dependency(req["requirement_id"], "nonexistent-id")

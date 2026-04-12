@@ -14,11 +14,13 @@ def test_uat020_ai_interaction_experience():
 
     # 模拟 AI 完成完整流程
     # 1. 创建项目
-    project = sdk.create_project("AI测试项目")
+    project = sdk.manage_project(name="AI测试项目")
     assert "next_action" in project
 
     # 2. 添加需求
-    req = sdk.add_requirement(project["project_id"], "实现用户登录")
+    req = sdk.manage_requirement(
+        project_id=project["project_id"], content="实现用户登录"
+    )
     assert "next_action" in req
 
     # 3. 标记叶子
@@ -42,25 +44,27 @@ def test_uat021_response_message_quality():
     sdk = RequirementSDK(db_path=":memory:")
 
     # 测试成功消息
-    project = sdk.create_project("测试项目")
+    project = sdk.manage_project(name="测试项目")
     assert project["project_id"] is not None
     assert project["status"] == "CREATED"
     assert "next_action" in project
 
     # 测试错误消息
     try:
-        sdk.add_requirement("nonexistent-id", "需求")
+        sdk.manage_requirement(project_id="nonexistent-id", content="需求")
         assert False, "应该抛出异常"
     except ValueError as e:
         assert "项目不存在" in str(e)
 
     # 测试引导消息
-    req = sdk.add_requirement(project["project_id"], "复杂需求")
+    req = sdk.manage_requirement(project_id=project["project_id"], content="复杂需求")
     if req["needs_decomposition"]:
         assert "decompose_hints" in req
         assert len(req["decompose_hints"]) > 0
 
     # 测试叶子节点引导
-    simple_req = sdk.add_requirement(project["project_id"], "简单需求")
+    simple_req = sdk.manage_requirement(
+        project_id=project["project_id"], content="简单需求"
+    )
     # 需求默认是叶子节点(simple_req["requirement_id"])
     assert "next_action" in simple_req

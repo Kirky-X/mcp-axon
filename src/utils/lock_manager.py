@@ -32,7 +32,9 @@ class ProjectLockManager:
         self, conn: lb.Connection, project_id: str, session_id: str
     ) -> bool:
         """
-        获取项目锁
+        获取项目锁（原子操作实现）
+
+        使用 Cypher 的条件更新确保原子性，避免 TOCTOU 竞态条件。
 
         Args:
             conn: LadybugDB 连接
@@ -43,41 +45,48 @@ class ProjectLockManager:
             True: 锁获取成功
             False: 锁已被占用
         """
-        # 获取项目
-        result = conn.execute(GET_PROJECT_BY_UUID, {"uuid": project_id})
-        rows = list(result)
-        if not rows:
-            raise ValueError(f"项目不存在: {project_id}")
-
-        project = rows[0]
-        locked_by = project[4]  # locked_by 字段
-        locked_at_str = project[5]  # locked_at 字段
-
-        # 检查锁是否已超时
-        if locked_by:
-            locked_at = self._parse_datetime(locked_at_str)
-            if self._is_lock_expired(locked_at):
-                # 锁已超时，自动释放
-                logger.info(f"项目锁已超时，自动释放: {project_id}")
-            else:
-                # 锁仍有效，检查是否是当前会话
-                if locked_by != session_id:
-                    logger.warning(f"项目锁已被占用: {project_id} by {locked_by}")
-                    return False
-
-        # 获取锁
         now = datetime.now(timezone.utc).isoformat()
-        conn.execute(
-            UPDATE_PROJECT_LOCK,
+        timeout_time = (
+            datetime.now(timezone.utc) - timedelta(minutes=self.timeout_minutes)
+        ).isoformat()
+
+        # 原子操作：只有在锁未被占用或已超时时才更新
+        atomic_query = """
+        MATCH (p:Project {uuid: $uuid})
+        WHERE p.locked_by IS NULL
+           OR p.locked_by = $session_id
+           OR p.locked_at < $timeout_time
+        SET p.locked_by = $session_id,
+            p.locked_at = $now,
+            p.updated_at = $now
+        RETURN p.uuid, p.locked_by
+        """
+
+        result = conn.execute(
+            atomic_query,
             {
                 "uuid": project_id,
-                "locked_by": session_id,
-                "locked_at": now,
-                "updated_at": now,
+                "session_id": session_id,
+                "timeout_time": timeout_time,
+                "now": now,
             },
         )
 
-        # 记录事件
+        rows = list(result)
+        if not rows:
+            # 更新失败，说明锁已被其他会话占用且未超时
+            # 检查项目是否存在
+            check_result = conn.execute(
+                "MATCH (p:Project {uuid: $uuid}) RETURN p.uuid",
+                {"uuid": project_id},
+            )
+            if not list(check_result):
+                raise ValueError(f"项目不存在: {project_id}")
+
+            logger.warning(f"项目锁已被占用: {project_id}")
+            return False
+
+        # 成功获取锁，记录事件
         log_event(
             conn,
             project_id,

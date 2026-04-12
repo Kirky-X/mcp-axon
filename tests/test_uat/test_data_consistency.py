@@ -4,19 +4,57 @@
 
 """数据一致性验收测试 (UAT-022 ~ UAT-023)"""
 
+import json
+
 from src.core.sdk import RequirementSDK
+from src.db.graph_queries import GET_EVENTS_BY_PROJECT
 from src.utils.cache import CacheManager
+
+
+def _get_event_history(conn, project_uuid, limit=100):
+    """Helper: query events directly from database."""
+    result = conn.execute(
+        GET_EVENTS_BY_PROJECT, {"project_uuid": project_uuid, "limit": limit}
+    )
+    rows = list(result)
+    events = []
+    for row in rows:
+        payload = {}
+        if row[4]:
+            try:
+                payload = json.loads(row[4])
+            except json.JSONDecodeError:
+                payload = {}
+        event_metadata = None
+        if row[5]:
+            try:
+                event_metadata = json.loads(row[5])
+            except (json.JSONDecodeError, TypeError):
+                event_metadata = None
+        events.append(
+            {
+                "uuid": row[0],
+                "project_uuid": row[1],
+                "event_type": row[2],
+                "aggregate_uuid": row[3],
+                "payload": payload,
+                "event_metadata": event_metadata,
+                "sequence": row[6],
+                "created_at": row[7],
+            }
+        )
+    return events
 
 
 def test_uat022_transaction_integrity():
     """UAT-022: 事务完整性验收"""
 
     sdk = RequirementSDK(db_path=":memory:")
-    project = sdk.create_project("测试项目")
+    project = sdk.manage_project(name="测试项目")
     project_id = project["project_id"]
 
     # 测试成功的事务
-    req = sdk.add_requirement(project_id, "需求")
+    req = sdk.manage_requirement(project_id=project_id, content="需求")
     sdk.add_validation(req["requirement_id"], [{"name": "测试"}])
 
     # 验证所有数据都正确保存 - 通过 SDK API
@@ -35,16 +73,14 @@ def test_uat022_transaction_integrity():
     assert saved_validation is not None
 
     # 验证事件记录
-    from src.utils.event_logger import get_event_history
-
-    events = get_event_history(sdk._get_conn(), project_id)
+    events = _get_event_history(sdk._get_conn(), project_id)
     assert (
         len(events) >= 3
     )  # RequirementAdded, RequirementMarkedAsLeaf, ValidationAdded
 
     # 测试失败的事务
     try:
-        sdk.add_requirement(project_id, "")  # 空内容
+        sdk.manage_requirement(project_id=project_id, content="")  # 空内容
         assert False, "应该抛出异常"
     except ValueError:
         pass
@@ -58,17 +94,15 @@ def test_uat022_transaction_integrity():
 def test_uat023_event_sourcing():
     """UAT-023: 事件溯源验收"""
     sdk = RequirementSDK(db_path=":memory:")
-    project = sdk.create_project("测试项目")
+    project = sdk.manage_project(name="测试项目")
     project_id = project["project_id"]
 
     # 执行一系列操作
-    req = sdk.add_requirement(project_id, "需求")
+    req = sdk.manage_requirement(project_id=project_id, content="需求")
     sdk.add_validation(req["requirement_id"], [{"name": "测试"}])
 
     # 查询事件表
-    from src.utils.event_logger import get_event_history
-
-    events = get_event_history(sdk._get_conn(), project_id)
+    events = _get_event_history(sdk._get_conn(), project_id)
 
     # 验证事件序列
     assert len(events) >= 3

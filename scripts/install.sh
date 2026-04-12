@@ -1,11 +1,21 @@
 #!/bin/bash
 # MCP-Axon 安装脚本
+# 注意: 此脚本应在项目根目录下运行
 
 set -e
+
+# 获取脚本所在目录的父目录(项目根目录)
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+# 切换到项目根目录
+cd "$PROJECT_ROOT"
 
 echo "========================================="
 echo "MCP-Axon 安装脚本"
 echo "========================================="
+echo "项目目录: $PROJECT_ROOT"
+echo ""
 
 # 检查 Python 版本
 echo "检查 Python 版本..."
@@ -75,18 +85,19 @@ echo "========================================="
 echo ""
 echo "使用方法:"
 echo "  1. 激活虚拟环境: source .venv/bin/activate"
-echo "  2. 运行演示: python main.py demo"
-echo "  3. 启动 MCP 服务器: python main.py server"
-echo "  4. 运行测试: python main.py test"
+echo "  2. 运行演示: python scripts/main.py demo"
+echo "  3. 启动 MCP 服务器: python scripts/main.py server"
+echo "  4. 运行测试: python scripts/main.py test"
+echo "  5. 运行预检查: bash scripts/pre-commit-check.sh"
 echo ""
 echo "Claude Desktop 配置:"
 echo '  在 Claude Desktop 的配置文件中添加:'
 echo '  {'
 echo '    "mcpServers": {'
-echo '      "requirement-chain": {'
+echo '      "mcp-axon": {'
 echo '        "command": "python",'
-echo '        "args": ["-m", "src.server"],'
-echo '        "cwd": "/home/project/mcp-axon"'
+echo '        "args": ["-m", "src.api.mcp_server"],'
+echo '        "cwd": "<项目根目录路径>"'
 echo '      }'
 echo '    }'
 echo '  }'

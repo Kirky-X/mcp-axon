@@ -14,30 +14,30 @@ def test_tc020_dependency_transfer_integration():
     sdk = RequirementSDK(db_path=":memory:")
 
     # 1. 创建项目
-    project = sdk.create_project("依赖传递测试项目")
+    project = sdk.manage_project(name="依赖传递测试项目")
     project_id = project["project_id"]
 
     # 2. 添加根需求
-    root = sdk.add_requirement(
+    root = sdk.manage_requirement(
         project_id=project_id,
         content="实现用户认证系统",
     )
     root_id = root["requirement_id"]
 
     # 3. 添加依赖需求（独立需求，默认是叶子节点）
-    dep_req = sdk.add_requirement(project_id=project_id, content="数据库设计")
+    dep_req = sdk.manage_requirement(project_id=project_id, content="数据库设计")
     dep_id = dep_req["requirement_id"]
     assert dep_req["status"] == "LEAF"
     sdk.add_validation(requirement_id=dep_id, test_cases=[{"name": "测试数据库"}])
 
     # 4. 添加子需求
-    child1 = sdk.add_requirement(
+    child1 = sdk.manage_requirement(
         project_id=project_id, content="登录功能", parent_id=root_id
     )
-    child2 = sdk.add_requirement(
+    child2 = sdk.manage_requirement(
         project_id=project_id, content="注册功能", parent_id=root_id
     )
-    child3 = sdk.add_requirement(
+    child3 = sdk.manage_requirement(
         project_id=project_id, content="密码重置", parent_id=root_id
     )
 
@@ -83,15 +83,15 @@ def test_tc021_chain_integration():
     sdk = RequirementSDK(db_path=":memory:")
 
     # 1. 创建项目
-    project = sdk.create_project("链化测试项目")
+    project = sdk.manage_project(name="链化测试项目")
     project_id = project["project_id"]
 
     # 2. 创建需求树：根 -> 4个子需求（其中2个有依赖关系）
-    root = sdk.add_requirement(project_id=project_id, content="实现电商平台")
+    root = sdk.manage_requirement(project_id=project_id, content="实现电商平台")
     root_id = root["requirement_id"]
 
     # 独立需求（无依赖，默认是叶子节点）
-    req1 = sdk.add_requirement(
+    req1 = sdk.manage_requirement(
         project_id=project_id, content="首页设计", parent_id=root_id
     )
     assert req1["status"] == "LEAF"
@@ -100,7 +100,7 @@ def test_tc021_chain_integration():
     )
 
     # 依赖需求链：A -> B -> C
-    reqA = sdk.add_requirement(
+    reqA = sdk.manage_requirement(
         project_id=project_id, content="数据库设计", parent_id=root_id
     )
     assert reqA["status"] == "LEAF"
@@ -108,7 +108,7 @@ def test_tc021_chain_integration():
         requirement_id=reqA["requirement_id"], test_cases=[{"name": "测试数据库"}]
     )
 
-    reqB = sdk.add_requirement(
+    reqB = sdk.manage_requirement(
         project_id=project_id, content="用户模块", parent_id=root_id
     )
     assert reqB["status"] == "LEAF"
@@ -117,7 +117,7 @@ def test_tc021_chain_integration():
     )
     sdk.add_dependency(reqB["requirement_id"], reqA["requirement_id"])
 
-    reqC = sdk.add_requirement(
+    reqC = sdk.manage_requirement(
         project_id=project_id, content="订单模块", parent_id=root_id
     )
     assert reqC["status"] == "LEAF"
@@ -127,7 +127,7 @@ def test_tc021_chain_integration():
     sdk.add_dependency(reqC["requirement_id"], reqB["requirement_id"])
 
     # 另一个独立需求
-    req4 = sdk.add_requirement(
+    req4 = sdk.manage_requirement(
         project_id=project_id, content="支付集成", parent_id=root_id
     )
     assert req4["status"] == "LEAF"
@@ -164,12 +164,12 @@ def test_tc019_full_requirement_flow():
     sdk = RequirementSDK(db_path=":memory:")
 
     # 1. 创建项目
-    project_result = sdk.create_project("测试项目")
+    project_result = sdk.manage_project(name="测试项目")
     assert project_result["status"] == "CREATED"
     project_id = project_result["project_id"]
 
     # 2. 添加根需求
-    req_result = sdk.add_requirement(
+    req_result = sdk.manage_requirement(
         project_id=project_id,
         content="实现完整的用户管理系统，包括用户注册、登录、权限控制等功能",
     )
@@ -177,11 +177,11 @@ def test_tc019_full_requirement_flow():
     root_req_id = req_result["requirement_id"]
 
     # 3. 添加子需求
-    child1 = sdk.add_requirement(
+    child1 = sdk.manage_requirement(
         project_id=project_id, content="用户注册", parent_id=root_req_id
     )
 
-    child2 = sdk.add_requirement(
+    child2 = sdk.manage_requirement(
         project_id=project_id, content="用户登录", parent_id=root_req_id
     )
 
@@ -226,7 +226,7 @@ def test_sdk_create_project():
     sdk = RequirementSDK(db_path=":memory:")
 
     # Act
-    result = sdk.create_project("测试项目", "描述")
+    result = sdk.manage_project(name="测试项目", description="描述")
 
     # Assert
     assert result["project_id"] is not None
@@ -239,10 +239,12 @@ def test_sdk_add_requirement():
     """测试 SDK 添加需求"""
     # Arrange
     sdk = RequirementSDK(db_path=":memory:")
-    project = sdk.create_project("测试项目")
+    project = sdk.manage_project(name="测试项目")
 
     # Act
-    result = sdk.add_requirement(project["project_id"], "实现用户管理模块")
+    result = sdk.manage_requirement(
+        project_id=project["project_id"], content="实现用户管理模块"
+    )
 
     # Assert
     assert result["requirement_id"] is not None
@@ -255,10 +257,10 @@ def test_new_requirement_auto_status():
     """测试新创建的需求根据复杂度自动设置状态"""
     # Arrange
     sdk = RequirementSDK(db_path=":memory:")
-    project = sdk.create_project("测试项目")
+    project = sdk.manage_project(name="测试项目")
 
     # Act
-    req = sdk.add_requirement(project["project_id"], "简单需求")
+    req = sdk.manage_requirement(project_id=project["project_id"], content="简单需求")
 
     # Assert - 低复杂度需求应该是 LEAF 或 DECOMPOSING
     assert req["status"] in ["LEAF", "DECOMPOSING"]
@@ -268,8 +270,8 @@ def test_sdk_add_validation():
     """测试 SDK 添加验证（需求根据复杂度自动设置状态）"""
     # Arrange
     sdk = RequirementSDK(db_path=":memory:")
-    project = sdk.create_project("测试项目")
-    req = sdk.add_requirement(project["project_id"], "简单需求")
+    project = sdk.manage_project(name="测试项目")
+    req = sdk.manage_requirement(project_id=project["project_id"], content="简单需求")
 
     # 验证新创建的需求状态正确
     assert req["status"] in ["LEAF", "DECOMPOSING"]
@@ -288,7 +290,7 @@ def test_sdk_get_project_state():
     """测试 SDK 获取项目状态"""
     # Arrange
     sdk = RequirementSDK(db_path=":memory:")
-    project = sdk.create_project("测试项目")
+    project = sdk.manage_project(name="测试项目")
 
     # Act
     result = sdk.get_project_state(project["project_id"])
@@ -303,11 +305,11 @@ def test_sdk_update_requirement():
     """测试 SDK 更新需求"""
     # Arrange
     sdk = RequirementSDK(db_path=":memory:")
-    project = sdk.create_project("测试项目")
-    req = sdk.add_requirement(project["project_id"], "原内容")
+    project = sdk.manage_project(name="测试项目")
+    req = sdk.manage_requirement(project_id=project["project_id"], content="原内容")
 
     # Act
-    result = sdk.update_requirement(req["requirement_id"], content="新内容")
+    result = sdk.manage_requirement(req["requirement_id"], content="新内容")
 
     # Assert
     assert result["content"] == "新内容"
@@ -317,8 +319,10 @@ def test_sdk_delete_requirement():
     """测试 SDK 删除需求"""
     # Arrange
     sdk = RequirementSDK(db_path=":memory:")
-    project = sdk.create_project("测试项目")
-    req = sdk.add_requirement(project["project_id"], "要删除的需求")
+    project = sdk.manage_project(name="测试项目")
+    req = sdk.manage_requirement(
+        project_id=project["project_id"], content="要删除的需求"
+    )
 
     # Act
     result = sdk.delete_requirement(req["requirement_id"])
@@ -331,9 +335,9 @@ def test_sdk_add_dependency():
     """测试 SDK 添加依赖"""
     # Arrange
     sdk = RequirementSDK(db_path=":memory:")
-    project = sdk.create_project("测试项目")
-    req1 = sdk.add_requirement(project["project_id"], "需求1")
-    req2 = sdk.add_requirement(project["project_id"], "需求2")
+    project = sdk.manage_project(name="测试项目")
+    req1 = sdk.manage_requirement(project_id=project["project_id"], content="需求1")
+    req2 = sdk.manage_requirement(project_id=project["project_id"], content="需求2")
 
     # Act
     result = sdk.add_dependency(req2["requirement_id"], req1["requirement_id"])
@@ -346,16 +350,20 @@ def test_sdk_transfer_dependencies():
     """测试 SDK 传递依赖"""
     # Arrange
     sdk = RequirementSDK(db_path=":memory:")
-    project = sdk.create_project("测试项目")
-    dep1 = sdk.add_requirement(project["project_id"], "依赖1")
+    project = sdk.manage_project(name="测试项目")
+    dep1 = sdk.manage_requirement(project_id=project["project_id"], content="依赖1")
     assert dep1["status"] == "LEAF"
 
-    parent = sdk.add_requirement(project["project_id"], "父需求")
-    child1 = sdk.add_requirement(
-        project["project_id"], "子需求1", parent_id=parent["requirement_id"]
+    parent = sdk.manage_requirement(project_id=project["project_id"], content="父需求")
+    child1 = sdk.manage_requirement(
+        project_id=project["project_id"],
+        content="子需求1",
+        parent_id=parent["requirement_id"],
     )
-    child2 = sdk.add_requirement(
-        project["project_id"], "子需求2", parent_id=parent["requirement_id"]
+    child2 = sdk.manage_requirement(
+        project_id=project["project_id"],
+        content="子需求2",
+        parent_id=parent["requirement_id"],
     )
 
     # Act
@@ -375,7 +383,7 @@ def test_sdk_acquire_lock():
     """测试 SDK 获取锁"""
     # Arrange
     sdk = RequirementSDK(db_path=":memory:")
-    project = sdk.create_project("测试项目")
+    project = sdk.manage_project(name="测试项目")
 
     # Act
     result = sdk.acquire_lock(project["project_id"], "session1")
@@ -388,7 +396,7 @@ def test_sdk_release_lock():
     """测试 SDK 释放锁"""
     # Arrange
     sdk = RequirementSDK(db_path=":memory:")
-    project = sdk.create_project("测试项目")
+    project = sdk.manage_project(name="测试项目")
     sdk.acquire_lock(project["project_id"], "session1")
 
     # Act
@@ -402,7 +410,7 @@ def test_sdk_is_locked():
     """测试 SDK 检查是否锁定"""
     # Arrange
     sdk = RequirementSDK(db_path=":memory:")
-    project = sdk.create_project("测试项目")
+    project = sdk.manage_project(name="测试项目")
 
     # Act & Assert: 未锁定
     assert sdk.is_locked(project["project_id"]) is False

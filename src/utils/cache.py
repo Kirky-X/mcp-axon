@@ -2,16 +2,16 @@
 # Licensed under the MIT License.
 # See LICENSE file in the project root for full license information.
 
-"""缓存管理工具"""
+"""缓存管理工具 - 基于 cachetools 的线程安全 TTL 缓存"""
 
-import time
-from collections import OrderedDict
 from threading import Lock, RLock
-from typing import Any, Dict, Optional, Set, Tuple
+from typing import Any, Dict, Optional, Set
+
+from cachetools import TTLCache  # type: ignore[import-untyped]
 
 
 class LRUCache:
-    """线程安全的 LRU 缓存实现，支持 TTL 过期"""
+    """线程安全的 LRU 缓存实现，基于 cachetools.TTLCache"""
 
     def __init__(self, capacity: int = 100, ttl_seconds: int = 300):
         """
@@ -19,14 +19,15 @@ class LRUCache:
 
         Args:
             capacity: 缓存容量
-            ttl_seconds: 缓存条目过期时间（秒），0 表示不过期
+            ttl_seconds: 缓存条目过期时间（秒），0 表示不过期（使用 LRUCache）
         """
-        self.capacity = max(1, capacity)  # 确保容量至少为1
-        self.ttl_seconds = ttl_seconds  # 过期时间
-        self.cache: OrderedDict[str, Tuple[Any, float]] = (
-            OrderedDict()
-        )  # {key: (value, timestamp)}
-        self.lock = RLock()  # 使用可重入锁
+        self.capacity = max(1, capacity)
+        self.ttl_seconds = ttl_seconds
+        self.lock = RLock()
+
+        # ttl_seconds=0 表示不过期，使用无限 TTL
+        effective_ttl = ttl_seconds if ttl_seconds > 0 else float("inf")
+        self._cache = TTLCache(maxsize=capacity, ttl=effective_ttl)
 
     def get(self, key: str) -> Optional[Any]:
         """
@@ -39,20 +40,7 @@ class LRUCache:
             缓存值，如果不存在或已过期则返回 None
         """
         with self.lock:
-            if key in self.cache:
-                value, timestamp = self.cache[key]
-
-                # 检查是否过期
-                if self.ttl_seconds > 0 and time.time() - timestamp > self.ttl_seconds:
-                    # 过期，删除并返回 None
-                    del self.cache[key]
-                    return None
-
-                # 移动到末尾（最近使用）并更新时间戳
-                self.cache.pop(key)
-                self.cache[key] = (value, time.time())
-                return value
-            return None
+            return self._cache.get(key, None)
 
     def put(self, key: str, value: Any) -> None:
         """
@@ -63,15 +51,7 @@ class LRUCache:
             value: 缓存值
         """
         with self.lock:
-            current_time = time.time()
-            if key in self.cache:
-                # 更新现有键值
-                self.cache.pop(key)
-            elif len(self.cache) >= self.capacity:
-                # 移除最久未使用的条目
-                self.cache.popitem(last=False)
-
-            self.cache[key] = (value, current_time)
+            self._cache[key] = value
 
     def invalidate(self, key: str) -> None:
         """
@@ -81,17 +61,17 @@ class LRUCache:
             key: 缓存键
         """
         with self.lock:
-            self.cache.pop(key, None)
+            self._cache.pop(key, None)
 
     def clear(self) -> None:
         """清空缓存"""
         with self.lock:
-            self.cache.clear()
+            self._cache.clear()
 
     def size(self) -> int:
         """获取缓存大小"""
         with self.lock:
-            return len(self.cache)
+            return len(self._cache)
 
     def cleanup_expired(self) -> int:
         """
@@ -100,21 +80,9 @@ class LRUCache:
         Returns:
             清理的条目数量
         """
-        if self.ttl_seconds <= 0:
-            return 0
-
         with self.lock:
-            current_time = time.time()
-            expired_keys = [
-                key
-                for key, (_, timestamp) in self.cache.items()
-                if current_time - timestamp > self.ttl_seconds
-            ]
-
-            for key in expired_keys:
-                del self.cache[key]
-
-            return len(expired_keys)
+            # TTLCache.expire() 返回清理的条目数量
+            return self._cache.expire()
 
 
 class CacheManager:
@@ -138,14 +106,12 @@ class CacheManager:
         """
         self.project_cache = LRUCache(
             capacity=project_cache_size, ttl_seconds=ttl_seconds
-        )  # 项目缓存
+        )
         self.requirement_cache = LRUCache(
             capacity=requirement_cache_size, ttl_seconds=ttl_seconds
-        )  # 需求缓存
-        self.chain_cache = LRUCache(
-            capacity=chain_cache_size, ttl_seconds=ttl_seconds
-        )  # 链化结果缓存
-        self.project_requirements: Dict[str, Set[str]] = {}  # 项目ID -> 需求ID集合
+        )
+        self.chain_cache = LRUCache(capacity=chain_cache_size, ttl_seconds=ttl_seconds)
+        self.project_requirements: Dict[str, Set[str]] = {}
         self.project_requirements_lock = Lock()
 
     def get_project(self, project_id: str) -> Optional[Any]:
@@ -161,17 +127,28 @@ class CacheManager:
         return self.requirement_cache.get(f"req_{req_id}")
 
     def set_requirement(
-        self, req_id: str, requirement: Any, project_id: Optional[str] = None
+        self, req_id: str, requirement: Any, project_id: str
     ) -> None:
-        """设置需求缓存"""
+        """
+        设置需求缓存
+        
+        Args:
+            req_id: 需求 ID
+            requirement: 需求数据
+            project_id: 项目 ID（必填，用于缓存失效）
+            
+        Raises:
+            ValueError: 如果 project_id 为空
+        """
+        if not project_id:
+            raise ValueError("project_id is required for requirement caching")
+            
         self.requirement_cache.put(f"req_{req_id}", requirement)
 
-        # 记录项目与需求的关系
-        if project_id:
-            with self.project_requirements_lock:
-                if project_id not in self.project_requirements:
-                    self.project_requirements[project_id] = set()
-                self.project_requirements[project_id].add(req_id)
+        with self.project_requirements_lock:
+            if project_id not in self.project_requirements:
+                self.project_requirements[project_id] = set()
+            self.project_requirements[project_id].add(req_id)
 
     def get_chain_result(self, project_id: str) -> Optional[Any]:
         """获取链化结果缓存"""
@@ -186,7 +163,6 @@ class CacheManager:
         self.project_cache.invalidate(f"project_{project_id}")
         self.chain_cache.invalidate(f"chain_{project_id}")
 
-        # 清除该项目的所有需求缓存
         with self.project_requirements_lock:
             if project_id in self.project_requirements:
                 for req_id in self.project_requirements[project_id]:
@@ -196,32 +172,17 @@ class CacheManager:
     def invalidate_requirement(
         self, req_id: str, project_id: Optional[str] = None
     ) -> None:
-        """
-        使单个需求缓存失效，并使相关的链化结果缓存失效
-
-        Args:
-            req_id: 需求 ID
-            project_id: 项目 ID（可选，用于清理项目需求关系）
-        """
+        """使单个需求缓存失效"""
         self.requirement_cache.invalidate(f"req_{req_id}")
 
-        # 清理项目需求关系
         if project_id:
             with self.project_requirements_lock:
                 if project_id in self.project_requirements:
                     self.project_requirements[project_id].discard(req_id)
-
-        # 使链化结果缓存失效（因为需求变更会影响链化结果）
-        if project_id:
             self.chain_cache.invalidate(f"chain_{project_id}")
 
     def cleanup_expired(self) -> Dict[str, int]:
-        """
-        清理所有缓存中的过期条目
-
-        Returns:
-            清理统计 {cache_name: cleaned_count}
-        """
+        """清理所有缓存中的过期条目"""
         return {
             "project": self.project_cache.cleanup_expired(),
             "requirement": self.requirement_cache.cleanup_expired(),

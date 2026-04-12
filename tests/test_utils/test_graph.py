@@ -236,3 +236,63 @@ def test_topological_sort_with_custom_in_degree():
     # Assert
     assert layers[0] == ["D"]
     assert set(layers[1]) == {"B", "C"}
+
+
+def test_assign_parallel_groups_basic():
+    """测试分配并行组（基本场景）"""
+    # Arrange - D -> B, D -> C, B -> A, C -> A
+    layers = [["D"], ["B", "C"], ["A"]]
+
+    # Act
+    groups = GraphAlgorithms.assign_parallel_groups(layers)
+
+    # Assert
+    assert groups == {
+        "D": 0,  # 第一层
+        "B": 1,  # 第二层
+        "C": 1,  # 第二层（与 B 并行）
+        "A": 2,  # 第三层
+    }
+
+
+def test_assign_parallel_groups_complex():
+    """测试分配并行组（复杂场景）"""
+    # Arrange
+    layers = [["A"], ["B", "C", "D"], ["E"], ["F", "G"], ["H"]]
+
+    # Act
+    groups = GraphAlgorithms.assign_parallel_groups(layers)
+
+    # Assert
+    assert groups["A"] == 0
+    assert groups["B"] == 1
+    assert groups["C"] == 1
+    assert groups["D"] == 1
+    assert groups["E"] == 2
+    assert groups["F"] == 3
+    assert groups["G"] == 3
+    assert groups["H"] == 4
+
+
+def test_assign_parallel_groups_single_layer():
+    """测试分配并行组（单层）"""
+    # Arrange
+    layers = [["A", "B", "C"]]
+
+    # Act
+    groups = GraphAlgorithms.assign_parallel_groups(layers)
+
+    # Assert
+    assert groups == {"A": 0, "B": 0, "C": 0}
+
+
+def test_assign_parallel_groups_empty():
+    """测试分配并行组（空层）"""
+    # Arrange
+    layers = []
+
+    # Act
+    groups = GraphAlgorithms.assign_parallel_groups(layers)
+
+    # Assert
+    assert groups == {}

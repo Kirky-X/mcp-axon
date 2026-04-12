@@ -4,49 +4,45 @@
 
 """错误处理工具"""
 
-import functools
-import logging
-import os
-import traceback
-
-from src.exceptions import MCPAxonError
-
-logger = logging.getLogger(__name__)
+# 已知业务异常类型，可返回具体消息
+_KNOWN_ERROR_PREFIXES = (
+    "项目不存在",
+    "需求不存在",
+    "验证节点不存在",
+    "项目已",
+    "项目未",
+    "锁",
+    "快照",
+    "需求",
+    "内容",
+    "参数",
+    "创建",
+    "更新",
+    "删除",
+    "依赖",
+    "链化",
+    "无法",
+    "不能",
+    "必须",
+    "无效",
+    "格式",
+    "无权",
+    "找不到",
+)
 
 
 def get_safe_error_message(error_message: str) -> str:
-    """获取安全的错误消息（生产环境过滤敏感信息）"""
-    is_production = os.getenv("ENVIRONMENT", "development").lower() == "production"
+    """获取安全的错误消息
 
-    if is_production:
-        # 生产环境返回通用错误消息
+    仅当错误消息以已知业务关键词开头时返回原始消息，
+    否则返回通用提示，防止泄露堆栈跟踪、文件路径等内部信息。
+    """
+    if not error_message:
         return "操作失败，请稍后重试"
-    else:
-        # 开发环境返回详细错误信息
-        return error_message
 
+    # 检查是否以已知业务异常前缀开头
+    for prefix in _KNOWN_ERROR_PREFIXES:
+        if error_message.startswith(prefix):
+            return error_message
 
-def handle_errors(func):
-    """统一错误处理装饰器"""
-
-    @functools.wraps(func)
-    def wrapper(*args, **kwargs):
-        try:
-            return func(*args, **kwargs)
-        except MCPAxonError as e:
-            # 已知业务异常，直接抛出
-            logger.warning(f"业务异常: {e.error_code} - {e.message}")
-            raise
-        except Exception as e:
-            # 未预期的错误
-            logger.error(
-                f"未预期的错误: {type(e).__name__} - {str(e)}\n"
-                f"堆栈跟踪: {traceback.format_exc()}"
-            )
-            # 可以选择包装为 MCPAxonError 或直接抛出
-            raise MCPAxonError(
-                "内部服务器错误",
-                error_code="INTERNAL_ERROR",
-            )
-
-    return wrapper
+    return "操作失败，请稍后重试"

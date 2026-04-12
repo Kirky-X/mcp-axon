@@ -43,11 +43,14 @@ def run_server(db_path: str = "mcp_axon.lbug"):
 def run_tests():
     """运行测试"""
     import subprocess
+    from pathlib import Path
 
     logger.info("运行测试...")
+    # 获取项目根目录 (scripts/ 的父目录)
+    project_root = Path(__file__).parent.parent
     result = subprocess.run(
         ["pytest", "tests/", "-v", "--cov=src", "--cov-report=term-missing"],
-        cwd="/home/project/mcp-axon",
+        cwd=str(project_root),
     )
 
     sys.exit(result.returncode)

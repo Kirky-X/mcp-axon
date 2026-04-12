@@ -348,6 +348,26 @@ class GraphAlgorithms:
         return result
 
     @staticmethod
+    def assign_parallel_groups(layers: List[List[str]]) -> Dict[str, int]:
+        """
+        将拓扑分层转换为节点并行组映射
+
+        同层节点拥有相同的并行组号，可并行执行。
+        层号即拓扑层级（0=无依赖，1=依赖层0，...）。
+
+        Args:
+            layers: 分层结果 [[layer0], [layer1], ...]
+
+        Returns:
+            节点到并行组号的映射 {node_id: group_index}
+        """
+        groups: Dict[str, int] = {}
+        for layer_index, layer in enumerate(layers):
+            for node_id in layer:
+                groups[node_id] = layer_index
+        return groups
+
+    @staticmethod
     def get_parallel_nodes(layers: List[List[str]]) -> List[List[str]]:
         """
         获取所有并行节点组
@@ -518,5 +538,6 @@ try:
     NetworkXGraphAlgorithms = _NetworkXGraphAlgorithmsImpl
 
 except ImportError:
-    logger.warning("NetworkX 未安装，将使用纯 Python 实现")
-    # NetworkXGraphAlgorithms 保持为 None
+    # NetworkX 是必需依赖（pyproject.toml），此分支理论上不会触发
+    logger.debug("NetworkX 导入失败（不应发生）")
+    NetworkXGraphAlgorithms = None  # type: ignore

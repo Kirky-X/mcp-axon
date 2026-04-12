@@ -14,12 +14,14 @@ def test_tc022_transaction_rollback():
 
     # Arrange
     sdk = RequirementSDK(db_path=":memory:")
-    project = sdk.create_project("测试项目")
+    project = sdk.manage_project(name="测试项目")
     project_id = project["project_id"]
 
     # 创建父需求和子需求
-    parent = sdk.add_requirement(project_id, "父需求")
-    sdk.add_requirement(project_id, "子需求", parent_id=parent["requirement_id"])
+    parent = sdk.manage_requirement(project_id=project_id, content="父需求")
+    sdk.manage_requirement(
+        project_id=project_id, content="子需求", parent_id=parent["requirement_id"]
+    )
 
     # 尝试为非叶子节点（父需求）添加验证（应失败）
     with pytest.raises(ValueError, match="只能为叶子节点添加验证"):
@@ -36,11 +38,11 @@ def test_transaction_success():
     """测试成功的事务"""
     # Arrange
     sdk = RequirementSDK(db_path=":memory:")
-    project = sdk.create_project("测试项目")
+    project = sdk.manage_project(name="测试项目")
     project_id = project["project_id"]
 
     # Act
-    req = sdk.add_requirement(project_id, "需求")
+    req = sdk.manage_requirement(project_id=project_id, content="需求")
     validation = sdk.add_validation(req["requirement_id"], [{"name": "测试"}])
 
     # Assert: 所有操作都成功
@@ -58,11 +60,11 @@ def test_transaction_partial_failure():
     """测试部分失败的事务"""
     # Arrange
     sdk = RequirementSDK(db_path=":memory:")
-    project = sdk.create_project("测试项目")
+    project = sdk.manage_project(name="测试项目")
     project_id = project["project_id"]
 
     # Act: 创建需求后尝试删除不存在的需求
-    req = sdk.add_requirement(project_id, "需求")
+    req = sdk.manage_requirement(project_id=project_id, content="需求")
 
     with pytest.raises(ValueError, match="需求不存在"):
         sdk.delete_requirement("nonexistent-id")

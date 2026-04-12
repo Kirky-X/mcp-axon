@@ -33,8 +33,6 @@ from src.core.containers.config import (
     create_config_from_env,
 )
 from src.core.containers.database import DatabaseConnectionManager
-from src.core.containers.services import ServicesContainer as ServicesContainer
-from src.core.containers.utils import UtilsContainer as UtilsContainer
 
 logger = logging.getLogger(__name__)
 

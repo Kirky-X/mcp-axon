@@ -6,13 +6,16 @@
 
 import logging
 import time
-from collections import defaultdict
+from collections import defaultdict, deque
 from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
+
+# 有界队列最大容量，防止内存无限增长
+_MAX_METRICS = 10000
 
 
 @dataclass
@@ -57,16 +60,16 @@ class MetricsCollector:
     """性能指标收集器（增强版）"""
 
     def __init__(self):
-        self.metrics: List[PerformanceMetrics] = []
+        self.metrics: deque[PerformanceMetrics] = deque(maxlen=_MAX_METRICS)
         self.operation_counts: Dict[str, int] = defaultdict(int)
         self.total_operations = 0
 
         # 数据库指标
-        self.db_metrics: List[DatabaseMetrics] = []
+        self.db_metrics: deque[DatabaseMetrics] = deque(maxlen=_MAX_METRICS)
         self.db_query_counts: Dict[str, int] = defaultdict(int)
 
         # API 指标
-        self.api_metrics: List[APIMetrics] = []
+        self.api_metrics: deque[APIMetrics] = deque(maxlen=_MAX_METRICS)
         self.api_call_counts: Dict[str, int] = defaultdict(int)
 
         # 错误统计
@@ -350,26 +353,6 @@ def _get_metrics_collector() -> MetricsCollector:
 
 # 全局单例（用于容器未初始化时）
 _standalone_metrics_collector: Optional["MetricsCollector"] = None
-
-
-def monitored_function(operation_name: str):
-    """装饰器：监控函数性能"""
-
-    def decorator(func: Callable) -> Callable:
-        def wrapper(*args, **kwargs):
-            # 尝试从参数中提取ID信息用于监控
-            additional_data = {}
-            if args and hasattr(args[0], "__class__"):
-                # 如果是类方法，可能包含ID信息
-                pass
-            # 可以根据具体需要从参数中提取更多数据
-
-            with performance_monitor(operation_name, additional_data):
-                return func(*args, **kwargs)
-
-        return wrapper
-
-    return decorator
 
 
 # 全局指标收集器访问器

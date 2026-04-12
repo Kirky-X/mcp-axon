@@ -126,6 +126,7 @@ temp/
 coverage.json
 mcp_axon.lbug
 .gitnexus
+.qoder/
 
 # Documentation files (managed separately)
 docs/prd.md

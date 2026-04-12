@@ -35,6 +35,7 @@ class RequirementStatus(str, Enum):
     LEAF = "LEAF"
     CHAINED = "CHAINED"
     VALIDATED = "VALIDATED"
+    COMPLETED = "COMPLETED"
 
 
 class ValidationStatus(str, Enum):

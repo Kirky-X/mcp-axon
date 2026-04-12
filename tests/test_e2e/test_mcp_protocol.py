@@ -2,7 +2,7 @@
 # Licensed under the MIT License.
 # See LICENSE file in the project root for full license information.
 
-"""MCP 协议端到端测试"""
+"""MCP 协议端到端测试 - 埋缩版（8个接口）"""
 
 import os
 import pytest
@@ -27,33 +27,70 @@ def reset_state():
 
 
 async def test_tc032_mcp_tool_registration():
-    """TC-032: 测试 MCP 工具注册"""
+    """TC-032: 测试 MCP 工具注册（8个接口）"""
     tools = await list_tools()
     tool_names = [tool.name for tool in tools]
+
+    # 验证合并后的接口存在
     assert "manage_project" in tool_names
     assert "manage_requirement" in tool_names
-    assert "get_next_requirement" in tool_names
-    assert len(tool_names) >= 19
+    assert "manage_dependency" in tool_names
+    assert "manage_validation" in tool_names
+    assert "manage_execution" in tool_names
+    assert "manage_snapshot" in tool_names
+    assert "manage_lock" in tool_names
+
+    # 验证接口数量为8个
+    assert len(tool_names) == 8
 
 
 async def test_tc033_mcp_tool_call():
-    """TC-033: 测试 MCP 工具调用"""
+    """TC-033: 测试 MCP 工具调用（新参数格式）"""
     router = get_tool_router()
-    result = router.route("manage_project", {"name": "测试项目", "description": "描述"})
+    result = router.route(
+        "manage_project",
+        {"action": "create", "name": "测试项目", "description": "描述"},
+    )
     assert result is not None
     assert "project_id" in result
     assert "next_action" in result
 
 
 async def test_mcp_tool_call_add_requirement():
-    """测试 MCP 工具调用 - 添加需求"""
+    """测试 MCP 工具调用 - 添加需求（新参数格式）"""
     router = get_tool_router()
-    project_result = router.route("manage_project", {"name": "测试项目"})
+    project_result = router.route(
+        "manage_project",
+        {"action": "create", "name": "测试项目"},
+    )
     project_id = project_result["project_id"]
 
     result = router.route(
-        "manage_requirement", {"project_id": project_id, "content": "测试需求"}
+        "manage_requirement",
+        {"action": "create", "project_id": project_id, "content": "测试需求"},
     )
 
     assert result is not None
     assert "requirement_id" in result
+
+
+async def test_mcp_tool_list_requirements():
+    """测试 MCP 工具调用 - 列出需求"""
+    router = get_tool_router()
+    project_result = router.route(
+        "manage_project",
+        {"action": "create", "name": "列表测试"},
+    )
+    project_id = project_result["project_id"]
+
+    router.route(
+        "manage_requirement",
+        {"action": "create", "project_id": project_id, "content": "需求1"},
+    )
+
+    result = router.route(
+        "manage_requirement",
+        {"action": "list", "project_id": project_id},
+    )
+
+    assert result["total"] >= 1

@@ -99,6 +99,9 @@ class ChainBuilder:
         # 拓扑排序
         layers = self.graph_algos.topological_sort(graph)
 
+        # 计算并行组映射
+        parallel_groups = self.graph_algos.assign_parallel_groups(layers)
+
         # 检查是否有并行节点
         parallel_nodes = self.graph_algos.get_parallel_nodes(layers)
 
@@ -112,8 +115,10 @@ class ChainBuilder:
             # 构建需求 UUID 到需求的映射
             req_map = {req[0]: req for req in requirements}
 
-            # 使用默认顺序构建链表
-            result = self._link_requirements(conn, project_uuid, sorted_uuids, req_map)
+            # 使用默认顺序构建链表（传入并行组映射）
+            result = self._link_requirements(
+                conn, project_uuid, sorted_uuids, req_map, parallel_groups
+            )
         else:
             # 没有并行节点，直接构建链表
             result = self._build_chain_from_sorted(
@@ -258,10 +263,15 @@ class ChainBuilder:
         # 展平分层结果
         sorted_uuids = self.graph_algos.flatten_layers(layers)
 
+        # 计算并行组映射
+        parallel_groups = self.graph_algos.assign_parallel_groups(layers)
+
         # 构建需求 UUID 到需求的映射
         req_map = {req[0]: req for req in requirements}
 
-        return self._link_requirements(conn, project_uuid, sorted_uuids, req_map)
+        return self._link_requirements(
+            conn, project_uuid, sorted_uuids, req_map, parallel_groups
+        )
 
     def _link_requirements(
         self,
@@ -269,6 +279,7 @@ class ChainBuilder:
         project_uuid: str,
         sorted_uuids: List[str],
         req_map: Dict[str, tuple],
+        parallel_groups: Optional[Dict[str, int]] = None,
     ) -> Dict[str, Any]:
         """
         构建链表结构（使用 NEXT_IN_CHAIN 边）
@@ -341,6 +352,9 @@ class ChainBuilder:
                 {
                     "uuid": req_uuid,
                     "chain_order": i + 1,
+                    "parallel_group": parallel_groups.get(req_uuid, 0)
+                    if parallel_groups
+                    else 0,
                     "status": RequirementStatus.CHAINED.value,
                     "updated_at": updated_at,
                 },

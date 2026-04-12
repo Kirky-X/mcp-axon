@@ -2,7 +2,7 @@
 # Licensed under the MIT License.
 # See LICENSE file in the project root for full license information.
 
-"""MCP 服务器核心测试"""
+"""MCP 服务器核心测试 - 埋缩版（8个接口）"""
 
 import os
 
@@ -48,20 +48,23 @@ class TestSDK:
 
 
 class TestMCPToolIntegration:
-    """MCP 工具集成测试"""
+    """MCP 工具集成测试（新接口格式）"""
 
     def test_full_requirement_lifecycle(self):
         """测试: 完整需求生命周期"""
         router = get_tool_router()
 
         # 1. 创建项目
-        project = router.route("manage_project", {"name": "生命周期项目"})
+        project = router.route(
+            "manage_project",
+            {"action": "create", "name": "生命周期项目"},
+        )
         project_id = project["project_id"]
 
         # 2. 添加根需求
         root = router.route(
             "manage_requirement",
-            {"project_id": project_id, "content": "根需求"},
+            {"action": "create", "project_id": project_id, "content": "根需求"},
         )
         root_id = root["requirement_id"]
 
@@ -69,6 +72,7 @@ class TestMCPToolIntegration:
         child = router.route(
             "manage_requirement",
             {
+                "action": "create",
                 "project_id": project_id,
                 "content": "子需求",
                 "parent_id": root_id,
@@ -78,44 +82,60 @@ class TestMCPToolIntegration:
 
         # 4. 添加依赖
         router.route(
-            "add_dependency",
+            "manage_dependency",
             {"requirement_id": child_id, "dependency_id": root_id},
         )
 
         # 5. 查询项目状态
-        state = router.route("get_project_state", {"project_id": project_id})
+        state = router.route(
+            "manage_execution",
+            {"action": "state", "project_id": project_id},
+        )
         assert state["total_requirements"] == 2
 
         # 6. 更新需求
         updated = router.route(
             "manage_requirement",
-            {"requirement_id": child_id, "content": "更新后的子需求"},
+            {
+                "action": "update",
+                "requirement_id": child_id,
+                "content": "更新后的子需求",
+            },
         )
         assert updated["content"] == "更新后的子需求"
 
         # 7. 列出需求
-        listing = router.route("list_requirements", {"project_id": project_id})
+        listing = router.route(
+            "manage_requirement",
+            {"action": "list", "project_id": project_id},
+        )
         assert listing["total"] == 2
 
     def test_validation_workflow(self):
         """测试: 验证节点工作流"""
         router = get_tool_router()
 
-        project = router.route("manage_project", {"name": "验证工作流项目"})
+        project = router.route(
+            "manage_project",
+            {"action": "create", "name": "验证工作流项目"},
+        )
         project_id = project["project_id"]
 
         req = router.route(
             "manage_requirement",
-            {"project_id": project_id, "content": "短需求"},
+            {"action": "create", "project_id": project_id, "content": "短需求"},
         )
         req_id = req["requirement_id"]
 
         # 标记为叶子
-        router.route("mark_as_leaf", {"requirement_id": req_id})
+        router.route(
+            "manage_requirement",
+            {"action": "mark_leaf", "requirement_id": req_id},
+        )
 
         # 添加验证
         validation = router.route(
-            "add_validation",
+            "manage_validation",
             {
                 "requirement_id": req_id,
                 "test_cases": [
@@ -134,46 +154,61 @@ class TestMCPToolIntegration:
         """测试: 快照工作流"""
         router = get_tool_router()
 
-        project = router.route("manage_project", {"name": "快照工作流项目"})
+        project = router.route(
+            "manage_project",
+            {"action": "create", "name": "快照工作流项目"},
+        )
         project_id = project["project_id"]
 
         # 创建快照
         snapshot = router.route(
-            "create_snapshot",
-            {"project_id": project_id, "_session_id": "test"},
+            "manage_snapshot",
+            {"action": "create", "project_id": project_id, "_session_id": "test"},
         )
         snapshot_id = snapshot["snapshot_id"]
         assert snapshot_id is not None
 
         # 列出快照
-        snapshots = router.route("list_snapshots", {"project_id": project_id})
+        snapshots = router.route(
+            "manage_snapshot",
+            {"action": "list", "project_id": project_id},
+        )
         assert len(snapshots["snapshots"]) >= 1
 
     def test_lock_workflow(self):
         """测试: 锁工作流"""
         router = get_tool_router()
 
-        project = router.route("manage_project", {"name": "锁工作流项目"})
+        project = router.route(
+            "manage_project",
+            {"action": "create", "name": "锁工作流项目"},
+        )
         project_id = project["project_id"]
 
         # 获取锁
         acquire = router.route(
-            "acquire_lock",
-            {"project_id": project_id, "session_id": "session1"},
+            "manage_lock",
+            {"action": "acquire", "project_id": project_id, "session_id": "session1"},
         )
         assert acquire["success"] is True
 
         # 检查锁定
-        locked = router.route("is_locked", {"project_id": project_id})
+        locked = router.route(
+            "manage_lock",
+            {"action": "check", "project_id": project_id},
+        )
         assert locked["locked"] is True
 
         # 释放锁
         release = router.route(
-            "release_lock",
-            {"project_id": project_id, "session_id": "session1"},
+            "manage_lock",
+            {"action": "release", "project_id": project_id, "session_id": "session1"},
         )
         assert release["success"] is True
 
         # 检查未锁定
-        unlocked = router.route("is_locked", {"project_id": project_id})
+        unlocked = router.route(
+            "manage_lock",
+            {"action": "check", "project_id": project_id},
+        )
         assert unlocked["locked"] is False

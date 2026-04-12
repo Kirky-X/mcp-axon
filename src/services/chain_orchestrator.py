@@ -27,6 +27,7 @@ from src.db.graph_queries import (
     GET_REQUIREMENTS_BY_STATUS,
     UPDATE_CHAIN_STATE_PROGRESS,
     UPDATE_PROJECT_STATUS,
+    UPDATE_REQUIREMENT_STATUS_COMPLETED,
 )
 from src.services.chain_builder import ChainBuilder
 from src.utils.event_logger import log_event
@@ -337,8 +338,8 @@ class ChainOrchestrator:
             )
 
         # 计算进度
-        total_nodes = chain_state[6]  # total_nodes
-        completed_nodes = chain_state[7]  # completed_nodes
+        total_nodes = chain_state[5]  # total_nodes
+        completed_nodes = chain_state[6]  # completed_nodes
         progress = int((completed_nodes / total_nodes) * 100) if total_nodes > 0 else 0
 
         # 获取下一个节点（通过 NEXT_IN_CHAIN 边）
@@ -346,12 +347,30 @@ class ChainOrchestrator:
         next_rows = list(next_result)
         is_last = len(next_rows) == 0
 
+        # 计算 can_parallel：下一个需求的 parallel_group 与当前相同
+        can_parallel = False
+        current_parallel_group = current_req[9] if current_req[9] is not None else None
+        if next_rows and current_parallel_group is not None:
+            # 获取下一个需求的 parallel_group
+            next_req_uuid = next_rows[0][0]
+            next_req_result = conn.execute(
+                GET_REQUIREMENT_BY_UUID, {"uuid": next_req_uuid}
+            )
+            next_req_rows = list(next_req_result)
+            if next_req_rows:
+                next_parallel_group = (
+                    next_req_rows[0][9] if len(next_req_rows[0]) > 9 else None
+                )
+                can_parallel = next_parallel_group == current_parallel_group
+
         result_data = {
             "requirement_id": current_req[0],
             "content": current_req[3],
             "status": current_req[5],
             "chain_order": current_req[8],
+            "parallel_group": current_parallel_group,
             "is_last": is_last,
+            "can_parallel": can_parallel,
             "progress_percentage": progress,
             "message": None,
         }
@@ -406,8 +425,23 @@ class ChainOrchestrator:
 
         chain_state = chain_state_rows[0]
         chain_state_uuid = chain_state[0]  # uuid
-        total_nodes = chain_state[6]  # total_nodes
-        completed_nodes = chain_state[7]  # completed_nodes
+        total_nodes = chain_state[5]  # total_nodes
+        completed_nodes = chain_state[6]  # completed_nodes
+
+        # 幂等检查：需求已完成则直接返回
+        current_status = requirement[5]  # status
+        if current_status == RequirementStatus.COMPLETED.value:
+            logger.info(f"需求已完成，跳过重复标记: {requirement_uuid}")
+            return {
+                "requirement_id": requirement_uuid,
+                "next_requirement_id": None,
+                "completed_nodes": completed_nodes,
+                "total_nodes": total_nodes,
+                "progress_percentage": int((completed_nodes / total_nodes) * 100)
+                if total_nodes > 0
+                else 100,
+                "message": "需求已完成",
+            }
 
         # 获取下一个需求 ID（通过 NEXT_IN_CHAIN 边）
         next_result = conn.execute(GET_NEXT_IN_CHAIN, {"uuid": requirement_uuid})
@@ -430,6 +464,19 @@ class ChainOrchestrator:
                 "updated_at": now_utc(),
             },
         )
+
+        # 更新需求状态为 COMPLETED
+        conn.execute(
+            UPDATE_REQUIREMENT_STATUS_COMPLETED,
+            {
+                "uuid": requirement_uuid,
+                "status": RequirementStatus.COMPLETED.value,
+                "updated_at": now_utc(),
+            },
+        )
+
+        # 使需求缓存失效
+        self.chain_builder._cache.invalidate_requirement(requirement_uuid)
 
         # 检查是否所有需求都已完成
         if next_req_uuid is None:

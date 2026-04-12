@@ -54,7 +54,7 @@ def test_uat022_transaction_integrity():
     project_id = project["project_id"]
 
     # 测试成功的事务
-    req = sdk.manage_requirement(project_id="需求")
+    req = sdk.manage_requirement(project_id=project_id, content="需求")
     sdk.add_validation(req["requirement_id"], [{"name": "测试"}])
 
     # 验证所有数据都正确保存 - 通过 SDK API
@@ -80,7 +80,7 @@ def test_uat022_transaction_integrity():
 
     # 测试失败的事务
     try:
-        sdk.manage_requirement(project_id="")  # 空内容
+        sdk.manage_requirement(project_id=project_id, content="")  # 空内容
         assert False, "应该抛出异常"
     except ValueError:
         pass
@@ -98,7 +98,7 @@ def test_uat023_event_sourcing():
     project_id = project["project_id"]
 
     # 执行一系列操作
-    req = sdk.manage_requirement(project_id="需求")
+    req = sdk.manage_requirement(project_id=project_id, content="需求")
     sdk.add_validation(req["requirement_id"], [{"name": "测试"}])
 
     # 查询事件表

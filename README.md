@@ -50,16 +50,37 @@
 git clone https://github.com/Kirky-X/mcp-axon.git
 cd mcp-axon
 
-# 使用 uv 安装依赖
+# 方式一: 使用安装脚本(推荐)
+bash scripts/install.sh
+
+# 方式二: 手动安装
 uv venv
 source .venv/bin/activate  # Linux/Mac
 # .venv\Scripts\activate  # Windows
 
 # 安装项目
-uv pip install -e .
+uv pip install -e .[dev]
 ```
 
 ### 基本使用
+
+#### 命令行方式
+
+```bash
+# 运行演示
+python scripts/main.py demo
+
+# 启动 MCP 服务器
+python scripts/main.py server
+
+# 运行测试
+python scripts/main.py test
+
+# 运行预检查
+bash scripts/pre-commit-check.sh
+```
+
+#### Python SDK 方式
 
 ```python
 from src.core.sdk import RequirementSDK
@@ -147,11 +168,17 @@ print(f"下一个需求: {next_req}")
 # 运行所有测试
 uv run pytest tests/ -v --cov=src
 
+# 或使用主脚本
+python scripts/main.py test
+
 # 运行性能测试
 uv run pytest tests/performance/ -v
 
 # 运行端到端测试
 uv run pytest tests/test_e2e/ -v
+
+# 运行预检查(包含测试)
+bash scripts/pre-commit-check.sh
 ```
 
 **测试结果**: 279 个测试全部通过 (100%)

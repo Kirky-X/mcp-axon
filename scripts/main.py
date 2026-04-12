@@ -2,7 +2,7 @@
 # Licensed under the MIT License.
 # See LICENSE file in the project root for full license information.
 
-"""MCP-Axon 主入口"""
+"""Axon 主入口"""
 
 import argparse
 import asyncio
@@ -58,7 +58,7 @@ def run_tests():
 
 def main():
     """主函数"""
-    parser = argparse.ArgumentParser(description="MCP-Axon - 需求链化管理系统")
+    parser = argparse.ArgumentParser(description="Axon - 需求链化管理系统")
 
     parser.add_argument(
         "command", choices=["init", "server", "test", "demo"], help="命令"

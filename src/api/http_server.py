@@ -178,7 +178,7 @@ class HTTPRequestHandler(BaseHTTPRequestHandler):
         duration_ms = (time.time() - start_time) * 1000
 
         data = {
-            "name": "MCP-Axon HTTP API",
+            "name": "Axon HTTP API",
             "version": APIVersion.CURRENT_VERSION,
             "description": "基于 MCP 协议的需求链化管理系统 - HTTP API",
             "endpoints": {

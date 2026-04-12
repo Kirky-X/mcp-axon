@@ -2,7 +2,7 @@
 # Licensed under the MIT License.
 # See LICENSE file in the project root for full license information.
 
-"""MCP-Axon CLI - 命令行接口"""
+"""Axon CLI - 命令行接口"""
 
 import os
 from typing import Annotated
@@ -14,7 +14,7 @@ from src.core.sdk import RequirementSDK
 
 app = typer.Typer(
     name="axon",
-    help="MCP-Axon - 需求分解与链式执行管理系统",
+    help="Axon - 需求分解与链式执行管理系统",
     add_completion=False,
 )
 

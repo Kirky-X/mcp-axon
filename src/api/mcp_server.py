@@ -189,7 +189,7 @@ async def main():
     """主函数 - 同时启动 MCP 和 HTTP 服务器"""
     import argparse
 
-    parser = argparse.ArgumentParser(description="MCP-Axon 服务器")
+    parser = argparse.ArgumentParser(description="Axon 服务器")
     parser.add_argument(
         "--mode",
         choices=["mcp", "http", "both"],

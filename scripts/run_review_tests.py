@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-MCP-Axon 代码审查 - 自动化测试脚本
+Axon 代码审查 - 自动化测试脚本
 
 用于验证代码审查后修复的正确性
 """
@@ -43,7 +43,7 @@ def run_command(cmd: str, description: str) -> bool:
 def main():
     """主测试流程"""
     print("\n" + "=" * 60)
-    print("MCP-Axon 代码审查验证测试")
+    print("Axon 代码审查验证测试")
     print("=" * 60)
 
     tests = [

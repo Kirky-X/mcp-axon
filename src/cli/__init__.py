@@ -2,7 +2,7 @@
 # Licensed under the MIT License.
 # See LICENSE file in the project root for full license information.
 
-"""MCP-Axon CLI"""
+"""Axon CLI"""
 
 from src.cli.cli import app, entry_point
 

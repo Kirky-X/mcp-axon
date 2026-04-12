@@ -68,6 +68,8 @@ dev = [
 
 [tool.mypy]
 python_version = "3.12"
+# 将缓存重定向到 /tmp
+cache_dir = "/tmp/mypy_cache"
 warn_return_any = false
 warn_unused_configs = true
 disallow_untyped_defs = false

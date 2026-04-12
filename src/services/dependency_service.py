@@ -14,7 +14,6 @@ from src.db.graph_queries import (
     CHECK_WOULD_CREATE_CYCLE,
     CREATE_DEPENDS_ON,
     DELETE_DEPENDS_ON,
-    DETECT_CYCLE_IN_PROJECT,
     GET_DEPENDENCIES,
     GET_DEPENDENTS,
     GET_REQUIREMENT_BY_UUID,
@@ -309,27 +308,6 @@ class DependencyService:
             "dependencies": dependencies,
         }
 
-    def detect_cycle(self, conn: lb.Connection, project_uuid: str) -> list[str] | None:
-        """
-        检测项目中的循环依赖
-
-        Args:
-            conn: 数据库连接
-            project_uuid: 项目 ID
-
-        Returns:
-            循环路径，如果没有循环则返回 None
-        """
-        result = conn.execute(DETECT_CYCLE_IN_PROJECT, {"project_uuid": project_uuid})
-        rows = list(result)
-
-        if rows:
-            cycle_start = rows[0][0]  # cycle_start 节点
-            if cycle_start:
-                return [cycle_start]
-
-        return None
-
     def _would_create_cycle(
         self, conn: lb.Connection, requirement_uuid: str, dependency_uuid: str
     ) -> bool:
@@ -360,34 +338,6 @@ class DependencyService:
 
         # 如果返回结果，说明存在路径，添加后会形成环
         return len(rows) > 0
-
-    def get_dependencies(self, conn: lb.Connection, requirement_uuid: str) -> list[str]:
-        """
-        获取需求的所有依赖
-
-        Args:
-            conn: 数据库连接
-            requirement_uuid: 需求 ID
-
-        Returns:
-            依赖 ID 列表
-        """
-        result = conn.execute(GET_DEPENDENCIES, {"requirement_uuid": requirement_uuid})
-        return [row[0] for row in result]
-
-    def get_dependents(self, conn: lb.Connection, requirement_uuid: str) -> list[str]:
-        """
-        获取依赖于此需求的所有需求
-
-        Args:
-            conn: 数据库连接
-            requirement_uuid: 需求 ID
-
-        Returns:
-            依赖者 ID 列表
-        """
-        result = conn.execute(GET_DEPENDENTS, {"requirement_uuid": requirement_uuid})
-        return [row[0] for row in result]
 
     # ============ NetworkX 增强方法（无深度限制）============
 

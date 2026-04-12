@@ -232,32 +232,6 @@ class InputValidator:
         return uuid_str
 
     @classmethod
-    def sanitize_html(cls, text: str) -> str:
-        """
-        清理 HTML 内容（转义特殊字符）
-
-        Args:
-            text: 原始文本
-
-        Returns:
-            清理后的文本
-        """
-        # 转义 HTML 特殊字符
-        html_escape_map = {
-            "&": "&amp;",
-            "<": "&lt;",
-            ">": "&gt;",
-            '"': "&quot;",
-            "'": "&#x27;",
-        }
-
-        result = text
-        for char, escaped in html_escape_map.items():
-            result = result.replace(char, escaped)
-
-        return result
-
-    @classmethod
     def _contains_dangerous_patterns(cls, text: str) -> bool:
         """
         检查文本是否包含危险模式
@@ -370,33 +344,3 @@ class SecurityChecker:
                     return False
 
         return True
-
-    @staticmethod
-    def check_depth_limit(depth: int, max_depth: int = 10) -> None:
-        """
-        检查深度限制
-
-        Args:
-            depth: 当前深度
-            max_depth: 最大深度
-
-        Raises:
-            ValueError: 超过深度限制
-        """
-        if depth > max_depth:
-            raise ValueError(f"深度 ({depth}) 超过最大限制 ({max_depth})")
-
-    @staticmethod
-    def check_node_count(count: int, max_count: int = 10000) -> None:
-        """
-        检查节点数量限制
-
-        Args:
-            count: 节点数量
-            max_count: 最大节点数
-
-        Raises:
-            ValueError: 超过节点数量限制
-        """
-        if count > max_count:
-            raise ValueError(f"节点数量 ({count}) 超过最大限制 ({max_count})")

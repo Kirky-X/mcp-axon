@@ -194,14 +194,3 @@ MCP-Axon 提供 8 个合并后的 MCP 工具:
 ## 📄 许可证
 
 本项目基于 MIT 许可证开源。
-
----
-
-## 🙏 致谢
-
-- [MCP Python SDK](https://github.com/modelcontextprotocol/python-sdk)
-- [real-ladybug](https://github.com/real-ladybug/real-ladybug) - 图数据库客户端
-- [NetworkX](https://networkx.org/) - 图算法
-- [Pydantic](https://docs.pydantic.dev/) - 数据验证
-- [dependency-injector](https://python-dependency-injector.eticloud.io/) - 依赖注入
-- [Typer](https://typer.tiangolo.com/) - CLI 框架

@@ -5,6 +5,7 @@
 """工具路由测试 - 埋缩版（8个接口）"""
 
 import os
+
 import pytest
 
 os.environ["MCP_AXON_DB_PATH"] = ":memory:"

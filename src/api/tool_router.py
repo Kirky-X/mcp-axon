@@ -5,21 +5,22 @@
 """工具路由 - 埋缩版（8个接口）"""
 
 import re
-from typing import Any, Callable, Dict
+from collections.abc import Callable
+from typing import Any
 
 from src.constants import APIVersion, Messages
 
 
 # Helper functions for lock-related handlers
-def _lock_result(success: bool, ok_msg: str, fail_msg: str) -> Dict[str, Any]:
+def _lock_result(success: bool, ok_msg: str, fail_msg: str) -> dict[str, Any]:
     return {"success": success, "message": ok_msg if success else fail_msg}
 
 
-def _bool_result(value: bool, true_msg: str, false_msg: str) -> Dict[str, Any]:
+def _bool_result(value: bool, true_msg: str, false_msg: str) -> dict[str, Any]:
     return {"locked": value, "message": true_msg if value else false_msg}
 
 
-def _info_result(info: Any, locked_msg: str, unlocked_msg: str) -> Dict[str, Any]:
+def _info_result(info: Any, locked_msg: str, unlocked_msg: str) -> dict[str, Any]:
     return {
         "lock_info": info,
         "message": locked_msg if info else unlocked_msg,
@@ -40,7 +41,7 @@ class ToolRouter:
             sdk_getter: 获取 SDK 实例的函数
         """
         self._sdk = sdk_getter
-        self._handlers: Dict[str, Callable] = {}
+        self._handlers: dict[str, Callable] = {}
         self._uuid_pattern = re.compile(
             r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
             re.IGNORECASE,

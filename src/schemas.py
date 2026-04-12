@@ -4,8 +4,8 @@
 
 """Pydantic 数据校验 Schema 定义"""
 
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from datetime import UTC, datetime
+from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
@@ -14,7 +14,7 @@ class ProjectCreate(BaseModel):
     """项目创建 Schema"""
 
     name: str = Field(..., min_length=1, max_length=200, description="项目名称")
-    description: Optional[str] = Field(None, max_length=2000, description="项目描述")
+    description: str | None = Field(None, max_length=2000, description="项目描述")
 
     @field_validator("name")
     @classmethod
@@ -27,12 +27,12 @@ class ProjectCreate(BaseModel):
 class ProjectUpdate(BaseModel):
     """项目更新 Schema"""
 
-    name: Optional[str] = Field(None, min_length=1, max_length=200)
-    description: Optional[str] = Field(None, max_length=2000)
+    name: str | None = Field(None, min_length=1, max_length=200)
+    description: str | None = Field(None, max_length=2000)
 
     @field_validator("name")
     @classmethod
-    def name_not_empty(cls, v: Optional[str]) -> Optional[str]:
+    def name_not_empty(cls, v: str | None) -> str | None:
         if v is not None and not v.strip():
             raise ValueError("项目名称不能为空")
         return v.strip() if v else v
@@ -43,10 +43,10 @@ class ProjectResponse(BaseModel):
 
     project_id: str
     name: str
-    description: Optional[str]
+    description: str | None
     status: str
-    locked_by: Optional[str]
-    locked_at: Optional[datetime]
+    locked_by: str | None
+    locked_at: datetime | None
     created_at: datetime
     updated_at: datetime
 
@@ -58,10 +58,10 @@ class RequirementCreate(BaseModel):
 
     project_id: str = Field(..., min_length=36, max_length=36, description="项目 ID")
     content: str = Field(..., min_length=1, max_length=5000, description="需求内容")
-    parent_id: Optional[str] = Field(
+    parent_id: str | None = Field(
         None, min_length=36, max_length=36, description="父需求 ID"
     )
-    order_in_parent: Optional[int] = Field(0, ge=0, description="在父需求中的顺序")
+    order_in_parent: int | None = Field(0, ge=0, description="在父需求中的顺序")
 
     @field_validator("content")
     @classmethod
@@ -74,12 +74,12 @@ class RequirementCreate(BaseModel):
 class RequirementUpdate(BaseModel):
     """需求更新 Schema"""
 
-    content: Optional[str] = Field(None, min_length=1, max_length=5000)
-    status: Optional[str] = Field(None, description="需求状态")
+    content: str | None = Field(None, min_length=1, max_length=5000)
+    status: str | None = Field(None, description="需求状态")
 
     @field_validator("content")
     @classmethod
-    def content_not_empty(cls, v: Optional[str]) -> Optional[str]:
+    def content_not_empty(cls, v: str | None) -> str | None:
         if v is not None and not v.strip():
             raise ValueError("需求内容不能为空")
         return v.strip() if v else v
@@ -90,15 +90,15 @@ class RequirementResponse(BaseModel):
 
     requirement_id: str
     project_id: str
-    parent_id: Optional[str]
+    parent_id: str | None
     content: str
-    decompose_reason: Optional[str]
+    decompose_reason: str | None
     status: str
     level: int
     order_in_parent: int
-    dependencies: List[str]
-    chain_order: Optional[int]
-    next_requirement_id: Optional[str]
+    dependencies: list[str]
+    chain_order: int | None
+    next_requirement_id: str | None
     created_at: datetime
     updated_at: datetime
     version: int
@@ -112,16 +112,16 @@ class ValidationCreate(BaseModel):
     requirement_id: str = Field(
         ..., min_length=36, max_length=36, description="需求 ID"
     )
-    test_cases: List[Dict[str, Any]] = Field(
+    test_cases: list[dict[str, Any]] = Field(
         default_factory=list, description="测试用例列表"
     )
-    acceptance_criteria: Optional[str] = Field(
+    acceptance_criteria: str | None = Field(
         None, max_length=2000, description="验收标准"
     )
 
     @field_validator("test_cases")
     @classmethod
-    def validate_test_cases(cls, v: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    def validate_test_cases(cls, v: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """验证测试用例格式"""
         for i, test_case in enumerate(v):
             if not isinstance(test_case, dict):
@@ -134,10 +134,10 @@ class ValidationCreate(BaseModel):
 class ValidationUpdate(BaseModel):
     """验证节点更新 Schema"""
 
-    test_cases: Optional[List[Dict[str, Any]]] = None
-    acceptance_criteria: Optional[str] = Field(None, max_length=2000)
-    status: Optional[str] = Field(None, description="验证状态")
-    result: Optional[Dict[str, Any]] = None
+    test_cases: list[dict[str, Any]] | None = None
+    acceptance_criteria: str | None = Field(None, max_length=2000)
+    status: str | None = Field(None, description="验证状态")
+    result: dict[str, Any] | None = None
 
 
 class ValidationResponse(BaseModel):
@@ -145,11 +145,11 @@ class ValidationResponse(BaseModel):
 
     validation_id: str
     requirement_id: str
-    test_cases: List[Dict[str, Any]]
-    acceptance_criteria: Optional[str]
+    test_cases: list[dict[str, Any]]
+    acceptance_criteria: str | None
     status: str
-    result: Optional[Dict[str, Any]]
-    validated_at: Optional[datetime]
+    result: dict[str, Any] | None
+    validated_at: datetime | None
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
@@ -159,13 +159,13 @@ class DependencyMapping(BaseModel):
     """依赖映射 Schema"""
 
     parent_id: str = Field(..., min_length=36, max_length=36, description="父需求 ID")
-    dependency_mapping: Dict[str, List[str]] = Field(
+    dependency_mapping: dict[str, list[str]] = Field(
         ..., description="依赖映射 {子需求ID: [依赖ID列表]}"
     )
 
     @field_validator("dependency_mapping")
     @classmethod
-    def validate_mapping(cls, v: Dict[str, List[str]]) -> Dict[str, List[str]]:
+    def validate_mapping(cls, v: dict[str, list[str]]) -> dict[str, list[str]]:
         """验证依赖映射格式"""
         for child_id, dep_ids in v.items():
             if not isinstance(dep_ids, list):
@@ -180,8 +180,8 @@ class ParallelOrderResolve(BaseModel):
     """并行节点排序 Schema"""
 
     project_id: str = Field(..., min_length=36, max_length=36, description="项目 ID")
-    parallel_nodes: List[str] = Field(..., min_length=1, description="并行节点 ID 列表")
-    sorted_order: List[str] = Field(
+    parallel_nodes: list[str] = Field(..., min_length=1, description="并行节点 ID 列表")
+    sorted_order: list[str] = Field(
         ..., min_length=1, description="排序后的节点 ID 列表"
     )
 
@@ -197,10 +197,10 @@ class ChainBuildResponse(BaseModel):
     """链化构建响应 Schema"""
 
     status: str = Field(..., description="链化状态: needs_sorting, completed")
-    parallel_nodes: Optional[List[str]] = Field(None, description="需要排序的并行节点")
-    chain_head: Optional[str] = Field(None, description="链表头节点 ID")
-    total_nodes: Optional[int] = Field(None, description="总节点数")
-    message: Optional[str] = Field(None, description="提示消息")
+    parallel_nodes: list[str] | None = Field(None, description="需要排序的并行节点")
+    chain_head: str | None = Field(None, description="链表头节点 ID")
+    total_nodes: int | None = Field(None, description="总节点数")
+    message: str | None = Field(None, description="提示消息")
 
 
 class ProjectStateResponse(BaseModel):
@@ -213,8 +213,8 @@ class ProjectStateResponse(BaseModel):
     leaf_requirements: int
     validated_requirements: int
     chained_requirements: int
-    chain_status: Optional[str]
-    current_node_id: Optional[str]
+    chain_status: str | None
+    current_node_id: str | None
     progress_percentage: int
     created_at: datetime
     updated_at: datetime
@@ -223,13 +223,13 @@ class ProjectStateResponse(BaseModel):
 class NextRequirementResponse(BaseModel):
     """下一个需求响应 Schema"""
 
-    requirement_id: Optional[str]
-    content: Optional[str]
-    status: Optional[str]
-    chain_order: Optional[int]
+    requirement_id: str | None
+    content: str | None
+    status: str | None
+    chain_order: int | None
     is_last: bool
     progress_percentage: int
-    message: Optional[str]
+    message: str | None
 
 
 class ErrorResponse(BaseModel):
@@ -239,18 +239,18 @@ class ErrorResponse(BaseModel):
     error_type: str
     message: str
     timestamp: datetime
-    context: Optional[Dict[str, Any]] = None
-    recovery: Optional[str] = None
+    context: dict[str, Any] | None = None
+    recovery: str | None = None
 
 
 class MCPToolResponse(BaseModel):
     """MCP 工具统一响应 Schema"""
 
     success: bool
-    data: Optional[Dict[str, Any]] = None
-    error: Optional[str] = None
-    next_action: Optional[str] = Field(None, description="引导下一步操作")
-    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    data: dict[str, Any] | None = None
+    error: str | None = None
+    next_action: str | None = Field(None, description="引导下一步操作")
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
 
 class DependencyUpdate(BaseModel):
@@ -259,11 +259,11 @@ class DependencyUpdate(BaseModel):
     requirement_id: str = Field(
         ..., min_length=36, max_length=36, description="需求 ID"
     )
-    dependencies: List[str] = Field(..., description="依赖 ID 列表")
+    dependencies: list[str] = Field(..., description="依赖 ID 列表")
 
     @field_validator("dependencies")
     @classmethod
-    def validate_dependencies(cls, v: List[str]) -> List[str]:
+    def validate_dependencies(cls, v: list[str]) -> list[str]:
         """验证依赖 ID 格式"""
         if not isinstance(v, list):
             raise ValueError("依赖必须是列表")

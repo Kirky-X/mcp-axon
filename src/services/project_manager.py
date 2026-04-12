@@ -6,7 +6,7 @@
 
 import logging
 import uuid
-from typing import Any, Dict
+from typing import Any
 
 import real_ladybug as lb
 
@@ -45,7 +45,7 @@ class ProjectManager:
     @performance_monitor("create_project")
     def create_project(
         self, conn: lb.Connection, name: str, description: str = ""
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         创建项目
 
@@ -128,7 +128,7 @@ class ProjectManager:
     @performance_monitor("update_project")
     def update_project(
         self, conn: lb.Connection, project_uuid: str, update_data: ProjectUpdate
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         更新项目信息
 
@@ -197,7 +197,7 @@ class ProjectManager:
         }
 
     @performance_monitor("get_project")
-    def get_project(self, conn: lb.Connection, project_uuid: str) -> Dict[str, Any]:
+    def get_project(self, conn: lb.Connection, project_uuid: str) -> dict[str, Any]:
         """
         获取项目信息
 
@@ -238,7 +238,7 @@ class ProjectManager:
 
     def get_project_state(
         self, conn: lb.Connection, project_uuid: str
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         获取项目状态
 

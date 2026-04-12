@@ -4,11 +4,10 @@
 
 """时间处理工具"""
 
-from datetime import datetime, timezone
-from typing import Optional
+from datetime import UTC, datetime
 
 
-def parse_datetime(dt_str: Optional[str]) -> Optional[datetime]:
+def parse_datetime(dt_str: str | None) -> datetime | None:
     """
     解析 ISO 格式日期时间字符串
 
@@ -25,7 +24,7 @@ def parse_datetime(dt_str: Optional[str]) -> Optional[datetime]:
     try:
         dt = datetime.fromisoformat(dt_str)
         if dt.tzinfo is None:
-            dt = dt.replace(tzinfo=timezone.utc)
+            dt = dt.replace(tzinfo=UTC)
         return dt
     except ValueError:
         return None

@@ -6,7 +6,7 @@
 
 import logging
 import threading
-from typing import Any, Dict, List, Optional, Set
+from typing import Any
 
 import real_ladybug as lb
 
@@ -48,8 +48,8 @@ class DependencyService:
         self.cache = cache
         self._use_networkx = NETWORKX_AVAILABLE
         # 缓存项目依赖图，避免重复构建
-        self._graph_cache: Optional[Any] = None  # nx.DiGraph 或 None
-        self._cache_project_uuid: Optional[str] = None
+        self._graph_cache: Any | None = None  # nx.DiGraph 或 None
+        self._cache_project_uuid: str | None = None
         self._cache_lock = threading.RLock()  # 保护缓存的线程安全
 
     @performance_monitor("transfer_dependencies")
@@ -57,8 +57,8 @@ class DependencyService:
         self,
         conn: lb.Connection,
         parent_uuid: str,
-        dependency_mapping: Dict[str, List[str]],
-    ) -> Dict[str, Any]:
+        dependency_mapping: dict[str, list[str]],
+    ) -> dict[str, Any]:
         """
         应用依赖传递映射
 
@@ -100,7 +100,7 @@ class DependencyService:
         children_uuids = [child[0] for child in children]
 
         # 检查映射的完整性
-        for child_uuid in dependency_mapping.keys():
+        for child_uuid in dependency_mapping:
             if child_uuid not in children_uuids:
                 raise ValueError(f"映射中的子需求不存在: {child_uuid}")
 
@@ -177,7 +177,7 @@ class DependencyService:
     @performance_monitor("add_dependency")
     def add_dependency(
         self, conn: lb.Connection, requirement_uuid: str, dependency_uuid: str
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         添加依赖关系
 
@@ -256,7 +256,7 @@ class DependencyService:
 
     def remove_dependency(
         self, conn: lb.Connection, requirement_uuid: str, dependency_uuid: str
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         移除依赖关系
 
@@ -309,9 +309,7 @@ class DependencyService:
             "dependencies": dependencies,
         }
 
-    def detect_cycle(
-        self, conn: lb.Connection, project_uuid: str
-    ) -> Optional[List[str]]:
+    def detect_cycle(self, conn: lb.Connection, project_uuid: str) -> list[str] | None:
         """
         检测项目中的循环依赖
 
@@ -363,7 +361,7 @@ class DependencyService:
         # 如果返回结果，说明存在路径，添加后会形成环
         return len(rows) > 0
 
-    def get_dependencies(self, conn: lb.Connection, requirement_uuid: str) -> List[str]:
+    def get_dependencies(self, conn: lb.Connection, requirement_uuid: str) -> list[str]:
         """
         获取需求的所有依赖
 
@@ -377,7 +375,7 @@ class DependencyService:
         result = conn.execute(GET_DEPENDENCIES, {"requirement_uuid": requirement_uuid})
         return [row[0] for row in result]
 
-    def get_dependents(self, conn: lb.Connection, requirement_uuid: str) -> List[str]:
+    def get_dependents(self, conn: lb.Connection, requirement_uuid: str) -> list[str]:
         """
         获取依赖于此需求的所有需求
 
@@ -450,7 +448,7 @@ class DependencyService:
         requirement_uuid: str,
         direction: str = "upstream",
         max_depth: int = 10,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         获取需求的依赖链
 
@@ -463,15 +461,15 @@ class DependencyService:
         Returns:
             依赖链信息
         """
-        result: Dict[str, Any] = {
+        result: dict[str, Any] = {
             "requirement_id": requirement_uuid,
             "upstream": [],
             "downstream": [],
         }
 
-        visited: Set[str] = {requirement_uuid}
+        visited: set[str] = {requirement_uuid}
 
-        def get_upstream(uuid: str, depth: int) -> List[Dict[str, Any]]:
+        def get_upstream(uuid: str, depth: int) -> list[dict[str, Any]]:
             if depth > max_depth:
                 return []
             deps = []
@@ -502,7 +500,7 @@ class DependencyService:
                         )
             return deps
 
-        def get_downstream(uuid: str, depth: int) -> List[Dict[str, Any]]:
+        def get_downstream(uuid: str, depth: int) -> list[dict[str, Any]]:
             if depth > max_depth:
                 return []
             dependents = []

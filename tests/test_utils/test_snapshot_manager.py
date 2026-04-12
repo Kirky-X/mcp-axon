@@ -363,8 +363,9 @@ def test_restore_snapshot_invalid_type(graph_connection, project_manager):
     project_id = project["project_id"]
 
     # 创建非快照类型的事件（通过直接插入）
-    from src.db.graph_models import serialize_json, now_utc
     import uuid
+
+    from src.db.graph_models import now_utc, serialize_json
 
     event_uuid = str(uuid.uuid4())
     graph_connection.execute(
@@ -530,8 +531,9 @@ def test_delete_snapshot_invalid_type(graph_connection, project_manager):
     project_id = project["project_id"]
 
     # 创建非快照类型的事件
-    from src.db.graph_models import serialize_json, now_utc
     import uuid
+
+    from src.db.graph_models import now_utc, serialize_json
 
     event_uuid = str(uuid.uuid4())
     graph_connection.execute(

@@ -5,9 +5,8 @@
 """需求状态机验证器"""
 
 import logging
-from typing import Set, Dict
 
-from src.db.graph_models import RequirementStatus, ProjectStatus
+from src.db.graph_models import ProjectStatus, RequirementStatus
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +28,7 @@ class RequirementStateMachine:
     """
 
     # 定义合法的状态转换: {当前状态: {允许转换的目标状态}}
-    VALID_TRANSITIONS: Dict[RequirementStatus, Set[RequirementStatus]] = {
+    VALID_TRANSITIONS: dict[RequirementStatus, set[RequirementStatus]] = {
         RequirementStatus.DRAFT: {
             RequirementStatus.DECOMPOSING,
             RequirementStatus.LEAF,
@@ -90,7 +89,7 @@ class RequirementStateMachine:
         return True
 
     @classmethod
-    def get_allowed_transitions(cls, current: str) -> Set[str]:
+    def get_allowed_transitions(cls, current: str) -> set[str]:
         """
         获取当前状态允许的所有目标状态
 
@@ -133,7 +132,7 @@ class ProjectStateMachine:
     定义项目生命周期的合法状态转换
     """
 
-    VALID_TRANSITIONS: Dict[ProjectStatus, Set[ProjectStatus]] = {
+    VALID_TRANSITIONS: dict[ProjectStatus, set[ProjectStatus]] = {
         ProjectStatus.CREATED: {
             ProjectStatus.DECOMPOSING,
         },

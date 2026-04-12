@@ -7,7 +7,7 @@
 import hashlib
 import logging
 from collections import deque
-from typing import Any, Dict, List, Optional, Set
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -16,7 +16,7 @@ MAX_GRAPH_NODES = 10000
 MAX_GRAPH_EDGES = 50000
 
 
-def _graph_key(graph: Dict[str, List[str]]) -> str:
+def _graph_key(graph: dict[str, list[str]]) -> str:
     """生成图的缓存键"""
     # 将图转换为排序后的字符串表示
     # 对节点和边进行排序以确保一致性
@@ -39,10 +39,10 @@ class GraphAlgorithms:
         self.use_networkx = NetworkXGraphAlgorithms is not None
 
         # 缓存字典
-        self._topological_sort_cache: Dict[str, List[List[str]]] = {}
-        self._detect_cycle_cache: Dict[str, Optional[List[str]]] = {}
+        self._topological_sort_cache: dict[str, list[list[str]]] = {}
+        self._detect_cycle_cache: dict[str, list[str] | None] = {}
 
-    def _validate_graph_size(self, graph: Dict[str, List[str]]) -> None:
+    def _validate_graph_size(self, graph: dict[str, list[str]]) -> None:
         """
         验证图大小是否在限制范围内
 
@@ -62,8 +62,8 @@ class GraphAlgorithms:
             raise ValueError(f"图边数 ({edge_count}) 超过限制 ({self.MAX_EDGES})")
 
     def topological_sort(
-        self, graph: Dict[str, List[str]], in_degree: Optional[Dict[str, int]] = None
-    ) -> List[List[str]]:
+        self, graph: dict[str, list[str]], in_degree: dict[str, int] | None = None
+    ) -> list[list[str]]:
         """
         Kahn 算法拓扑排序（分层）
 
@@ -91,7 +91,7 @@ class GraphAlgorithms:
 
         if self.use_networkx:
             # 将图转换为 NetworkX 格式
-            nodes_data = [{"id": node_id} for node_id in graph.keys()]
+            nodes_data = [{"id": node_id} for node_id in graph]
 
             def get_id_func(node):
                 return node["id"]
@@ -124,8 +124,8 @@ class GraphAlgorithms:
 
     @staticmethod
     def _topological_sort_fallback(
-        graph: Dict[str, List[str]], in_degree: Optional[Dict[str, int]] = None
-    ) -> List[List[str]]:
+        graph: dict[str, list[str]], in_degree: dict[str, int] | None = None
+    ) -> list[list[str]]:
         """
         回退用的纯 Python 拓扑排序实现
 
@@ -171,7 +171,7 @@ class GraphAlgorithms:
 
         return layers
 
-    def detect_cycle_dfs(self, graph: Dict[str, List[str]]) -> Optional[List[str]]:
+    def detect_cycle_dfs(self, graph: dict[str, list[str]]) -> list[str] | None:
         """
         使用 DFS 检测环路
 
@@ -197,7 +197,7 @@ class GraphAlgorithms:
 
         if self.use_networkx:
             # 将图转换为 NetworkX 格式
-            nodes_data = [{"id": node_id} for node_id in graph.keys()]
+            nodes_data = [{"id": node_id} for node_id in graph]
 
             def get_id_func(node):
                 return node["id"]
@@ -229,7 +229,7 @@ class GraphAlgorithms:
         return result
 
     @staticmethod
-    def _detect_cycle_dfs_fallback(graph: Dict[str, List[str]]) -> Optional[List[str]]:
+    def _detect_cycle_dfs_fallback(graph: dict[str, list[str]]) -> list[str] | None:
         """
         回退用的纯 Python 环路检测实现
 
@@ -239,11 +239,11 @@ class GraphAlgorithms:
         Returns:
             环路路径 [node1, node2, ..., node1] 或 None
         """
-        visited: Set[str] = set()
-        rec_stack: Set[str] = set()
-        path: List[str] = []
+        visited: set[str] = set()
+        rec_stack: set[str] = set()
+        path: list[str] = []
 
-        def dfs(node: str) -> Optional[List[str]]:
+        def dfs(node: str) -> list[str] | None:
             visited.add(node)
             rec_stack.add(node)
             path.append(node)
@@ -272,8 +272,8 @@ class GraphAlgorithms:
 
     @staticmethod
     def build_dependency_graph(
-        nodes: List[Any], get_id_func, get_deps_func
-    ) -> Dict[str, List[str]]:
+        nodes: list[Any], get_id_func, get_deps_func
+    ) -> dict[str, list[str]]:
         """
         构建依赖图（邻接表）
 
@@ -287,7 +287,7 @@ class GraphAlgorithms:
         Returns:
             邻接表 {node_id: [dependent_node_ids]}
         """
-        graph: Dict[str, List[str]] = {}
+        graph: dict[str, list[str]] = {}
 
         # 初始化所有节点
         for node in nodes:
@@ -306,7 +306,7 @@ class GraphAlgorithms:
         return graph
 
     @staticmethod
-    def _calculate_in_degree(graph: Dict[str, List[str]]) -> Dict[str, int]:
+    def _calculate_in_degree(graph: dict[str, list[str]]) -> dict[str, int]:
         """
         计算图中所有节点的入度
 
@@ -316,7 +316,7 @@ class GraphAlgorithms:
         Returns:
             入度表 {node_id: degree}
         """
-        in_degree: Dict[str, int] = {}
+        in_degree: dict[str, int] = {}
 
         # 初始化所有节点的入度为 0
         for node in graph:
@@ -332,7 +332,7 @@ class GraphAlgorithms:
         return in_degree
 
     @staticmethod
-    def flatten_layers(layers: List[List[str]]) -> List[str]:
+    def flatten_layers(layers: list[list[str]]) -> list[str]:
         """
         将分层结果展平为单一列表
 
@@ -348,7 +348,7 @@ class GraphAlgorithms:
         return result
 
     @staticmethod
-    def assign_parallel_groups(layers: List[List[str]]) -> Dict[str, int]:
+    def assign_parallel_groups(layers: list[list[str]]) -> dict[str, int]:
         """
         将拓扑分层转换为节点并行组映射
 
@@ -361,14 +361,14 @@ class GraphAlgorithms:
         Returns:
             节点到并行组号的映射 {node_id: group_index}
         """
-        groups: Dict[str, int] = {}
+        groups: dict[str, int] = {}
         for layer_index, layer in enumerate(layers):
             for node_id in layer:
                 groups[node_id] = layer_index
         return groups
 
     @staticmethod
-    def get_parallel_nodes(layers: List[List[str]]) -> List[List[str]]:
+    def get_parallel_nodes(layers: list[list[str]]) -> list[list[str]]:
         """
         获取所有并行节点组
 
@@ -383,7 +383,7 @@ class GraphAlgorithms:
 
     @staticmethod
     def validate_order_consistency(
-        parallel_nodes: List[str], sorted_order: List[str]
+        parallel_nodes: list[str], sorted_order: list[str]
     ) -> bool:
         """
         验证排序一致性
@@ -410,7 +410,7 @@ try:
 
         @staticmethod
         def build_networkx_graph(
-            nodes: List[Any], get_id_func, get_deps_func
+            nodes: list[Any], get_id_func, get_deps_func
         ) -> nx.DiGraph:
             """
             构建 NetworkX 有向图
@@ -436,7 +436,7 @@ try:
             return G
 
         @staticmethod
-        def topological_sort(G: nx.DiGraph) -> List[str]:
+        def topological_sort(G: nx.DiGraph) -> list[str]:
             """
             使用 NetworkX 的拓扑排序
 
@@ -456,7 +456,7 @@ try:
                 raise ValueError(f"检测到循环依赖: {cycle}") from e
 
         @staticmethod
-        def find_cycle(G: nx.DiGraph) -> Optional[List[str]]:
+        def find_cycle(G: nx.DiGraph) -> list[str] | None:
             """
             查找环路
 
@@ -469,7 +469,7 @@ try:
             try:
                 cycle = nx.find_cycle(G, orientation="original")
                 # 转换为节点列表，保持循环顺序
-                cycle_nodes: List[str] = []
+                cycle_nodes: list[str] = []
                 visited_edges = set()
                 for edge in cycle:
                     edge_key = (edge[0], edge[1])
@@ -491,7 +491,7 @@ try:
                 return None
 
         @staticmethod
-        def topological_sort_with_layers(G: nx.DiGraph) -> List[List[str]]:
+        def topological_sort_with_layers(G: nx.DiGraph) -> list[list[str]]:
             """
             分层拓扑排序
 

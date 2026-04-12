@@ -6,7 +6,7 @@
 
 import copy
 from pathlib import Path
-from typing import Any, Dict, Optional, cast
+from typing import Any, cast
 
 import yaml
 
@@ -78,7 +78,7 @@ class PerformanceConfig:
         },
     }
 
-    def __init__(self, config_path: Optional[str] = None):
+    def __init__(self, config_path: str | None = None):
         """
         初始化配置
 
@@ -110,7 +110,7 @@ class PerformanceConfig:
         except yaml.YAMLError as e:
             raise ValueError(f"配置文件格式错误: {e}")
 
-    def _merge_config(self, base: Dict, override: Dict) -> None:
+    def _merge_config(self, base: dict, override: dict) -> None:
         """
         递归合并配置
 
@@ -155,13 +155,13 @@ class PerformanceConfig:
             value: 配置值
         """
         keys = key_path.split(".")
-        config: Dict[str, Any] = self.config
+        config: dict[str, Any] = self.config
 
         for key in keys[:-1]:
             if key not in config:
                 config[key] = {}
             # 明确类型转换
-            config = cast(Dict[str, Any], config[key])
+            config = cast(dict[str, Any], config[key])
 
         config[keys[-1]] = value
 
@@ -176,68 +176,68 @@ class PerformanceConfig:
         with config_file.open("w") as f:
             yaml.dump(self.config, f, default_flow_style=False, allow_unicode=True)
 
-    def get_database_config(self) -> Dict[str, Any]:
+    def get_database_config(self) -> dict[str, Any]:
         """
         获取数据库配置
 
         Returns:
             数据库配置字典
         """
-        return cast(Dict[str, Any], self.config.get("database", {}))
+        return cast(dict[str, Any], self.config.get("database", {}))
 
-    def get_cache_config(self) -> Dict[str, Any]:
+    def get_cache_config(self) -> dict[str, Any]:
         """
         获取缓存配置
 
         Returns:
             缓存配置字典
         """
-        return cast(Dict[str, Any], self.config.get("cache", {}))
+        return cast(dict[str, Any], self.config.get("cache", {}))
 
-    def get_performance_thresholds(self) -> Dict[str, Any]:
+    def get_performance_thresholds(self) -> dict[str, Any]:
         """
         获取性能阈值
 
         Returns:
             性能阈值字典
         """
-        return cast(Dict[str, Any], self.config.get("performance_thresholds", {}))
+        return cast(dict[str, Any], self.config.get("performance_thresholds", {}))
 
-    def get_graph_config(self) -> Dict[str, Any]:
+    def get_graph_config(self) -> dict[str, Any]:
         """
         获取图算法配置
 
         Returns:
             图算法配置字典
         """
-        return cast(Dict[str, Any], self.config.get("graph", {}))
+        return cast(dict[str, Any], self.config.get("graph", {}))
 
-    def get_chaining_config(self) -> Dict[str, Any]:
+    def get_chaining_config(self) -> dict[str, Any]:
         """
         获取链化配置
 
         Returns:
             链化配置字典
         """
-        return cast(Dict[str, Any], self.config.get("chaining", {}))
+        return cast(dict[str, Any], self.config.get("chaining", {}))
 
-    def get_security_config(self) -> Dict[str, Any]:
+    def get_security_config(self) -> dict[str, Any]:
         """
         获取安全配置
 
         Returns:
             安全配置字典
         """
-        return cast(Dict[str, Any], self.config.get("security", {}))
+        return cast(dict[str, Any], self.config.get("security", {}))
 
-    def get_monitoring_config(self) -> Dict[str, Any]:
+    def get_monitoring_config(self) -> dict[str, Any]:
         """
         获取监控配置
 
         Returns:
             监控配置字典
         """
-        return cast(Dict[str, Any], self.config.get("monitoring", {}))
+        return cast(dict[str, Any], self.config.get("monitoring", {}))
 
 
 # 全局配置实例

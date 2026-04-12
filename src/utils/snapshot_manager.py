@@ -5,23 +5,23 @@
 """状态快照管理器"""
 
 import logging
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from datetime import UTC, datetime
+from typing import Any
 
 import real_ladybug as lb
 
+from src.db.graph_models import deserialize_json, serialize_json
 from src.db.graph_queries import (
     CREATE_EVENT,
+    DELETE_EVENT,
+    GET_CHAIN_STATE_BY_PROJECT,
+    GET_DEPENDENCIES,
     GET_EVENT_BY_UUID,
     GET_EVENTS_BY_PROJECT_AND_TYPE,
     GET_LATEST_EVENT_SEQUENCE,
-    GET_REQUIREMENTS_BY_PROJECT,
-    GET_CHAIN_STATE_BY_PROJECT,
-    DELETE_EVENT,
-    GET_DEPENDENCIES,
     GET_NEXT_IN_CHAIN,
+    GET_REQUIREMENTS_BY_PROJECT,
 )
-from src.db.graph_models import deserialize_json, serialize_json
 from src.utils.event_logger import log_event
 
 logger = logging.getLogger(__name__)
@@ -55,8 +55,8 @@ class SnapshotManager:
         chain_state = self._parse_chain_state(list(result))
 
         # 构建快照数据
-        snapshot_data: Dict[str, Any] = {
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+        snapshot_data: dict[str, Any] = {
+            "timestamp": datetime.now(UTC).isoformat(),
             "requirements": {},
             "chain_state": {},  # 空对象而非 None
         }
@@ -105,7 +105,7 @@ class SnapshotManager:
 
     def restore_snapshot(
         self, conn: lb.Connection, snapshot_id: str, session_id: str
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         从快照恢复
 
@@ -192,7 +192,7 @@ class SnapshotManager:
                     "uuid": req_uuid,
                     "status": state["status"],
                     "chain_order": state.get("chain_order"),
-                    "updated_at": datetime.now(timezone.utc).isoformat(),
+                    "updated_at": datetime.now(UTC).isoformat(),
                 },
             )
 
@@ -265,7 +265,7 @@ class SnapshotManager:
                         "total_nodes": chain_data.get("total_nodes", 0),
                         "completed_nodes": chain_data.get("completed_nodes", 0),
                         "progress_percentage": chain_data.get("progress_percentage", 0),
-                        "updated_at": datetime.now(timezone.utc).isoformat(),
+                        "updated_at": datetime.now(UTC).isoformat(),
                     },
                 )
             else:
@@ -299,7 +299,7 @@ class SnapshotManager:
 
     def get_latest_snapshot(
         self, conn: lb.Connection, project_id: str
-    ) -> Optional[Dict[str, Any]]:
+    ) -> dict[str, Any] | None:
         """
         获取最新的快照
 
@@ -329,7 +329,7 @@ class SnapshotManager:
 
     def list_snapshots(
         self, conn: lb.Connection, project_id: str, limit: int = 10
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         列出项目的所有快照
 
@@ -391,7 +391,7 @@ class SnapshotManager:
         self,
         conn: lb.Connection,
         project_id: str,
-        snapshot_data: Dict[str, Any],
+        snapshot_data: dict[str, Any],
         session_id: str,
     ) -> str:
         """创建快照事件"""
@@ -417,7 +417,7 @@ class SnapshotManager:
                 "payload": serialize_json(snapshot_data),
                 "event_metadata": serialize_json({"session_id": session_id}),
                 "sequence": sequence,
-                "created_at": datetime.now(timezone.utc).isoformat(),
+                "created_at": datetime.now(UTC).isoformat(),
             },
         )
 
@@ -433,7 +433,7 @@ class SnapshotManager:
 
         return event_uuid
 
-    def _parse_requirements(self, result) -> List[Dict[str, Any]]:
+    def _parse_requirements(self, result) -> list[dict[str, Any]]:
         """解析需求结果"""
         requirements = []
         for row in result:
@@ -455,7 +455,7 @@ class SnapshotManager:
             requirements.append(req)
         return requirements
 
-    def _parse_chain_state(self, rows: List) -> Optional[Dict[str, Any]]:
+    def _parse_chain_state(self, rows: list) -> dict[str, Any] | None:
         """解析链化状态结果"""
         if not rows:
             return None
@@ -475,7 +475,7 @@ class SnapshotManager:
             "updated_at": row[11],
         }
 
-    def _parse_event(self, row) -> Dict[str, Any]:
+    def _parse_event(self, row) -> dict[str, Any]:
         """解析事件结果"""
         return {
             "uuid": row[0],
@@ -488,7 +488,7 @@ class SnapshotManager:
             "created_at": self._parse_datetime(row[7]),
         }
 
-    def _parse_json(self, data: Optional[str]) -> Optional[Dict]:
+    def _parse_json(self, data: str | None) -> dict | None:
         """解析 JSON 数据"""
         if not data:
             return None
@@ -497,14 +497,14 @@ class SnapshotManager:
         except Exception:
             return None
 
-    def _parse_datetime(self, dt_str: Optional[str]) -> Optional[datetime]:
+    def _parse_datetime(self, dt_str: str | None) -> datetime | None:
         """解析日期时间字符串"""
         if not dt_str:
             return None
         try:
             dt = datetime.fromisoformat(dt_str)
             if dt.tzinfo is None:
-                dt = dt.replace(tzinfo=timezone.utc)
+                dt = dt.replace(tzinfo=UTC)
             return dt
         except ValueError:
             return None

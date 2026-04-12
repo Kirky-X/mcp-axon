@@ -230,8 +230,8 @@ def test_mark_as_leaf_success(graph_connection, project_manager, requirement_man
         graph_connection, project_id, "待标记需求"
     )
     # 手动更新为非叶子状态以测试标记功能
-    from src.db.graph_queries import UPDATE_REQUIREMENT_STATUS
     from src.db.graph_models import now_utc
+    from src.db.graph_queries import UPDATE_REQUIREMENT_STATUS
 
     graph_connection.execute(
         UPDATE_REQUIREMENT_STATUS,
@@ -248,7 +248,7 @@ def test_mark_as_leaf_success(graph_connection, project_manager, requirement_man
     # Assert
     assert result["requirement_id"] == req["requirement_id"]
     assert result["status"] == "LEAF"
-    assert result["next_action"] == "add_validation"
+    assert result["next_action"] == "manage_validation"
 
     db_req = requirement_manager.get_requirement(
         graph_connection, req["requirement_id"]

@@ -5,7 +5,7 @@
 """链化构建器服务"""
 
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import real_ladybug as lb
 
@@ -47,7 +47,7 @@ class ChainBuilder:
         self.graph_algos = graph_algorithms
 
     @performance_monitor("build_chain")
-    def build_chain(self, conn: lb.Connection, project_uuid: str) -> Dict[str, Any]:
+    def build_chain(self, conn: lb.Connection, project_uuid: str) -> dict[str, Any]:
         """
         构建需求链
 
@@ -131,8 +131,8 @@ class ChainBuilder:
 
     @performance_monitor("build_chain_with_order")
     def build_chain_with_order(
-        self, conn: lb.Connection, project_uuid: str, sorted_order: List[str]
-    ) -> Dict[str, Any]:
+        self, conn: lb.Connection, project_uuid: str, sorted_order: list[str]
+    ) -> dict[str, Any]:
         """
         使用指定的顺序构建链
 
@@ -182,7 +182,7 @@ class ChainBuilder:
 
     def _build_dependency_graph(
         self, conn: lb.Connection, project_uuid: str
-    ) -> Dict[str, List[str]]:
+    ) -> dict[str, list[str]]:
         """
         构建依赖图（使用 Cypher 查询）
 
@@ -202,7 +202,7 @@ class ChainBuilder:
         )
 
         # 构建反向图（依赖 -> 被依赖）
-        graph: Dict[str, List[str]] = {}
+        graph: dict[str, list[str]] = {}
 
         for row in result:
             node_id = row[0]  # r.uuid
@@ -220,9 +220,7 @@ class ChainBuilder:
 
         return graph
 
-    def _detect_cycle(
-        self, conn: lb.Connection, project_uuid: str
-    ) -> Optional[List[str]]:
+    def _detect_cycle(self, conn: lb.Connection, project_uuid: str) -> list[str] | None:
         """
         检测循环依赖（使用 Cypher 查询）
 
@@ -245,9 +243,9 @@ class ChainBuilder:
         self,
         conn: lb.Connection,
         project_uuid: str,
-        layers: List[List[str]],
-        requirements: List,
-    ) -> Dict[str, Any]:
+        layers: list[list[str]],
+        requirements: list,
+    ) -> dict[str, Any]:
         """
         从分层排序结果构建链
 
@@ -277,10 +275,10 @@ class ChainBuilder:
         self,
         conn: lb.Connection,
         project_uuid: str,
-        sorted_uuids: List[str],
-        req_map: Dict[str, tuple],
-        parallel_groups: Optional[Dict[str, int]] = None,
-    ) -> Dict[str, Any]:
+        sorted_uuids: list[str],
+        req_map: dict[str, tuple],
+        parallel_groups: dict[str, int] | None = None,
+    ) -> dict[str, Any]:
         """
         构建链表结构（使用 NEXT_IN_CHAIN 边）
 
@@ -418,7 +416,7 @@ class ChainBuilder:
         return result
 
     @performance_monitor("reset_chain")
-    def reset_chain(self, conn: lb.Connection, project_uuid: str) -> Dict[str, Any]:
+    def reset_chain(self, conn: lb.Connection, project_uuid: str) -> dict[str, Any]:
         """
         重置链化状态
 

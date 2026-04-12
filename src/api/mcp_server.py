@@ -14,11 +14,11 @@ from mcp.server import Server
 from mcp.server.stdio import stdio_server
 from mcp.types import TextContent, Tool
 
-from src.api.tools import TOOL_DEFINITIONS
 from src.api.http_server import start_http_server, stop_http_server
 from src.api.tool_router import ToolRouter
-from src.core.sdk import RequirementSDK
+from src.api.tools import TOOL_DEFINITIONS
 from src.core.containers import init_container
+from src.core.sdk import RequirementSDK
 from src.utils.rate_limiter import get_rate_limiter
 
 # 配置日志

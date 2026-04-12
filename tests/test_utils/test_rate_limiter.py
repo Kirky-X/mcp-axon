@@ -10,7 +10,6 @@ import pytest
 
 from src.utils.rate_limiter import RateLimiter, get_rate_limiter
 
-
 # ========== RateLimiter.is_allowed ==========
 
 

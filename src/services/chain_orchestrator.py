@@ -5,7 +5,7 @@
 """链化编排器服务"""
 
 import logging
-from typing import Any, Dict, Tuple, Type
+from typing import Any
 
 import real_ladybug as lb
 
@@ -30,7 +30,7 @@ logger = logging.getLogger(__name__)
 
 
 # 可重试的异常类型
-RETRYABLE_EXCEPTIONS: Tuple[Type[Exception], ...] = (
+RETRYABLE_EXCEPTIONS: tuple[type[Exception], ...] = (
     ConnectionError,
     TimeoutError,
     OSError,
@@ -100,7 +100,7 @@ class ChainOrchestrator:
 
     def trigger_chaining(
         self, conn: lb.Connection, project_uuid: str, session_id: str
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         触发链化
 
@@ -184,7 +184,7 @@ class ChainOrchestrator:
         project_uuid: str,
         parallel_nodes: list,
         sorted_order: list,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         应用并行节点排序
 
@@ -234,7 +234,7 @@ class ChainOrchestrator:
 
     def get_next_requirement(
         self, conn: lb.Connection, project_uuid: str, session_id: str
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         获取下一个需求
 
@@ -385,7 +385,7 @@ class ChainOrchestrator:
 
     def mark_requirement_completed(
         self, conn: lb.Connection, project_uuid: str, requirement_uuid: str
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         标记需求为已完成
 
@@ -533,7 +533,7 @@ class ChainOrchestrator:
         requirement_uuid: str,
         reason: str,
         retry_count: int = 0,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         标记需求执行失败
 

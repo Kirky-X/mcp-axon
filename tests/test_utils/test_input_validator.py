@@ -8,7 +8,6 @@ import pytest
 
 from src.utils.input_validator import InputValidator, SecurityChecker
 
-
 # ========== InputValidator.validate_project_name ==========
 
 

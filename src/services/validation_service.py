@@ -6,7 +6,7 @@
 
 import logging
 import uuid
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import real_ladybug as lb
 
@@ -52,9 +52,9 @@ class ValidationService:
         self,
         conn: lb.Connection,
         requirement_uuid: str,
-        test_cases: List[Dict[str, Any]],
+        test_cases: list[dict[str, Any]],
         acceptance_criteria: str = "",
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         添加验证节点
 
@@ -165,7 +165,7 @@ class ValidationService:
 
     def update_validation(
         self, conn: lb.Connection, validation_uuid: str, update_data: ValidationUpdate
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         更新验证节点
 
@@ -257,7 +257,7 @@ class ValidationService:
 
     def get_validation(
         self, conn: lb.Connection, validation_uuid: str
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         获取验证节点信息
 
@@ -287,7 +287,7 @@ class ValidationService:
 
     def get_validation_by_requirement(
         self, conn: lb.Connection, requirement_uuid: str
-    ) -> Optional[Dict[str, Any]]:
+    ) -> dict[str, Any] | None:
         """
         根据需求 ID 获取验证节点
 
@@ -320,7 +320,7 @@ class ValidationService:
 
     def delete_validation(
         self, conn: lb.Connection, validation_uuid: str
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         删除验证节点
 

@@ -6,9 +6,9 @@
 
 import json
 import time
+from io import BytesIO
 
 import pytest
-from io import BytesIO
 
 from src.api.http_server import (
     HTTPRequestHandler,

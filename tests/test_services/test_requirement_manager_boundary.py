@@ -148,8 +148,8 @@ def test_requirement_status_validation(
     # Test Case 1: 更新为有效状态
     valid_statuses = ["DRAFT", "DECOMPOSING", "LEAF", "CHAINED", "VALIDATED"]
     for status in valid_statuses:
-        from src.db.graph_queries import UPDATE_REQUIREMENT_STATUS
         from src.db.graph_models import now_utc
+        from src.db.graph_queries import UPDATE_REQUIREMENT_STATUS
 
         graph_connection.execute(
             UPDATE_REQUIREMENT_STATUS,

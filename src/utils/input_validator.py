@@ -7,7 +7,7 @@
 import html
 import logging
 import re
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -122,7 +122,7 @@ class InputValidator:
         return content
 
     @classmethod
-    def validate_description(cls, description: Optional[str]) -> Optional[str]:
+    def validate_description(cls, description: str | None) -> str | None:
         """
         验证描述
 
@@ -153,8 +153,8 @@ class InputValidator:
 
     @classmethod
     def validate_test_cases(
-        cls, test_cases: List[Dict[str, Any]]
-    ) -> List[Dict[str, Any]]:
+        cls, test_cases: list[dict[str, Any]]
+    ) -> list[dict[str, Any]]:
         """
         验证测试用例
 
@@ -297,8 +297,8 @@ class InputValidator:
 
     @classmethod
     def validate_dependency_mapping(
-        cls, mapping: Dict[str, List[str]]
-    ) -> Dict[str, List[str]]:
+        cls, mapping: dict[str, list[str]]
+    ) -> dict[str, list[str]]:
         """
         验证依赖映射
 

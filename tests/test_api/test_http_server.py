@@ -163,7 +163,7 @@ class TestHTTPRequestHandler:
         handler.wfile.seek(0)
         data = json.loads(handler.wfile.getvalue().decode())
 
-        assert data["name"] == "MCP-Axon HTTP API"
+        assert data["name"] == "Axon HTTP API"
         assert "endpoints" in data
         assert "health" in data["endpoints"]
 

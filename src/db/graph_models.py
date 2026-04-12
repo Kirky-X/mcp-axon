@@ -6,17 +6,16 @@
 
 import json
 import uuid
-from datetime import datetime, timezone
-from enum import Enum
-from typing import Any, Dict, List, Optional
+from datetime import UTC, datetime
+from enum import StrEnum
+from typing import Any
 
 from pydantic import BaseModel, Field
-
 
 # ============ 枚举类型 ============
 
 
-class ProjectStatus(str, Enum):
+class ProjectStatus(StrEnum):
     """项目状态枚举"""
 
     CREATED = "CREATED"
@@ -27,7 +26,7 @@ class ProjectStatus(str, Enum):
     COMPLETED = "COMPLETED"
 
 
-class RequirementStatus(str, Enum):
+class RequirementStatus(StrEnum):
     """需求状态枚举"""
 
     DRAFT = "DRAFT"
@@ -38,7 +37,7 @@ class RequirementStatus(str, Enum):
     COMPLETED = "COMPLETED"
 
 
-class ValidationStatus(str, Enum):
+class ValidationStatus(StrEnum):
     """验证状态枚举"""
 
     PENDING = "pending"
@@ -46,7 +45,7 @@ class ValidationStatus(str, Enum):
     FAILED = "failed"
 
 
-class ChainStatus(str, Enum):
+class ChainStatus(StrEnum):
     """链化状态枚举"""
 
     IDLE = "IDLE"
@@ -64,7 +63,7 @@ def generate_uuid() -> str:
 
 def now_utc() -> str:
     """获取当前 UTC 时间字符串 (ISO 格式)"""
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(UTC).isoformat()
 
 
 def serialize_json(data: Any) -> str:
@@ -121,14 +120,14 @@ class ProjectNode(BaseModel):
 
     uuid: str = Field(default_factory=generate_uuid)
     name: str
-    description: Optional[str] = None
+    description: str | None = None
     status: str = Field(default=ProjectStatus.CREATED.value)
-    locked_by: Optional[str] = None
-    locked_at: Optional[str] = None
+    locked_by: str | None = None
+    locked_at: str | None = None
     created_at: str = Field(default_factory=now_utc)
     updated_at: str = Field(default_factory=now_utc)
 
-    def to_cypher_params(self) -> Dict[str, Any]:
+    def to_cypher_params(self) -> dict[str, Any]:
         """转换为 Cypher 参数"""
         return {
             "uuid": self.uuid,
@@ -147,22 +146,22 @@ class RequirementNode(BaseModel):
 
     uuid: str = Field(default_factory=generate_uuid)
     project_uuid: str
-    parent_uuid: Optional[str] = None
+    parent_uuid: str | None = None
     content: str
-    decompose_reason: Optional[str] = None
+    decompose_reason: str | None = None
     status: str = Field(default=RequirementStatus.DRAFT.value)
     level: int = Field(default=0)
     order_in_parent: int = Field(default=0)
-    chain_order: Optional[int] = None
+    chain_order: int | None = None
     created_at: str = Field(default_factory=now_utc)
     updated_at: str = Field(default_factory=now_utc)
     version: int = Field(default=1)
 
     # 非持久化字段（从关系查询填充）
-    dependencies: List[str] = Field(default_factory=list)
-    next_requirement_uuid: Optional[str] = None
+    dependencies: list[str] = Field(default_factory=list)
+    next_requirement_uuid: str | None = None
 
-    def to_cypher_params(self) -> Dict[str, Any]:
+    def to_cypher_params(self) -> dict[str, Any]:
         """转换为 Cypher 参数"""
         return {
             "uuid": self.uuid,
@@ -185,14 +184,14 @@ class ValidationNode(BaseModel):
 
     uuid: str = Field(default_factory=generate_uuid)
     requirement_uuid: str
-    test_cases: List[Dict[str, Any]] = Field(default_factory=list)
-    acceptance_criteria: Optional[str] = None
+    test_cases: list[dict[str, Any]] = Field(default_factory=list)
+    acceptance_criteria: str | None = None
     status: str = Field(default=ValidationStatus.PENDING.value)
-    result: Optional[Dict[str, Any]] = None
-    validated_at: Optional[str] = None
+    result: dict[str, Any] | None = None
+    validated_at: str | None = None
     created_at: str = Field(default_factory=now_utc)
 
-    def to_cypher_params(self) -> Dict[str, Any]:
+    def to_cypher_params(self) -> dict[str, Any]:
         """转换为 Cypher 参数"""
         return {
             "uuid": self.uuid,
@@ -206,7 +205,7 @@ class ValidationNode(BaseModel):
         }
 
     @classmethod
-    def from_query_result(cls, row: Dict[str, Any]) -> "ValidationNode":
+    def from_query_result(cls, row: dict[str, Any]) -> "ValidationNode":
         """从查询结果创建"""
         return cls(
             uuid=row.get("uuid", ""),
@@ -226,17 +225,17 @@ class ChainStateNode(BaseModel):
     uuid: str = Field(default_factory=generate_uuid)
     project_uuid: str
     status: str = Field(default=ChainStatus.IDLE.value)
-    chain_head_uuid: Optional[str] = None
-    current_node_uuid: Optional[str] = None
+    chain_head_uuid: str | None = None
+    current_node_uuid: str | None = None
     total_nodes: int = Field(default=0)
     completed_nodes: int = Field(default=0)
     progress_percentage: int = Field(default=0)
-    last_chained_at: Optional[str] = None
+    last_chained_at: str | None = None
     chain_version: int = Field(default=1)
     created_at: str = Field(default_factory=now_utc)
     updated_at: str = Field(default_factory=now_utc)
 
-    def to_cypher_params(self) -> Dict[str, Any]:
+    def to_cypher_params(self) -> dict[str, Any]:
         """转换为 Cypher 参数"""
         return {
             "uuid": self.uuid,
@@ -261,12 +260,12 @@ class EventNode(BaseModel):
     project_uuid: str
     event_type: str
     aggregate_uuid: str
-    payload: Dict[str, Any]
-    event_metadata: Optional[Dict[str, Any]] = None
+    payload: dict[str, Any]
+    event_metadata: dict[str, Any] | None = None
     sequence: int = Field(default=1)
     created_at: str = Field(default_factory=now_utc)
 
-    def to_cypher_params(self) -> Dict[str, Any]:
+    def to_cypher_params(self) -> dict[str, Any]:
         """转换为 Cypher 参数"""
         return {
             "uuid": self.uuid,
@@ -280,7 +279,7 @@ class EventNode(BaseModel):
         }
 
     @classmethod
-    def from_query_result(cls, row: Dict[str, Any]) -> "EventNode":
+    def from_query_result(cls, row: dict[str, Any]) -> "EventNode":
         """从查询结果创建"""
         return cls(
             uuid=row.get("uuid", ""),

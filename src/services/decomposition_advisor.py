@@ -5,7 +5,6 @@
 """分解建议服务"""
 
 import logging
-from typing import List
 
 logger = logging.getLogger(__name__)
 
@@ -13,7 +12,7 @@ logger = logging.getLogger(__name__)
 class DecompositionAdvisor:
     """分解建议服务"""
 
-    def generate_hints(self, content: str, level: int) -> List[str]:
+    def generate_hints(self, content: str, level: int) -> list[str]:
         """
         生成分解建议
 

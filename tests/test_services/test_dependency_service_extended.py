@@ -8,6 +8,7 @@ import pytest
 
 from src.core.containers import init_container
 from src.core.sdk import RequirementSDK
+from src.db.graph_queries import GET_DEPENDENCIES
 
 
 @pytest.fixture
@@ -116,29 +117,11 @@ class TestDependencyServiceExtended:
         )
 
         # 验证已移除
-        deps = sdk.dependency_service.get_dependencies(
-            sdk._get_conn(), req2["requirement_id"]
+        deps_result = sdk._get_conn().execute(
+            GET_DEPENDENCIES, {"requirement_uuid": req2["requirement_id"]}
         )
+        deps = [row[0] for row in deps_result]
         assert req1["requirement_id"] not in deps
-
-    def test_get_dependents(self, sdk, project):
-        """测试: 获取依赖者"""
-        req1 = sdk.manage_requirement(project_id=project["project_id"], content="需求1")
-        req2 = sdk.manage_requirement(project_id=project["project_id"], content="需求2")
-        req3 = sdk.manage_requirement(project_id=project["project_id"], content="需求3")
-
-        # req2 和 req3 都依赖 req1
-        sdk.dependency_service.add_dependency(
-            sdk._get_conn(), req2["requirement_id"], req1["requirement_id"]
-        )
-        sdk.dependency_service.add_dependency(
-            sdk._get_conn(), req3["requirement_id"], req1["requirement_id"]
-        )
-
-        dependents = sdk.dependency_service.get_dependents(
-            sdk._get_conn(), req1["requirement_id"]
-        )
-        assert len(dependents) == 2
 
     def test_duplicate_dependency_rejected(self, sdk, project):
         """测试: 重复依赖被拒绝"""

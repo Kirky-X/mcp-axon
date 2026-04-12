@@ -6,13 +6,13 @@
 
 import logging
 import os
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import real_ladybug as lb
 
 from src.core.containers import (
-    get_container,
     get_connection,
+    get_container,
     init_container,
     init_database,
 )
@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 class RequirementSDK:
     """需求链化 SDK - 主入口"""
 
-    def __init__(self, db_path: Optional[str] = None):
+    def __init__(self, db_path: str | None = None):
         """
         初始化 SDK
 
@@ -72,10 +72,10 @@ class RequirementSDK:
 
     def manage_project(
         self,
-        project_id: Optional[str] = None,
+        project_id: str | None = None,
         name: str = "",
         description: str = "",
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         管理项目（创建或更新）
 
@@ -98,10 +98,10 @@ class RequirementSDK:
             return self.project_manager.update_project(conn, project_id, update_data)
         else:
             result = self.project_manager.create_project(conn, name, description)
-            result["next_action"] = "add_root_requirement"
+            result["next_action"] = "manage_requirement"
             return result
 
-    def get_project(self, project_id: str) -> Dict[str, Any]:
+    def get_project(self, project_id: str) -> dict[str, Any]:
         """
         获取项目信息
 
@@ -116,13 +116,13 @@ class RequirementSDK:
 
     def manage_requirement(
         self,
-        requirement_id: Optional[str] = None,
-        project_id: Optional[str] = None,
+        requirement_id: str | None = None,
+        project_id: str | None = None,
         content: str = "",
-        parent_id: Optional[str] = None,
+        parent_id: str | None = None,
         order_in_parent: int = 0,
-        status: Optional[str] = None,
-    ) -> Dict[str, Any]:
+        status: str | None = None,
+    ) -> dict[str, Any]:
         """
         管理需求（创建或更新）
 
@@ -156,12 +156,12 @@ class RequirementSDK:
             if result["needs_decomposition"]:
                 result["next_action"] = "decompose_requirement"
             elif result["level"] == 0:
-                result["next_action"] = "add_child_requirement"
+                result["next_action"] = "manage_requirement"
             else:
-                result["next_action"] = "add_validation"
+                result["next_action"] = "manage_validation"
             return result
 
-    def delete_requirement(self, requirement_id: str) -> Dict[str, Any]:
+    def delete_requirement(self, requirement_id: str) -> dict[str, Any]:
         """
         删除需求
 
@@ -177,10 +177,10 @@ class RequirementSDK:
     def list_requirements(
         self,
         project_id: str,
-        status: Optional[str] = None,
-        is_leaf: Optional[bool] = None,
-        parent_id: Optional[str] = None,
-    ) -> Dict[str, Any]:
+        status: str | None = None,
+        is_leaf: bool | None = None,
+        parent_id: str | None = None,
+    ) -> dict[str, Any]:
         """
         列出项目的所有需求
 
@@ -198,7 +198,7 @@ class RequirementSDK:
             conn, project_id, status, is_leaf, parent_id
         )
 
-    def get_requirement(self, requirement_id: str) -> Dict[str, Any]:
+    def get_requirement(self, requirement_id: str) -> dict[str, Any]:
         """
         获取单个需求
 
@@ -214,9 +214,9 @@ class RequirementSDK:
     def add_validation(
         self,
         requirement_id: str,
-        test_cases: List[Dict[str, Any]],
+        test_cases: list[dict[str, Any]],
         acceptance_criteria: str = "",
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         添加验证节点
 
@@ -239,15 +239,15 @@ class RequirementSDK:
         if req_rows:
             project_id = req_rows[0][1]
             if self.chain_orchestrator.should_trigger_chaining(conn, project_id):
-                result["next_action"] = "trigger_chaining"
+                result["next_action"] = "manage_execution"
             else:
                 result["next_action"] = "continue_decomposition"
 
         return result
 
     def transfer_dependencies(
-        self, parent_id: str, dependency_mapping: Dict[str, List[str]]
-    ) -> Dict[str, Any]:
+        self, parent_id: str, dependency_mapping: dict[str, list[str]]
+    ) -> dict[str, Any]:
         """
         应用依赖传递映射
 
@@ -263,7 +263,7 @@ class RequirementSDK:
             conn, parent_id, dependency_mapping
         )
 
-    def add_dependency(self, requirement_id: str, dependency_id: str) -> Dict[str, Any]:
+    def add_dependency(self, requirement_id: str, dependency_id: str) -> dict[str, Any]:
         """
         添加依赖关系
 
@@ -280,8 +280,8 @@ class RequirementSDK:
         )
 
     def resolve_parallel_order(
-        self, project_id: str, parallel_nodes: List[str], sorted_order: List[str]
-    ) -> Dict[str, Any]:
+        self, project_id: str, parallel_nodes: list[str], sorted_order: list[str]
+    ) -> dict[str, Any]:
         """
         应用并行节点排序
 
@@ -298,7 +298,7 @@ class RequirementSDK:
             conn, project_id, parallel_nodes, sorted_order
         )
 
-    def get_next_requirement(self, project_id: str, session_id: str) -> Dict[str, Any]:
+    def get_next_requirement(self, project_id: str, session_id: str) -> dict[str, Any]:
         """
         获取下一个需求
 
@@ -316,7 +316,7 @@ class RequirementSDK:
 
     def mark_requirement_completed(
         self, project_id: str, requirement_id: str
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         标记需求为已完成
 
@@ -332,7 +332,7 @@ class RequirementSDK:
             conn, project_id, requirement_id
         )
 
-    def get_project_state(self, project_id: str) -> Dict[str, Any]:
+    def get_project_state(self, project_id: str) -> dict[str, Any]:
         """
         查询项目状态
 
@@ -345,7 +345,7 @@ class RequirementSDK:
         conn = self._get_conn()
         return self.project_manager.get_project_state(conn, project_id)
 
-    def trigger_chaining(self, project_id: str, session_id: str) -> Dict[str, Any]:
+    def trigger_chaining(self, project_id: str, session_id: str) -> dict[str, Any]:
         """
         触发链化
 
@@ -373,7 +373,7 @@ class RequirementSDK:
         conn = self._get_conn()
         return self.snapshot_manager.create_snapshot(conn, project_id, session_id)
 
-    def restore_snapshot(self, snapshot_id: str, session_id: str) -> Dict[str, Any]:
+    def restore_snapshot(self, snapshot_id: str, session_id: str) -> dict[str, Any]:
         """
         恢复快照
 
@@ -387,7 +387,7 @@ class RequirementSDK:
         conn = self._get_conn()
         return self.snapshot_manager.restore_snapshot(conn, snapshot_id, session_id)
 
-    def list_snapshots(self, project_id: str, limit: int = 10) -> List[Dict[str, Any]]:
+    def list_snapshots(self, project_id: str, limit: int = 10) -> list[dict[str, Any]]:
         """
         列出快照
 
@@ -442,7 +442,7 @@ class RequirementSDK:
         conn = self._get_conn()
         return self.lock_manager.is_locked(conn, project_id)
 
-    def get_lock_info(self, project_id: str) -> Optional[Dict[str, Any]]:
+    def get_lock_info(self, project_id: str) -> dict[str, Any] | None:
         """
         获取锁信息
 
@@ -455,7 +455,7 @@ class RequirementSDK:
         conn = self._get_conn()
         return self.lock_manager.get_lock_info(conn, project_id)
 
-    def mark_as_leaf(self, requirement_id: str) -> Dict[str, Any]:
+    def mark_as_leaf(self, requirement_id: str) -> dict[str, Any]:
         """
         将需求标记为叶子节点
 

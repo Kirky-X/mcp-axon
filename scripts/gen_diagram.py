@@ -21,8 +21,8 @@ sdk = RequirementSDK(db_path=DB_PATH)
 conn = sdk._get_conn()
 
 from src.db.graph_queries import (  # noqa: E402
-    GET_REQUIREMENTS_BY_PROJECT,
     GET_DEPENDENCY_GRAPH,
+    GET_REQUIREMENTS_BY_PROJECT,
 )
 
 # 创建完整场景

@@ -10,8 +10,8 @@ import logging
 import sys
 
 from src.api.mcp_server import main as server_main
+from src.core.containers import close_database, init_container, init_database
 from src.core.sdk import RequirementSDK
-from src.core.containers import init_container, init_database, close_database
 
 # 配置日志
 logging.basicConfig(

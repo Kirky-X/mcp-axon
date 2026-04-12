@@ -6,7 +6,7 @@
 
 import logging
 import threading
-from typing import Any, Dict, List, Optional, Set, Union
+from typing import Any
 
 import real_ladybug as lb
 
@@ -14,7 +14,6 @@ from src.db.graph_queries import (
     CHECK_WOULD_CREATE_CYCLE,
     CREATE_DEPENDS_ON,
     DELETE_DEPENDS_ON,
-    DETECT_CYCLE_IN_PROJECT,
     GET_DEPENDENCIES,
     GET_DEPENDENTS,
     GET_REQUIREMENT_BY_UUID,
@@ -48,8 +47,8 @@ class DependencyService:
         self.cache = cache
         self._use_networkx = NETWORKX_AVAILABLE
         # 缓存项目依赖图，避免重复构建
-        self._graph_cache: Optional[Any] = None  # nx.DiGraph 或 None
-        self._cache_project_uuid: Optional[str] = None
+        self._graph_cache: Any | None = None  # nx.DiGraph 或 None
+        self._cache_project_uuid: str | None = None
         self._cache_lock = threading.RLock()  # 保护缓存的线程安全
 
     @performance_monitor("transfer_dependencies")
@@ -57,8 +56,8 @@ class DependencyService:
         self,
         conn: lb.Connection,
         parent_uuid: str,
-        dependency_mapping: Dict[str, List[str]],
-    ) -> Dict[str, Any]:
+        dependency_mapping: dict[str, list[str]],
+    ) -> dict[str, Any]:
         """
         应用依赖传递映射
 
@@ -100,7 +99,7 @@ class DependencyService:
         children_uuids = [child[0] for child in children]
 
         # 检查映射的完整性
-        for child_uuid in dependency_mapping.keys():
+        for child_uuid in dependency_mapping:
             if child_uuid not in children_uuids:
                 raise ValueError(f"映射中的子需求不存在: {child_uuid}")
 
@@ -177,7 +176,7 @@ class DependencyService:
     @performance_monitor("add_dependency")
     def add_dependency(
         self, conn: lb.Connection, requirement_uuid: str, dependency_uuid: str
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         添加依赖关系
 
@@ -256,7 +255,7 @@ class DependencyService:
 
     def remove_dependency(
         self, conn: lb.Connection, requirement_uuid: str, dependency_uuid: str
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         移除依赖关系
 
@@ -309,29 +308,6 @@ class DependencyService:
             "dependencies": dependencies,
         }
 
-    def detect_cycle(
-        self, conn: lb.Connection, project_uuid: str
-    ) -> Optional[List[str]]:
-        """
-        检测项目中的循环依赖
-
-        Args:
-            conn: 数据库连接
-            project_uuid: 项目 ID
-
-        Returns:
-            循环路径，如果没有循环则返回 None
-        """
-        result = conn.execute(DETECT_CYCLE_IN_PROJECT, {"project_uuid": project_uuid})
-        rows = list(result)
-
-        if rows:
-            cycle_start = rows[0][0]  # cycle_start 节点
-            if cycle_start:
-                return [cycle_start]
-
-        return None
-
     def _would_create_cycle(
         self, conn: lb.Connection, requirement_uuid: str, dependency_uuid: str
     ) -> bool:
@@ -362,34 +338,6 @@ class DependencyService:
 
         # 如果返回结果，说明存在路径，添加后会形成环
         return len(rows) > 0
-
-    def get_dependencies(self, conn: lb.Connection, requirement_uuid: str) -> List[str]:
-        """
-        获取需求的所有依赖
-
-        Args:
-            conn: 数据库连接
-            requirement_uuid: 需求 ID
-
-        Returns:
-            依赖 ID 列表
-        """
-        result = conn.execute(GET_DEPENDENCIES, {"requirement_uuid": requirement_uuid})
-        return [row[0] for row in result]
-
-    def get_dependents(self, conn: lb.Connection, requirement_uuid: str) -> List[str]:
-        """
-        获取依赖于此需求的所有需求
-
-        Args:
-            conn: 数据库连接
-            requirement_uuid: 需求 ID
-
-        Returns:
-            依赖者 ID 列表
-        """
-        result = conn.execute(GET_DEPENDENTS, {"requirement_uuid": requirement_uuid})
-        return [row[0] for row in result]
 
     # ============ NetworkX 增强方法（无深度限制）============
 
@@ -444,90 +392,13 @@ class DependencyService:
 
         return G
 
-    def detect_cycle_with_networkx(
-        self, conn: lb.Connection, project_uuid: str
-    ) -> Optional[List[str]]:
-        """
-        使用 NetworkX 检测循环依赖（无深度限制）
-
-        相比 Cypher 查询的深度限制，NetworkX 使用图论算法检测所有循环。
-
-        Args:
-            conn: 数据库连接
-            project_uuid: 项目 ID
-
-        Returns:
-            循环路径列表，如果没有循环则返回 None
-        """
-        if not self._use_networkx:
-            # 回退到 Cypher 查询
-            return self.detect_cycle(conn, project_uuid)
-
-        G = self._build_dependency_graph_nx(conn, project_uuid)
-        if G is None or G.number_of_nodes() == 0:
-            return None
-
-        try:
-            # NetworkX 的 find_cycle 使用图论算法，无深度限制
-            cycle = nx.find_cycle(G, orientation="original")
-            # 转换为节点列表
-            cycle_nodes: List[str] = []
-            for edge in cycle:
-                if edge[0] not in cycle_nodes:
-                    cycle_nodes.append(edge[0])
-                if edge[1] not in cycle_nodes:
-                    cycle_nodes.append(edge[1])
-            # 闭环
-            if cycle_nodes and cycle_nodes[0] != cycle_nodes[-1]:
-                cycle_nodes.append(cycle_nodes[0])
-            return cycle_nodes
-        except nx.NetworkXNoCycle:
-            return None
-
-    def would_create_cycle_with_networkx(
-        self,
-        conn: lb.Connection,
-        requirement_uuid: str,
-        dependency_uuid: str,
-        project_uuid: str,
-    ) -> bool:
-        """
-        使用 NetworkX 检查添加依赖是否会创建循环（无深度限制）
-
-        Args:
-            conn: 数据库连接
-            requirement_uuid: 需求 ID
-            dependency_uuid: 依赖的需求 ID
-            project_uuid: 项目 ID
-
-        Returns:
-            是否会创建循环依赖
-        """
-        if not self._use_networkx:
-            # 回退到 Cypher 查询
-            return self._would_create_cycle(conn, requirement_uuid, dependency_uuid)
-
-        G = self._build_dependency_graph_nx(conn, project_uuid)
-        if G is None:
-            return self._would_create_cycle(conn, requirement_uuid, dependency_uuid)
-
-        # 检查添加 requirement_uuid -> dependency_uuid 边是否会创建循环
-        # 逻辑：如果从 dependency_uuid 能到达 requirement_uuid，则添加边后会形成环
-        try:
-            # 检查是否存在从 dependency_uuid 到 requirement_uuid 的路径
-            has_path = nx.has_path(G, dependency_uuid, requirement_uuid)
-            return has_path
-        except nx.NodeNotFound:
-            # 节点不存在于图中，不会有循环
-            return False
-
     def get_dependency_chain(
         self,
         conn: lb.Connection,
         requirement_uuid: str,
         direction: str = "upstream",
         max_depth: int = 10,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         获取需求的依赖链
 
@@ -540,15 +411,15 @@ class DependencyService:
         Returns:
             依赖链信息
         """
-        result: Dict[str, Any] = {
+        result: dict[str, Any] = {
             "requirement_id": requirement_uuid,
             "upstream": [],
             "downstream": [],
         }
 
-        visited: Set[str] = {requirement_uuid}
+        visited: set[str] = {requirement_uuid}
 
-        def get_upstream(uuid: str, depth: int) -> List[Dict[str, Any]]:
+        def get_upstream(uuid: str, depth: int) -> list[dict[str, Any]]:
             if depth > max_depth:
                 return []
             deps = []
@@ -579,7 +450,7 @@ class DependencyService:
                         )
             return deps
 
-        def get_downstream(uuid: str, depth: int) -> List[Dict[str, Any]]:
+        def get_downstream(uuid: str, depth: int) -> list[dict[str, Any]]:
             if depth > max_depth:
                 return []
             dependents = []
@@ -617,8 +488,3 @@ class DependencyService:
             result["downstream"] = get_downstream(requirement_uuid, 1)
 
         return result
-
-    def invalidate_cache(self):
-        """清除依赖图缓存"""
-        self._graph_cache = None
-        self._cache_project_uuid = None

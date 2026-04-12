@@ -5,16 +5,9 @@
 """链化编排器服务"""
 
 import logging
-from typing import Any, Dict, Tuple, Type
+from typing import Any
 
 import real_ladybug as lb
-from tenacity import (
-    retry,
-    stop_after_attempt,
-    wait_exponential,
-    retry_if_exception_type,
-    before_sleep_log,
-)
 
 from src.constants import Chain
 from src.db.graph_models import ChainStatus, ProjectStatus, RequirementStatus, now_utc
@@ -37,7 +30,7 @@ logger = logging.getLogger(__name__)
 
 
 # 可重试的异常类型
-RETRYABLE_EXCEPTIONS: Tuple[Type[Exception], ...] = (
+RETRYABLE_EXCEPTIONS: tuple[type[Exception], ...] = (
     ConnectionError,
     TimeoutError,
     OSError,
@@ -107,7 +100,7 @@ class ChainOrchestrator:
 
     def trigger_chaining(
         self, conn: lb.Connection, project_uuid: str, session_id: str
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         触发链化
 
@@ -191,7 +184,7 @@ class ChainOrchestrator:
         project_uuid: str,
         parallel_nodes: list,
         sorted_order: list,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         应用并行节点排序
 
@@ -241,7 +234,7 @@ class ChainOrchestrator:
 
     def get_next_requirement(
         self, conn: lb.Connection, project_uuid: str, session_id: str
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         获取下一个需求
 
@@ -392,7 +385,7 @@ class ChainOrchestrator:
 
     def mark_requirement_completed(
         self, conn: lb.Connection, project_uuid: str, requirement_uuid: str
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         标记需求为已完成
 
@@ -540,7 +533,7 @@ class ChainOrchestrator:
         requirement_uuid: str,
         reason: str,
         retry_count: int = 0,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         标记需求执行失败
 
@@ -583,108 +576,4 @@ class ChainOrchestrator:
             "reason": reason,
             "retry_count": retry_count,
             "can_retry": retry_count < Chain.MAX_RETRIES,
-        }
-
-    @retry(
-        stop=stop_after_attempt(Chain.MAX_RETRIES),
-        wait=wait_exponential(multiplier=1, min=2, max=10),
-        retry=retry_if_exception_type(RETRYABLE_EXCEPTIONS),
-        before_sleep=before_sleep_log(logger, logging.WARNING),
-        reraise=True,
-    )
-    def execute_with_retry(
-        self,
-        conn: lb.Connection,
-        project_uuid: str,
-        requirement_uuid: str,
-        execute_func: Any,
-    ) -> Dict[str, Any]:
-        """
-        带重试的需求执行
-
-        使用 tenacity 装饰器实现：
-        - 最多重试 3 次
-        - 指数退避（2-10秒）
-        - 仅对可重试异常重试
-
-        Args:
-            conn: 数据库连接
-            project_uuid: 项目 ID
-            requirement_uuid: 需求 ID
-            execute_func: 执行函数
-
-        Returns:
-            执行结果
-
-        Raises:
-            RetryError: 重试耗尽后抛出
-        """
-        try:
-            result = execute_func(conn, requirement_uuid)
-            self.mark_requirement_completed(conn, project_uuid, requirement_uuid)
-            return result
-        except RETRYABLE_EXCEPTIONS as e:
-            # 记录失败并重试
-            logger.warning(f"需求执行失败（将重试）: {requirement_uuid}, 错误: {e}")
-            raise
-        except Exception as e:
-            # 非可重试异常，直接失败
-            logger.error(f"需求执行失败（不可重试）: {requirement_uuid}, 错误: {e}")
-            self.mark_requirement_failed(
-                conn,
-                project_uuid,
-                requirement_uuid,
-                str(e),
-                retry_count=Chain.MAX_RETRIES,
-            )
-            raise
-
-    def get_retry_stats(
-        self, conn: lb.Connection, project_uuid: str, requirement_uuid: str
-    ) -> Dict[str, Any]:
-        """
-        获取需求的重试统计信息
-
-        Args:
-            conn: 数据库连接
-            project_uuid: 项目 ID
-            requirement_uuid: 需求 ID
-
-        Returns:
-            重试统计信息
-        """
-        # 从事件日志查询重试记录
-        from src.db.graph_queries import GET_EVENTS_BY_PROJECT_AND_TYPE
-
-        result = conn.execute(
-            GET_EVENTS_BY_PROJECT_AND_TYPE,
-            {
-                "project_uuid": project_uuid,
-                "aggregate_uuid": requirement_uuid,
-                "event_type": "RequirementFailed",
-            },
-        )
-
-        retry_events = list(result)
-        retry_count = len(retry_events)
-
-        last_error = None
-        if retry_events:
-            # 获取最近的失败原因
-            last_event = retry_events[-1]
-            if len(last_event) > 4 and last_event[4]:
-                import json
-
-                try:
-                    payload = json.loads(last_event[4])
-                    last_error = payload.get("reason")
-                except (json.JSONDecodeError, TypeError):
-                    pass
-
-        return {
-            "requirement_id": requirement_uuid,
-            "retry_count": retry_count,
-            "max_retries": Chain.MAX_RETRIES,
-            "can_retry": retry_count < Chain.MAX_RETRIES,
-            "last_error": last_error,
         }

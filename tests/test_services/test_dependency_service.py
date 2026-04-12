@@ -6,6 +6,8 @@
 
 import pytest
 
+from src.db.graph_queries import GET_DEPENDENCIES
+
 
 def test_tc009_dependency_single_child_inheritance(
     graph_connection, project_manager, requirement_manager, dependency_service
@@ -36,9 +38,10 @@ def test_tc009_dependency_single_child_inheritance(
     )
 
     # Assert
-    child_deps = dependency_service.get_dependencies(
-        graph_connection, child["requirement_id"]
+    result_deps = graph_connection.execute(
+        GET_DEPENDENCIES, {"requirement_uuid": child["requirement_id"]}
     )
+    child_deps = [row[0] for row in result_deps]
     assert dep1["requirement_id"] in child_deps
     assert result["total_children"] == 1
 
@@ -83,12 +86,14 @@ def test_transfer_dependencies_with_mapping(
     )
 
     # Assert
-    child1_deps = dependency_service.get_dependencies(
-        graph_connection, child1["requirement_id"]
+    result1 = graph_connection.execute(
+        GET_DEPENDENCIES, {"requirement_uuid": child1["requirement_id"]}
     )
-    child2_deps = dependency_service.get_dependencies(
-        graph_connection, child2["requirement_id"]
+    child1_deps = [row[0] for row in result1]
+    result2 = graph_connection.execute(
+        GET_DEPENDENCIES, {"requirement_uuid": child2["requirement_id"]}
     )
+    child2_deps = [row[0] for row in result2]
     assert child1_deps == [dep1["requirement_id"]]
     assert child2_deps == [dep2["requirement_id"]]
 
@@ -183,70 +188,6 @@ def test_remove_dependency(
 
     # Assert
     assert req1["requirement_id"] not in result["dependencies"]
-
-
-def test_detect_cycle_no_cycle(
-    graph_connection, project_manager, requirement_manager, dependency_service
-):
-    """测试检测循环依赖（无循环）"""
-    # Arrange
-    project = project_manager.create_project(graph_connection, "测试项目")
-    project_id = project["project_id"]
-
-    req1 = requirement_manager.add_requirement(graph_connection, project_id, "需求1")
-    req2 = requirement_manager.add_requirement(graph_connection, project_id, "需求2")
-    req3 = requirement_manager.add_requirement(graph_connection, project_id, "需求3")
-
-    dependency_service.add_dependency(
-        graph_connection, req2["requirement_id"], req1["requirement_id"]
-    )
-    dependency_service.add_dependency(
-        graph_connection, req3["requirement_id"], req2["requirement_id"]
-    )
-
-    # Act
-    cycle = dependency_service.detect_cycle(graph_connection, project_id)
-
-    # Assert
-    assert cycle is None
-
-
-def test_detect_cycle_with_cycle(
-    graph_connection, project_manager, requirement_manager, dependency_service
-):
-    """测试检测循环依赖（有循环）"""
-    # Arrange
-    project = project_manager.create_project(graph_connection, "测试项目")
-    project_id = project["project_id"]
-
-    req1 = requirement_manager.add_requirement(graph_connection, project_id, "需求1")
-    req2 = requirement_manager.add_requirement(graph_connection, project_id, "需求2")
-    req3 = requirement_manager.add_requirement(graph_connection, project_id, "需求3")
-
-    dependency_service.add_dependency(
-        graph_connection, req2["requirement_id"], req1["requirement_id"]
-    )
-    dependency_service.add_dependency(
-        graph_connection, req3["requirement_id"], req2["requirement_id"]
-    )
-
-    # 直接创建循环依赖
-    from src.db.graph_queries import CREATE_DEPENDS_ON
-
-    graph_connection.execute(
-        CREATE_DEPENDS_ON,
-        {
-            "requirement_uuid": req1["requirement_id"],
-            "dependency_uuid": req3["requirement_id"],
-        },
-    )
-
-    # Act
-    cycle = dependency_service.detect_cycle(graph_connection, project_id)
-
-    # Assert
-    assert cycle is not None
-    assert len(cycle) > 0
 
 
 def test_transfer_dependencies_nonexistent_parent(graph_connection, dependency_service):

@@ -129,8 +129,9 @@ def test_tc028_long_content_requirement():
 
 def test_max_depth_exceeded():
     """测试超过最大深度"""
-    from src.constants import Limits
     import pytest
+
+    from src.constants import Limits
 
     # Arrange
     sdk = RequirementSDK(db_path=":memory:")

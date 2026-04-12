@@ -8,9 +8,9 @@ import json
 import logging
 import threading
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from http.server import BaseHTTPRequestHandler, HTTPServer
-from typing import Any, Dict, Optional
+from typing import Any
 
 from src.constants import APIVersion
 
@@ -21,7 +21,7 @@ class PerformanceMetricsCollector:
     """HTTP 请求性能指标收集器"""
 
     def __init__(self):
-        self._requests: list[Dict[str, Any]] = []
+        self._requests: list[dict[str, Any]] = []
         self._lock = threading.Lock()
         self._start_time = time.time()
 
@@ -37,7 +37,7 @@ class PerformanceMetricsCollector:
         with self._lock:
             self._requests.append(
                 {
-                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                    "timestamp": datetime.now(UTC).isoformat(),
                     "endpoint": endpoint,
                     "method": method,
                     "status_code": status_code,
@@ -46,7 +46,7 @@ class PerformanceMetricsCollector:
                 }
             )
 
-    def get_summary(self) -> Dict[str, Any]:
+    def get_summary(self) -> dict[str, Any]:
         """获取指标摘要"""
         with self._lock:
             total_requests = len(self._requests)
@@ -97,7 +97,7 @@ class HTTPRequestHandler(BaseHTTPRequestHandler):
         """自定义日志格式"""
         logger.info(f"[HTTP] {args[0]}")
 
-    def send_json_response(self, status_code: int, data: Dict[str, Any]) -> None:
+    def send_json_response(self, status_code: int, data: dict[str, Any]) -> None:
         """发送 JSON 响应"""
         self.send_response(status_code)
         self.send_header("Content-Type", "application/json; charset=utf-8")
@@ -129,7 +129,7 @@ class HTTPRequestHandler(BaseHTTPRequestHandler):
             sdk_ok = self._sdk_check_fn() if self._sdk_check_fn else True
             data = {
                 "status": "healthy",
-                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "timestamp": datetime.now(UTC).isoformat(),
                 "response_time_ms": round(duration_ms, 2),
                 "database": "connected",
                 "sdk_initialized": sdk_ok,
@@ -140,7 +140,7 @@ class HTTPRequestHandler(BaseHTTPRequestHandler):
             logger.error(f"健康检查失败: {e}")
             data = {
                 "status": "unhealthy",
-                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "timestamp": datetime.now(UTC).isoformat(),
                 "response_time_ms": round(duration_ms, 2),
             }
             self.send_json_response(503, data)
@@ -152,7 +152,7 @@ class HTTPRequestHandler(BaseHTTPRequestHandler):
         summary = http_metrics.get_summary()
 
         data = {
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             "metrics": summary,
             "response_time_ms": round(duration_ms, 2),
         }
@@ -228,7 +228,7 @@ class HTTPServerThread(threading.Thread):
         self.port = port
         self.health_check_fn = health_check_fn
         self.sdk_check_fn = sdk_check_fn
-        self.server: Optional[HTTPServer] = None
+        self.server: HTTPServer | None = None
         self.running = False
 
     def run(self) -> None:
@@ -262,7 +262,7 @@ class HTTPServerThread(threading.Thread):
 
 
 # 全局 HTTP 服务器实例
-_http_server: Optional[HTTPServerThread] = None
+_http_server: HTTPServerThread | None = None
 
 
 def start_http_server(

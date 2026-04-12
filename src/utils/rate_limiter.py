@@ -8,7 +8,7 @@ import logging
 import threading
 import time
 from collections import deque
-from typing import Dict, Optional
+from typing import Optional
 
 logger = logging.getLogger(__name__)
 
@@ -33,7 +33,7 @@ class RateLimiter:
         """
         self.max_requests = max_requests
         self.window_seconds = window_seconds
-        self.requests: Dict[str, deque] = {}
+        self.requests: dict[str, deque] = {}
         self._lock = threading.Lock()
 
     def is_allowed(self, identifier: str) -> bool:
@@ -105,7 +105,7 @@ class RateLimiter:
 
             return max(0, self.max_requests - len(request_history))
 
-    def reset(self, identifier: Optional[str] = None) -> None:
+    def reset(self, identifier: str | None = None) -> None:
         """
         重置限流计数
 

@@ -14,11 +14,11 @@ from mcp.server import Server
 from mcp.server.stdio import stdio_server
 from mcp.types import TextContent, Tool
 
-from src.api.tools import TOOL_DEFINITIONS
 from src.api.http_server import start_http_server, stop_http_server
 from src.api.tool_router import ToolRouter
-from src.core.sdk import RequirementSDK
+from src.api.tools import TOOL_DEFINITIONS
 from src.core.containers import init_container
+from src.core.sdk import RequirementSDK
 from src.utils.rate_limiter import get_rate_limiter
 
 # 配置日志
@@ -220,14 +220,10 @@ async def main():
 
     # 启动 HTTP 服务器（如果需要）
     if args.mode in ["http", "both"]:
-
-        def health_check():
-            return True
-
         start_http_server(
             host=args.http_host,
             port=args.http_port,
-            health_check_fn=health_check,
+            health_check_fn=lambda: True,
             sdk_check_fn=lambda: _sdk is not None,
         )
 
@@ -249,9 +245,4 @@ async def main():
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
-
-
-def entry_point():
-    """同步入口点"""
     asyncio.run(main())

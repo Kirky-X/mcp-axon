@@ -7,7 +7,6 @@
 import logging
 import stat
 from pathlib import Path
-from typing import Optional
 
 import real_ladybug as lb
 from dependency_injector import containers, providers
@@ -30,8 +29,8 @@ class DatabaseConnectionManager:
         """
         self._db_path = db_path
         self._max_retries = max_retries
-        self._db: Optional[lb.Database] = None
-        self._conn: Optional[lb.Connection] = None
+        self._db: lb.Database | None = None
+        self._conn: lb.Connection | None = None
 
     @property
     def db_path(self) -> str:

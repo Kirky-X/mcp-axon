@@ -81,7 +81,7 @@ def test_uat022_transaction_integrity():
     # 测试失败的事务
     try:
         sdk.manage_requirement(project_id=project_id, content="")  # 空内容
-        assert False, "应该抛出异常"
+        raise AssertionError("应该抛出异常")
     except ValueError:
         pass
 

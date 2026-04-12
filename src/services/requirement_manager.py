@@ -6,11 +6,11 @@
 
 import logging
 import uuid
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import real_ladybug as lb
 
-from src.constants import Chain, Limits, ComplexityScoring
+from src.constants import Chain, ComplexityScoring, Limits
 from src.db.graph_models import (
     ProjectStatus,
     RequirementStatus,
@@ -72,9 +72,9 @@ class RequirementManager:
         conn: lb.Connection,
         project_uuid: str,
         content: str,
-        parent_uuid: Optional[str] = None,
+        parent_uuid: str | None = None,
         order_in_parent: int = 0,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         添加需求节点
 
@@ -276,7 +276,7 @@ class RequirementManager:
     @performance_monitor("update_requirement")
     def update_requirement(
         self, conn: lb.Connection, requirement_uuid: str, update_data: RequirementUpdate
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         更新需求
 
@@ -378,7 +378,7 @@ class RequirementManager:
     @performance_monitor("delete_requirement")
     def delete_requirement(
         self, conn: lb.Connection, requirement_uuid: str
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         删除需求（级联删除子需求和验证节点）
 
@@ -453,7 +453,7 @@ class RequirementManager:
     @performance_monitor("get_requirement")
     def get_requirement(
         self, conn: lb.Connection, requirement_uuid: str
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         获取需求信息
 
@@ -516,7 +516,7 @@ class RequirementManager:
         """
         return self.complexity_evaluator.evaluate(content, level)
 
-    def _generate_decompose_hints(self, content: str, level: int) -> List[str]:
+    def _generate_decompose_hints(self, content: str, level: int) -> list[str]:
         """
         生成分解提示（使用 DecompositionAdvisor 服务）
 
@@ -531,7 +531,7 @@ class RequirementManager:
 
     def _check_incoming_dependencies(
         self, conn: lb.Connection, requirement_uuid: str
-    ) -> List[Dict[str, str]]:
+    ) -> list[dict[str, str]]:
         """
         检查需求是否被其他需求依赖（入边依赖检查）
 
@@ -559,7 +559,7 @@ class RequirementManager:
 
     def _check_chain_position(
         self, conn: lb.Connection, requirement_uuid: str
-    ) -> Optional[Dict[str, Any]]:
+    ) -> dict[str, Any] | None:
         """
         检查需求是否在执行链中
 
@@ -605,9 +605,9 @@ class RequirementManager:
         self,
         conn: lb.Connection,
         project_uuid: str,
-        requirements: List[Dict[str, Any]],
-        parent_uuid: Optional[str] = None,
-    ) -> Dict[str, Any]:
+        requirements: list[dict[str, Any]],
+        parent_uuid: str | None = None,
+    ) -> dict[str, Any]:
         """
         批量添加需求（带事务保护）
 
@@ -623,9 +623,9 @@ class RequirementManager:
         Returns:
             批量操作结果
         """
-        created_requirements: List[Dict[str, Any]] = []
-        failed_requirements: List[Dict[str, Any]] = []
-        created_uuids: List[str] = []  # 记录已创建的 UUID 用于回滚
+        created_requirements: list[dict[str, Any]] = []
+        failed_requirements: list[dict[str, Any]] = []
+        created_uuids: list[str] = []  # 记录已创建的 UUID 用于回滚
 
         # 限制批量大小
         batch_size = min(len(requirements), Chain.DEFAULT_BATCH_SIZE)
@@ -794,8 +794,8 @@ class RequirementManager:
     def batch_update_requirements(
         self,
         conn: lb.Connection,
-        updates: List[Dict[str, Any]],
-    ) -> Dict[str, Any]:
+        updates: list[dict[str, Any]],
+    ) -> dict[str, Any]:
         """
         批量更新需求
 
@@ -843,10 +843,10 @@ class RequirementManager:
         self,
         conn: lb.Connection,
         project_uuid: str,
-        status: Optional[str] = None,
-        is_leaf: Optional[bool] = None,
-        parent_uuid: Optional[str] = None,
-    ) -> Dict[str, Any]:
+        status: str | None = None,
+        is_leaf: bool | None = None,
+        parent_uuid: str | None = None,
+    ) -> dict[str, Any]:
         """
         列出项目的所有需求
 
@@ -926,7 +926,7 @@ class RequirementManager:
 
     def mark_as_leaf(
         self, conn: lb.Connection, requirement_uuid: str
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         将需求标记为叶子节点
 
@@ -956,7 +956,7 @@ class RequirementManager:
                 "requirement_id": requirement_uuid,
                 "status": current_status,
                 "message": "该需求已经是叶子节点",
-                "next_action": "add_validation",
+                "next_action": "manage_validation",
             }
 
         # 检查是否存在子需求
@@ -1002,5 +1002,5 @@ class RequirementManager:
             "requirement_id": requirement_uuid,
             "status": RequirementStatus.LEAF.value,
             "message": "需求已标记为叶子节点，请配置验证节点",
-            "next_action": "add_validation",
+            "next_action": "manage_validation",
         }

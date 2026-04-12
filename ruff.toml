@@ -1,0 +1,15 @@
+# Ruff 配置
+[lint]
+# 启用所有规则
+select = ["E", "F", "I", "N", "W", "UP", "B", "C4", "SIM"]
+
+# 忽略特定规则
+ignore = [
+    "E501",  # 行长度（由 formatter 处理）
+]
+
+[format]
+# 使用双引号
+quote-style = "double"
+# 缩进风格
+indent-style = "space"

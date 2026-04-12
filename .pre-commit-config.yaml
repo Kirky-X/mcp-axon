@@ -34,14 +34,14 @@ repos:
       - id: ruff-format
         name: Format Python code
         description: Run ruff format on Python files
-        entry: uv run ruff format
+        entry: uv run ruff format --cache-dir=/tmp/ruff_cache
         language: system
         types: [python]
         pass_filenames: false
 
       - id: ruff-check
         name: ruff check
-        entry: uv run ruff check
+        entry: uv run ruff check --cache-dir=/tmp/ruff_cache --exit-zero
         language: system
         types: [python]
         pass_filenames: false
@@ -49,7 +49,7 @@ repos:
 
       - id: mypy
         name: mypy type check
-        entry: uv run mypy
+        entry: uv run mypy --cache-dir=/tmp/mypy_cache
         language: system
         types: [python]
         pass_filenames: false

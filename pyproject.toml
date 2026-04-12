@@ -43,6 +43,8 @@ python_functions = "test_*"
 addopts = "-v --tb=short --cache-clear"
 asyncio_mode = "auto"
 cache_dir = "/tmp/pytest_cache"
+# 禁止生成 __pycache__
+env = ["PYTHONDONTWRITEBYTECODE=1"]
 
 [tool.coverage.run]
 source = ["src"]
@@ -68,6 +70,8 @@ dev = [
 
 [tool.mypy]
 python_version = "3.12"
+# 将缓存重定向到 /tmp
+cache_dir = "/tmp/mypy_cache"
 warn_return_any = false
 warn_unused_configs = true
 disallow_untyped_defs = false

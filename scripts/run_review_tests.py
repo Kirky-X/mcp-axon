@@ -5,8 +5,8 @@ MCP-Axon 代码审查 - 自动化测试脚本
 用于验证代码审查后修复的正确性
 """
 
-import sys
 import subprocess
+import sys
 from pathlib import Path
 
 

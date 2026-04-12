@@ -9,8 +9,8 @@ import time
 from collections import defaultdict, deque
 from contextlib import contextmanager
 from dataclasses import dataclass
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from datetime import UTC, datetime
+from typing import Any, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -27,9 +27,9 @@ class PerformanceMetrics:
     start_time: datetime
     end_time: datetime
     success: bool
-    error_message: Optional[str] = None
-    additional_data: Optional[Dict[str, Any]] = None
-    trace_id: Optional[str] = None
+    error_message: str | None = None
+    additional_data: dict[str, Any] | None = None
+    trace_id: str | None = None
 
 
 @dataclass
@@ -61,19 +61,19 @@ class MetricsCollector:
 
     def __init__(self):
         self.metrics: deque[PerformanceMetrics] = deque(maxlen=_MAX_METRICS)
-        self.operation_counts: Dict[str, int] = defaultdict(int)
+        self.operation_counts: dict[str, int] = defaultdict(int)
         self.total_operations = 0
 
         # 数据库指标
         self.db_metrics: deque[DatabaseMetrics] = deque(maxlen=_MAX_METRICS)
-        self.db_query_counts: Dict[str, int] = defaultdict(int)
+        self.db_query_counts: dict[str, int] = defaultdict(int)
 
         # API 指标
         self.api_metrics: deque[APIMetrics] = deque(maxlen=_MAX_METRICS)
-        self.api_call_counts: Dict[str, int] = defaultdict(int)
+        self.api_call_counts: dict[str, int] = defaultdict(int)
 
         # 错误统计
-        self.error_counts: Dict[str, int] = defaultdict(int)
+        self.error_counts: dict[str, int] = defaultdict(int)
 
         # 性能阈值（用于告警）
         self.performance_thresholds = {
@@ -165,9 +165,9 @@ class MetricsCollector:
                 f"状态: {metric.status_code}, 耗时: {metric.duration:.3f}s"
             )
 
-    def get_summary(self) -> Dict[str, Any]:
+    def get_summary(self) -> dict[str, Any]:
         """获取指标摘要（保持向后兼容）"""
-        summary: Dict[str, Any] = {"timestamp": datetime.now(timezone.utc).isoformat()}
+        summary: dict[str, Any] = {"timestamp": datetime.now(UTC).isoformat()}
 
         # 通用指标
         if self.metrics:
@@ -246,7 +246,7 @@ class MetricsCollector:
 
         return summary
 
-    def get_slow_operations(self, limit: int = 10) -> List[Dict[str, Any]]:
+    def get_slow_operations(self, limit: int = 10) -> list[dict[str, Any]]:
         """获取最慢的操作"""
         sorted_metrics = sorted(self.metrics, key=lambda m: m.duration, reverse=True)
         return [
@@ -260,7 +260,7 @@ class MetricsCollector:
             for m in sorted_metrics[:limit]
         ]
 
-    def get_slow_db_queries(self, limit: int = 10) -> List[Dict[str, Any]]:
+    def get_slow_db_queries(self, limit: int = 10) -> list[dict[str, Any]]:
         """获取最慢的数据库查询"""
         sorted_metrics = sorted(self.db_metrics, key=lambda m: m.duration, reverse=True)
         return [
@@ -288,18 +288,18 @@ class MetricsCollector:
 
 @contextmanager
 def performance_monitor(
-    operation_name: str, additional_data: Optional[Dict[str, Any]] = None
+    operation_name: str, additional_data: dict[str, Any] | None = None
 ):
     """性能监控上下文管理器"""
     start_time = time.time()
-    start_dt = datetime.now(timezone.utc)
+    start_dt = datetime.now(UTC)
     trace_id = additional_data.get("trace_id") if additional_data else None
 
     try:
         yield
         # 操作成功完成
         end_time = time.time()
-        end_dt = datetime.now(timezone.utc)
+        end_dt = datetime.now(UTC)
 
         duration = end_time - start_time
 
@@ -318,7 +318,7 @@ def performance_monitor(
     except Exception as e:
         # 操作失败
         end_time = time.time()
-        end_dt = datetime.now(timezone.utc)
+        end_dt = datetime.now(UTC)
 
         duration = end_time - start_time
 

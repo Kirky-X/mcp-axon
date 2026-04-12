@@ -5,21 +5,22 @@
 """工具路由 - 埋缩版（8个接口）"""
 
 import re
-from typing import Any, Callable, Dict
+from collections.abc import Callable
+from typing import Any
 
 from src.constants import APIVersion, Messages
 
 
 # Helper functions for lock-related handlers
-def _lock_result(success: bool, ok_msg: str, fail_msg: str) -> Dict[str, Any]:
+def _lock_result(success: bool, ok_msg: str, fail_msg: str) -> dict[str, Any]:
     return {"success": success, "message": ok_msg if success else fail_msg}
 
 
-def _bool_result(value: bool, true_msg: str, false_msg: str) -> Dict[str, Any]:
+def _bool_result(value: bool, true_msg: str, false_msg: str) -> dict[str, Any]:
     return {"locked": value, "message": true_msg if value else false_msg}
 
 
-def _info_result(info: Any, locked_msg: str, unlocked_msg: str) -> Dict[str, Any]:
+def _info_result(info: Any, locked_msg: str, unlocked_msg: str) -> dict[str, Any]:
     return {
         "lock_info": info,
         "message": locked_msg if info else unlocked_msg,
@@ -40,7 +41,7 @@ class ToolRouter:
             sdk_getter: 获取 SDK 实例的函数
         """
         self._sdk = sdk_getter
-        self._handlers: Dict[str, Callable] = {}
+        self._handlers: dict[str, Callable] = {}
         self._uuid_pattern = re.compile(
             r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
             re.IGNORECASE,
@@ -298,9 +299,6 @@ class ToolRouter:
         if not isinstance(arguments, dict):
             raise ValueError("参数必须是字典格式")
 
-        # 通用 action 验证（接口都有 action 参数）
-        action = arguments.get("action")
-
         # 1. 项目管理验证
         if name == "manage_project":
             self._validate_project_input(arguments)
@@ -396,9 +394,8 @@ class ToolRouter:
                     )
 
         parent_id = args.get("parent_id")
-        if parent_id is not None:
-            if not self._uuid_pattern.match(parent_id):
-                raise ValueError("parent_id 格式不正确，必须是有效的 UUID")
+        if parent_id is not None and not self._uuid_pattern.match(parent_id):
+            raise ValueError("parent_id 格式不正确，必须是有效的 UUID")
 
     def _validate_dependency_input(self, args: dict) -> None:
         """验证依赖管理参数"""

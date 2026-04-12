@@ -29,8 +29,10 @@ if TYPE_CHECKING:
 
 from src.core.containers.config import (
     AppConfig,
-    CacheConfig as CacheConfig,
     create_config_from_env,
+)
+from src.core.containers.config import (
+    CacheConfig as CacheConfig,
 )
 from src.core.containers.database import DatabaseConnectionManager
 
@@ -263,7 +265,7 @@ def _create_chain_orchestrator(chain_builder, snapshot_manager) -> "ChainOrchest
 # ============ 全局访问函数 ============
 
 
-def init_container(db_path: Optional[str] = None, max_retries: int = 3) -> Container:
+def init_container(db_path: str | None = None, max_retries: int = 3) -> Container:
     """
     初始化容器
 

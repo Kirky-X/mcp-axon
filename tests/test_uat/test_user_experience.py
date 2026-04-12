@@ -52,7 +52,7 @@ def test_uat021_response_message_quality():
     # 测试错误消息
     try:
         sdk.manage_requirement(project_id="nonexistent-id", content="需求")
-        assert False, "应该抛出异常"
+        raise AssertionError("应该抛出异常")
     except ValueError as e:
         assert "项目不存在" in str(e)
 

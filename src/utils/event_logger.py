@@ -6,7 +6,7 @@
 
 import logging
 import uuid
-from typing import Any, Dict, Optional
+from typing import Any
 
 import real_ladybug as lb
 
@@ -24,10 +24,10 @@ def log_event(
     conn: lb.Connection,
     project_uuid: str,
     event_type: str,
-    aggregate_uuid: Optional[str],
-    payload: Dict[str, Any],
-    metadata: Optional[Dict[str, Any]] = None,
-    session_id: Optional[str] = None,
+    aggregate_uuid: str | None,
+    payload: dict[str, Any],
+    metadata: dict[str, Any] | None = None,
+    session_id: str | None = None,
 ) -> str:
     """
     记录事件（增强审计版本）

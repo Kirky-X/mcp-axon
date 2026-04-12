@@ -5,8 +5,7 @@
 """项目锁管理器"""
 
 import logging
-from datetime import datetime, timedelta, timezone
-from typing import Optional
+from datetime import UTC, datetime, timedelta
 
 import real_ladybug as lb
 
@@ -45,9 +44,9 @@ class ProjectLockManager:
             True: 锁获取成功
             False: 锁已被占用
         """
-        now = datetime.now(timezone.utc).isoformat()
+        now = datetime.now(UTC).isoformat()
         timeout_time = (
-            datetime.now(timezone.utc) - timedelta(minutes=self.timeout_minutes)
+            datetime.now(UTC) - timedelta(minutes=self.timeout_minutes)
         ).isoformat()
 
         # 原子操作：只有在锁未被占用或已超时时才更新
@@ -129,7 +128,7 @@ class ProjectLockManager:
             return False
 
         # 释放锁
-        now = datetime.now(timezone.utc).isoformat()
+        now = datetime.now(UTC).isoformat()
         conn.execute(
             UPDATE_PROJECT_LOCK,
             {
@@ -179,12 +178,9 @@ class ProjectLockManager:
 
         # 检查锁是否已超时
         locked_at = self._parse_datetime(locked_at_str)
-        if self._is_lock_expired(locked_at):
-            return False
+        return not self._is_lock_expired(locked_at)
 
-        return True
-
-    def get_lock_info(self, conn: lb.Connection, project_id: str) -> Optional[dict]:
+    def get_lock_info(self, conn: lb.Connection, project_id: str) -> dict | None:
         """
         获取锁信息
 
@@ -213,7 +209,7 @@ class ProjectLockManager:
             return None
 
         # 计算剩余时间
-        elapsed = datetime.now(timezone.utc) - locked_at
+        elapsed = datetime.now(UTC) - locked_at
         remaining = timedelta(minutes=self.timeout_minutes) - elapsed
 
         return {
@@ -235,9 +231,7 @@ class ProjectLockManager:
         Returns:
             清理的锁数量
         """
-        expired_time = datetime.now(timezone.utc) - timedelta(
-            minutes=self.timeout_minutes
-        )
+        expired_time = datetime.now(UTC) - timedelta(minutes=self.timeout_minutes)
         expired_time_str = expired_time.isoformat()
 
         # 查询所有有过期锁的项目
@@ -248,7 +242,7 @@ class ProjectLockManager:
         """
         result = conn.execute(query, {"expired_time": expired_time_str})
 
-        now = datetime.now(timezone.utc).isoformat()
+        now = datetime.now(UTC).isoformat()
         count = 0
         for row in result:
             project_uuid = row[0]
@@ -267,7 +261,7 @@ class ProjectLockManager:
 
         return count
 
-    def _parse_datetime(self, dt_str: Optional[str]) -> Optional[datetime]:
+    def _parse_datetime(self, dt_str: str | None) -> datetime | None:
         """
         解析日期时间字符串
 
@@ -283,12 +277,12 @@ class ProjectLockManager:
             # ISO 格式解析
             dt = datetime.fromisoformat(dt_str)
             if dt.tzinfo is None:
-                dt = dt.replace(tzinfo=timezone.utc)
+                dt = dt.replace(tzinfo=UTC)
             return dt
         except ValueError:
             return None
 
-    def _is_lock_expired(self, locked_at: Optional[datetime]) -> bool:
+    def _is_lock_expired(self, locked_at: datetime | None) -> bool:
         """
         检查锁是否超时
 
@@ -302,5 +296,5 @@ class ProjectLockManager:
         if not locked_at:
             return True
 
-        elapsed = datetime.now(timezone.utc) - locked_at
+        elapsed = datetime.now(UTC) - locked_at
         return elapsed.total_seconds() > (self.timeout_minutes * 60)
